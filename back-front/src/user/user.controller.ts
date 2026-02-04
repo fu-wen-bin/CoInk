@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
+
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -18,7 +19,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
  */
 @Controller('user')
 export class UserController {
-  constructor (private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) {}
 
   /**
    * 创建用户
@@ -28,7 +29,7 @@ export class UserController {
    * 数据通过请求体 (@Body) 传递。
    */
   @Post('create')
-  create (@Body() createUserDto: CreateUserDto) {
+  create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
@@ -40,7 +41,7 @@ export class UserController {
    * 语义化路径 'list' 表明获取列表。
    */
   @Get('list')
-  findAll () {
+  findAll() {
     return this.userService.findAll();
   }
 
@@ -53,8 +54,11 @@ export class UserController {
    * 这样 URL 结构更扁平。
    */
   @Get('info')
-  findOne (@Query('id') id: string) {
-    return this.userService.findOne(+id);
+  findOne(@Query('id') id: string) {
+    if (!id) {
+      throw new BadRequestException('id is required');
+    }
+    return this.userService.findOne(id);
   }
 
   /**
@@ -66,8 +70,11 @@ export class UserController {
    * id 和更新的数据都包含在请求体 (@Body) 中。
    */
   @Post('update')
-  update (@Body('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  update(@Body('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    if (!id) {
+      throw new BadRequestException('id is required');
+    }
+    return this.userService.update(id, updateUserDto);
   }
 
   /**
@@ -79,7 +86,10 @@ export class UserController {
    * id 通过请求体 (@Body) 传递，避免将敏感操作的参数暴露在 URL 中（虽然 delete ID 通常不敏感，但统一风格）。
    */
   @Post('delete')
-  remove (@Body('id') id: string) {
-    return this.userService.remove(+id);
+  remove(@Body('id') id: string) {
+    if (!id) {
+      throw new BadRequestException('id is required');
+    }
+    return this.userService.remove(id);
   }
 }

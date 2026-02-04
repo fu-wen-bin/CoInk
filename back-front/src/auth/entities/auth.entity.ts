@@ -1,0 +1,35 @@
+// JWT Payload 实体
+export class JwtPayload {
+  userId: string;
+  email?: string;
+  name: string;
+  iat?: number;
+  exp?: number;
+}
+
+// 登录响应实体
+export class AuthResponse {
+  accessToken: string;
+  refreshToken?: string;
+  user: {
+    userId: string;
+    email?: string;
+    name: string;
+    avatarUrl?: string;
+    websiteUrl?: string;
+  };
+}
+
+// 保留原有的 Auth 实体用于兼容
+export class Auth {
+  userId: string;
+  email?: string;
+  name: string;
+  passwordHash?: string;
+  githubId?: number;
+  avatarUrl?: string;
+  websiteUrl?: string;
+  lastLoginAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}

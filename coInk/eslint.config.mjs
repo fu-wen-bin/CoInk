@@ -9,12 +9,7 @@ import { resolve } from 'path';
 
 export default [
   {
-    ignores: [
-      'node_modules/**',
-      '.next/**',
-      'dist/**',
-      '**/*.js',
-    ],
+    ignores: ['node_modules/**', '.next/**', 'dist/**', '**/*.js'],
   },
   {
     files: ['src/**/*.{js,jsx,ts,tsx}'],
@@ -53,4 +48,3 @@ export default [
     },
   },
 ];
-

@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react'
-import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor"
+import { useEffect, useState } from 'react';
+
+import { SimpleEditor } from '@/components/tiptap-templates/simple/simple-editor';
 
 export default function Page() {
-  const [isMounted, setIsMounted] = useState(false)
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   if (!isMounted) {
-    return null // 或者渲染一个 loading 骨架屏
+    return null; // 或者渲染一个 loading 骨架屏
   }
 
-  return <SimpleEditor />
+  return <SimpleEditor />;
 }

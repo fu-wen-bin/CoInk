@@ -1,70 +1,315 @@
-import Image from 'next/image';
+'use client';
+import React, { useEffect, useState } from 'react';
+import { Edit3, Layers, UserRoundCheck } from 'lucide-react';
+import { useMotionValue, useSpring } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
-export default function Home () {
+import Header from '@/components/homepage/Header';
+import dynamic from 'next/dynamic';
+import Hero from '@/components/homepage/Hero';
+
+const BackgroundEffects = dynamic(() => import('@/components/homepage/BackgroundEffects'), {
+  loading: () => null,
+  ssr: false,
+});
+
+export default function Home() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 25, stiffness: 700 };
+  const springX = useSpring(mouseX, springConfig);
+  const springY = useSpring(mouseY, springConfig);
+
+  // 鼠标移动效果 - 独立effect，避免不必要的重渲染
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX.set(e.clientX - 192);
+      mouseY.set(e.clientY - 192);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [mouseX, mouseY]);
+
+  const features = [
+    {
+      icon: Edit3,
+      title: '多人实时协作',
+      description: '支持多人协同，实时看到其他人的光标和修改，就像 Google Docs 一样流畅',
+      gradient: 'from-emerald-500 to-teal-600',
+      glowColor: 'rgba(16, 185, 129, 0.3)',
+      bgGradient: 'from-emerald-500/10 via-teal-500/5 to-emerald-500/10',
+      details: ['实时同步编辑', '冲突自动解决', '历史版本追踪'],
+    },
+
+    {
+      icon: Layers,
+      title: '丰富编辑功能',
+      description: '支持富文本、表格、代码块、图片等多种内容格式，满足各种文档编写需求',
+      gradient: 'from-blue-500 to-cyan-600',
+      glowColor: 'rgba(59, 130, 246, 0.3)',
+      bgGradient: 'from-blue-500/10 via-cyan-500/5 to-blue-500/10',
+      details: ['富文本编辑', '插入表格图片', '代码语法高亮'],
+    },
+
+    {
+      icon: UserRoundCheck,
+      title: '用户体验友好',
+      description: '界面UI清晰，符合现代审美，提供直观的操作方式和丰富的快捷键',
+      gradient: 'from-indigo-400 to-violet-500',
+      glowColor: 'rgba(129, 140, 248, 0.18)',
+      bgGradient: 'from-gray-400/20 via-violet-200/10 to-gray-400/20',
+      details: ['直观的界面设计', '丰富的快捷键支持', '自定义主题和样式'],
+    },
+  ];
+
+  function handleLogout() {}
+
+  const handleGetStarted = () => {
+    if (isLoggedIn) {
+      router.push('/dashboard');
+    } else {
+      router.push('/auth');
+    }
+  };
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main
-        className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div
-          className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1
-            className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p
-            className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{' '}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{' '}
-            or the{' '}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{' '}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* 动态背景 */}
+      <BackgroundEffects springX={springX} springY={springY} />
+
+      {/* Header - 从这里移除了Hero Section */}
+      {/*<header className="relative z-50 px-6 py-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <motion.div
+            className="flex items-center space-x-3"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="w-10 h-10 bg-gradient-to-b from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-2xl font-bold text-white">ColabDocs</span>
+          </motion.div>
+
+          <motion.div
+            className="flex items-center space-x-6 transition-all duration-300"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
           >
-            Documentation
-          </a>
+            {isLoggedIn ? (
+              <Button
+                onClick={handleLogout}
+                className="bg-gradient-to-r from-orange-500 to-red-400 hover:bg-white hover:from-white hover:to-white text-white hover:text-orange-500 shadow-lg shadow-orange-500/25 transition-all duration-300 w-[90px] h-[36px] rounded-[8px] flex items-center justify-center border-none"
+              >
+                退出登录
+              </Button>
+            ) : (
+              ''
+            )}
+            <Button
+              onClick={handleGetStarted}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:bg-white hover:from-white hover:to-white text-white hover:text-emerald-500 shadow-lg shadow-emerald-500/25 transition-all duration-300 w-[90px] h-[36px] rounded-[8px] flex items-center justify-center border-none"
+            >
+              {isLoggedIn ? '快速开始' : '免费使用'}
+            </Button>
+          </motion.div>
         </div>
-      </main>
+      </header>*/}
+
+      {/* Header */}
+      <Header isLoggedIn={isLoggedIn} onGetStarted={handleGetStarted} onLogout={handleLogout} />
+
+      {/*Hero Section - 现在作为header的兄弟元素，而不是嵌套在内部*/}
+      <Hero isMounted={isMounted} />
+      {/*<section className="relative px-6 flex items-center justify-center min-h-[calc(100vh-120px)]">
+        <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
+           主标题部分
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="mb-12"
+          >
+            <div className="inline-flex items-center space-x-2 bg-white/5 backdrop-blur-xl text-white px-4 py-2 rounded-full border border-white/10 mb-6">
+              <Sparkles className="h-4 w-4 text-emerald-200" />
+              <span className="text-sm font-medium">基于 Tiptap + Yjs 构建</span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-white via-emerald-100 to-green-100 bg-clip-text text-transparent">
+                在线协作
+              </span>
+              <br />
+              <span className="bg-gradient-to-r from-emerald-200 via-green-400 to-teal-500 bg-clip-text text-transparent">
+                文档编辑器
+              </span>
+            </h1>
+
+            <p className="text-lg text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+              让团队像使用 Google Docs 一样协作编辑文档
+              <br />
+              <span className="text-gray-400">支持实时同步、富文本编辑、版本管理</span>
+            </p>
+          </motion.div>
+
+           三个功能卡片 - 美化版本，有平滑的加载状态
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: isMounted ? 1 : 0.7, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
+            className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+          >
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{
+                  opacity: isMounted ? 1 : 0.6,
+                  y: 0,
+                  scale: isMounted ? 1 : 0.95,
+                }}
+                transition={{
+                  duration: 0.6,
+                  delay: isMounted ? 0.4 + index * 0.1 : 0.2 + index * 0.05,
+                  ease: 'easeOut',
+                }}
+                className="group relative"
+              >
+                 背景渐变光效 - 只在 mounted 后显示完整效果
+                <div
+                  className={`absolute -inset-0.5 bg-gradient-to-r ${feature.gradient} rounded-3xl blur transition-all duration-1000 ${
+                    isMounted
+                      ? 'opacity-20 group-hover:opacity-40 group-hover:duration-200'
+                      : 'opacity-10'
+                  }`}
+                />
+
+                 主卡片
+                <div className="relative bg-black/80 backdrop-blur-xl rounded-3xl border border-white/10 overflow-hidden">
+                   顶部装饰渐变
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${feature.gradient}`}
+                  />
+
+                   背景图案
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} transition-opacity duration-1000 ${
+                      isMounted ? 'opacity-30' : 'opacity-10'
+                    }`}
+                  />
+
+                   内容区域
+                  <div className="relative p-6 h-full">
+                     图标区域
+                    <div className="flex justify-center mb-4">
+                      <motion.div
+                        className={`relative w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center shadow-2xl transition-all duration-500 ${
+                          isMounted ? 'group-hover:scale-110' : ''
+                        }`}
+                        style={{
+                          boxShadow: isMounted
+                            ? `0 15px 30px ${feature.glowColor}, 0 0 0 1px rgba(255,255,255,0.1)`
+                            : `0 8px 16px ${feature.glowColor}, 0 0 0 1px rgba(255,255,255,0.05)`,
+                        }}
+                        whileHover={
+                          isMounted
+                            ? {
+                                scale: 1.15,
+                                boxShadow: `0 20px 40px ${feature.glowColor}, 0 0 0 1px rgba(255,255,255,0.2)`,
+                              }
+                            : undefined
+                        }
+                        transition={{ duration: 0.3 }}
+                      >
+                        <feature.icon className="h-7 w-7 text-white drop-shadow-lg" />
+
+                         图标光环效果 - 只在 mounted 后显示
+                        {isMounted && (
+                          <div
+                            className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} rounded-2xl opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-500`}
+                          />
+                        )}
+                      </motion.div>
+                    </div>
+
+                     标题
+                    <h2
+                      className={`text-xl font-bold text-white mb-3 transition-all duration-300 ${
+                        isMounted
+                          ? 'group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text group-hover:from-white group-hover:to-gray-300'
+                          : ''
+                      }`}
+                    >
+                      {feature.title}
+                    </h2>
+
+                     描述
+                    <p
+                      className={`text-gray-400 text-sm mb-4 leading-relaxed transition-colors duration-300 ${
+                        isMounted ? 'group-hover:text-gray-300' : ''
+                      }`}
+                    >
+                      {feature.description}
+                    </p>
+
+                     特性列表
+                    <div className="space-y-2">
+                      {feature.details.map((detail, detailIndex) => (
+                        <motion.div
+                          key={detailIndex}
+                          className={`flex items-center text-xs text-gray-500 transition-colors duration-300 ${
+                            isMounted ? 'group-hover:text-gray-400' : ''
+                          }`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{
+                            delay: isMounted ? 0.6 + detailIndex * 0.1 : 0.3 + detailIndex * 0.05,
+                            duration: 0.4,
+                          }}
+                        >
+                          <div
+                            className={`w-1.5 h-1.5 bg-gradient-to-r ${feature.gradient} rounded-full mr-3 flex-shrink-0 shadow-sm`}
+                          />
+                          <span>{detail}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                     底部装饰线
+                    <div
+                      className={`absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r ${feature.gradient} transition-opacity duration-500 ${
+                        isMounted ? 'opacity-20 group-hover:opacity-40' : 'opacity-10'
+                      }`}
+                    />
+                  </div>
+
+                   悬浮时的边框光效 - 只在 mounted 后显示
+                  {isMounted && (
+                    <div
+                      className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}
+                      style={{
+                        background: `linear-gradient(135deg, ${feature.glowColor}00, ${feature.glowColor}20, ${feature.glowColor}00)`,
+                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px ${feature.glowColor}`,
+                      }}
+                    />
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+    */}
     </div>
   );
 }

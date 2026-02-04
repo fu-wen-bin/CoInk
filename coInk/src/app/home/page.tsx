@@ -1,7 +1,3 @@
-export default function Page () {
-  return (
-    <div>
-      Page
-    </div>
-  )
+export default function Page() {
+  return <div>page</div>;
 }

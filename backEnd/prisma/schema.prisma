@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model document_contents {
+  document_id String   @id @db.VarChar(21)
+  content     Json
+  updated_at  DateTime @default(now()) @db.DateTime(0)
+  updated_by  String?  @db.VarChar(21)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model document_principals {
+  document_id    String                             @db.VarChar(21)
+  principal_type document_principals_principal_type
+  principal_id   String                             @db.VarChar(21)
+  permission     document_principals_permission
+  granted_by     String?                            @db.VarChar(21)
+  granted_at     DateTime                           @default(now()) @db.DateTime(0)
+  updated_at     DateTime                           @default(now()) @db.DateTime(0)
+  expires_at     DateTime?                          @db.DateTime(0)
+
+  @@id([document_id, principal_type, principal_id])
+  @@index([document_id], map: "idx_doc_principal_doc")
+  @@index([principal_type, principal_id], map: "idx_doc_principal_type_id")
+}
+
+model document_versions {
+  version_id  DateTime @id @default(now()) @db.Timestamp(0)
+  document_id String?  @db.VarChar(21)
+  title       String   @db.VarChar(512)
+  content     Json
+  created_at  DateTime @default(now()) @db.DateTime(0)
+  user_id     String   @db.VarChar(21)
+
+  @@index([version_id(sort: Desc)], map: "idx_doc_versions_doc_ver")
+}
+
+model documents_info {
+  document_id     String                          @id @db.VarChar(21)
+  title           String                          @db.VarChar(512)
+  type            documents_info_type
+  owner_id        String                          @db.VarChar(21)
+  parent_id       String?                         @db.VarChar(21)
+  is_starred      Boolean                         @default(false)
+  sort_order      Int                             @default(0)
+  is_deleted      Boolean                         @default(false)
+  created_at      DateTime                        @default(now()) @db.DateTime(0)
+  updated_at      DateTime                        @default(now()) @db.DateTime(0)
+  share_token     String                          @db.VarChar(64)
+  link_permission documents_info_link_permission? @default(close)
+
+  @@index([owner_id], map: "idx_documents_owner")
+  @@index([parent_id], map: "idx_documents_parent")
+  @@index([type], map: "idx_documents_type")
+}
+
+model group_members {
+  group_id  String   @db.VarChar(21)
+  user_id   String   @db.VarChar(21)
+  joined_at DateTime @default(now()) @db.DateTime(0)
+
+  @@id([group_id, user_id])
+  @@index([user_id], map: "idx_group_members_user")
+}
+
+model groups {
+  group_id   String   @id @db.VarChar(21)
+  name       String   @db.VarChar(255)
+  owner_id   String   @db.VarChar(21)
+  created_at DateTime @default(now()) @db.DateTime(0)
+
+  @@index([owner_id], map: "idx_groups_owner")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model notifications {
+  notifications_id BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  request_id       BigInt    @db.UnsignedBigInt
+  user_id          String    @db.VarChar(21)
+  type             String    @db.VarChar(64)
+  payload          Json?
+  read_at          DateTime? @db.DateTime(0)
+  created_at       DateTime  @default(now()) @db.DateTime(0)
+
+  @@index([created_at], map: "idx_created")
+  @@index([user_id, read_at], map: "idx_user_read")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model permission_requests {
+  request_id        BigInt                                @id @default(autoincrement()) @db.UnsignedBigInt
+  document_id       String                                @db.VarChar(21)
+  applicant_id      String                                @db.VarChar(21)
+  target_permission permission_requests_target_permission
+  message           String?                               @db.VarChar(512)
+  status            permission_requests_status            @default(pending)
+  reviewer_id       String?                               @db.VarChar(21)
+  expires_at        DateTime?                             @db.DateTime(0)
+  created_at        DateTime                              @default(now()) @db.DateTime(0)
+  updated_at        DateTime                              @default(now()) @db.DateTime(0)
+
+  @@index([applicant_id], map: "idx_applicant")
+  @@index([document_id, status], map: "idx_doc_status")
+  @@index([reviewer_id, status], map: "idx_reviewer_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users {
+  user_id       String    @id @db.VarChar(21)
+  email         String?   @unique(map: "uk_users_email") @db.VarChar(255)
+  name          String    @db.VarChar(20)
+  password_hash String?   @db.VarChar(255)
+  github_id     BigInt?   @unique(map: "github_id") @db.UnsignedBigInt
+  avatar_url    String?   @db.VarChar(512)
+  website_url   String?   @db.VarChar(512)
+  last_login_at DateTime? @db.DateTime(0)
+  created_at    DateTime  @default(now()) @db.DateTime(0)
+  updated_at    DateTime  @default(now()) @db.DateTime(0)
+}
+
+enum document_principals_principal_type {
+  user
+  group
+}
+
+enum documents_info_type {
+  FILE
+  FOLDER
+}
+
+enum document_principals_permission {
+  view
+  comment
+  edit
+  manage
+  full
+}
+
+enum permission_requests_target_permission {
+  view
+  comment
+  edit
+  manage
+  full
+}
+
+enum permission_requests_status {
+  pending
+  approved
+  rejected
+  cancelled
+  expired
+}
+
+enum documents_info_link_permission {
+  close
+  view
+  edit
+}

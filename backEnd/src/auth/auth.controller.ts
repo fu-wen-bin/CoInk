@@ -1,11 +1,22 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 import { GithubLoginDto, LoginDto, RefreshTokenDto, RegisterDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 
+// 认证控制器：提供注册、登录、刷新与 GitHub OAuth 回调
 @Controller('auth')
 export class AuthController {
+  // 依赖注入认证服务
   constructor(private readonly authService: AuthService) {}
 
   // 邮箱注册
@@ -24,6 +35,15 @@ export class AuthController {
   @Post('github')
   githubLogin(@Body() githubLoginDto: GithubLoginDto) {
     return this.authService.githubLogin(githubLoginDto);
+  }
+
+  // GitHub OAuth 回调（GET /auth/oauth/callback?code=xxx）
+  @Get('oauth/callback')
+  githubCallback(@Query('code') code: string) {
+    if (!code) {
+      throw new BadRequestException('缺少授权码');
+    }
+    return this.authService.githubLogin({ code });
   }
 
   // 刷新 Token

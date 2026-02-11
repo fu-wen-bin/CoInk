@@ -96,3 +96,61 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Auth setup (minimal)
+
+### Environment variables
+
+- `DATABASE_URL`: MySQL connection string for Prisma.
+- `JWT_SECRET`: Secret used to sign access/refresh tokens (fallback is `FWB`).
+
+### Prisma
+
+Generate client and apply schema (example):
+
+```bash
+pnpm -C back-front prisma generate
+pnpm -C back-front prisma db push
+```
+
+### Auth endpoints (email/password)
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/github` (body: { code })
+- `GET /auth/oauth/callback?code=xxx`
+
+## 本次修改汇总（中文）
+
+### 前端是否还需要响应拦截器？
+
+结论：仍然需要，但职责不同。
+
+- 后端已经统一返回 `{ code, message, data }`，前端无需再做格式化包装。
+- 前端仍需处理：网络错误、HTTP 状态码、token 自动刷新、登录失效跳转、统一 toast。
+
+### 变更内容概览
+
+- 新增全局响应拦截器与异常过滤器，保证所有接口统一返回格式。
+- 补全 GitHub OAuth 登录流程，支持 code 换 token、获取用户信息、绑定/创建用户。
+- 补全 Prisma schema（用户 + 文档相关表）。
+- 增加 Prisma 模块与服务，便于数据库访问。
+
+### 涉及文件
+
+- `src/common/interceptors/response.interceptor.ts`
+- `src/common/filters/http-exception.filter.ts`
+- `src/main.ts`
+- `src/auth/auth.service.ts`
+- `src/auth/auth.controller.ts`
+- `prisma/schema.prisma`
+- `src/prisma/prisma.module.ts`
+- `src/prisma/prisma.service.ts`
+
+
+### 已修复内容
+- `backEnd/src/auth/auth.service.ts`：补齐 GitHub OAuth 响应类型，移除未使用 catch 变量，避免 no-unsafe-* 与 no-unused-vars。
+- `backEnd/src/common/interceptors/response.interceptor.ts`：增加 ApiEnvelope 类型与类型守卫，消除 no-unsafe-return/assignment。
+- `backEnd/src/common/filters/http-exception.filter.ts`：Prettier 格式修复。
+- `backEnd/src/main.ts`：void bootstrap() 规避 no-floating-promises。

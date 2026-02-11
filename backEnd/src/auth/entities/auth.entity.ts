@@ -3,6 +3,7 @@ export class JwtPayload {
   userId: string;
   email?: string;
   name: string;
+  tokenType?: 'access' | 'refresh';
   iat?: number;
   exp?: number;
 }

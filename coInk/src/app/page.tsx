@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Edit3, Layers, UserRoundCheck } from 'lucide-react';
 import { useMotionValue, useSpring } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
 import Header from '@/components/homepage/Header';
-import dynamic from 'next/dynamic';
 import Hero from '@/components/homepage/Hero';
 
 const BackgroundEffects = dynamic(() => import('@/components/homepage/BackgroundEffects'), {

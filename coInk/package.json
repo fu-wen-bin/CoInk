@@ -54,6 +54,7 @@
     "@tiptap/extension-horizontal-rule": "^3.0.7",
     "@tiptap/extension-image": "^3.0.7",
     "@tiptap/extension-link": "^3.0.7",
+    "@tiptap/extension-list": "^3.20.0",
     "@tiptap/extension-mathematics": "^3.0.7",
     "@tiptap/extension-node-range": "^3.0.7",
     "@tiptap/extension-ordered-list": "^3.0.7",
@@ -91,11 +92,13 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hotkeys-hook": "^5.2.1",
+    "sass": "^1.97.3",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.27",
+    "zod": "^4.3.6",
     "zustand": "^5.0.6"
   },
   "devDependencies": {

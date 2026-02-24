@@ -1,13 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, FileText, Sparkles } from 'lucide-react';
-import Link from 'next/link';
+import { ChevronRight, Sparkles } from 'lucide-react';
 
 interface HeroProps {
   isMounted: boolean;
+  isLoggedIn: boolean;
+  onGetStarted: () => void;
 }
 
-const Hero: React.FC<HeroProps> = () => {
+const Hero: React.FC<HeroProps> = ({ isLoggedIn, onGetStarted }) => {
   return (
     <section className="relative px-6 flex items-center justify-center min-h-[calc(100vh-120px)]">
       <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
@@ -34,12 +35,12 @@ const Hero: React.FC<HeroProps> = () => {
           </h1>
 
           <p className="text-lg text-gray-300 mb-8 max-w-4xl mx-auto leading-relaxed">
-            基于 Tiptap + Yjs 构建的新一代智能协作编辑器，集成 AI 续写、RAG 知识库检索、AI
-            播客生成等核心功能。支持多人实时协作编辑，让团队像使用 Google Docs
-            一样流畅协作，同时拥有强大的 AI 能力加持。
+            基于 Tiptap + Yjs 构建的新一代智能协作编辑器，集成 AI
+            续写功能。支持多人实时协作编辑，让团队像使用 Google Docs 一样流畅协作，同时拥有强大的 AI
+            能力加持。
             <br />
             <span className="text-gray-400 mt-2 block">
-              无论是文档写作、知识管理还是内容创作，DocFlow
+              无论是文档写作、知识管理还是内容创作，CoInk
               都能让你的工作效率成倍提升，让创意与技术完美融合
             </span>
           </p>
@@ -51,35 +52,17 @@ const Hero: React.FC<HeroProps> = () => {
             transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
           >
-            {/* 开始创作按钮 - 跳转到 dashboard */}
-            <Link href="/dashboard">
-              <motion.button
-                className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white font-semibold rounded-2xl shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 cursor-pointer overflow-hidden"
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative flex items-center justify-center space-x-2 text-lg">
-                  <Sparkles className="h-5 w-5" />
-                  <span>开始创作</span>
-                  <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </motion.button>
-            </Link>
-
-            {/* 项目介绍按钮 */}
             <motion.button
-              className="group px-8 py-4 bg-white/10 backdrop-blur-xl text-white font-semibold rounded-2xl border-2 border-white/30 hover:border-white/50 transition-all duration-300 hover:bg-white/20 hover:scale-105 cursor-pointer shadow-xl hover:shadow-white/10"
+              onClick={onGetStarted}
+              className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white font-semibold rounded-2xl shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 cursor-pointer overflow-hidden"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                const featuresSection = document.getElementById('features');
-                featuresSection?.scrollIntoView({ behavior: 'smooth' });
-              }}
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative flex items-center justify-center space-x-2 text-lg">
-                <FileText className="h-5 w-5" />
-                <span>项目介绍</span>
+                <Sparkles className="h-5 w-5" />
+                <span>{isLoggedIn ? '开始创作' : '登录立即创作'}</span>
+                <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </motion.button>
           </motion.div>

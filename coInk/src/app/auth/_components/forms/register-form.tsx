@@ -23,6 +23,7 @@ export const RegisterForm = ({
   errors,
 }: RegisterFormProps) => {
   if (!isActive) return null;
+  console.log('注册表单', { showPassword, showConfirmPassword, errors });
 
   return (
     <>

@@ -44,6 +44,10 @@ export class GithubUserDto {
   githubId: number;
 
   @IsString()
+  @IsNotEmpty()
+  login: string;
+
+  @IsString()
   @IsOptional()
   email?: string;
 
@@ -58,6 +62,22 @@ export class GithubUserDto {
   @IsString()
   @IsOptional()
   websiteUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  htmlUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  company?: string;
+
+  @IsString()
+  @IsOptional()
+  bio?: string;
 }
 
 // 刷新 Token DTO

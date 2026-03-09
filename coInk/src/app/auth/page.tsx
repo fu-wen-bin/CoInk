@@ -1,31 +1,50 @@
 'use client';
 
-import React, { useEffect, Suspense, useState } from 'react';
-import { Sparkles, Github } from 'lucide-react';
+import React, { useEffect, Suspense, useState, FormEvent } from 'react';
+import { Sparkles, Github, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { redirectManager } from '@/utils/redirect-manager';
-import { LoginFormData } from '@/utils/auth-schemas';
-import { useAuthForm } from '@/hooks/use-auth-form';
-import { InputField } from '@/components/ui/input-field';
-import { PasswordLoginForm } from '@/app/auth/_components/forms/password-login-form';
-import { EmailCodeLoginForm } from '@/app/auth/_components/forms/email-code-login-form';
-import { RegisterForm } from '@/app/auth/_components/forms/register-form';
+import { useSimpleAuthForm } from '@/hooks/use-simple-auth-form';
 import { LoginModeSwitcher, LoginMode } from '@/app/auth/_components/login-mode-switcher';
 import { AuthBackground } from '@/app/auth/_components/auth-background';
 import authApi from '@/services/auth';
-import { saveAuthData } from '@/utils';
+import { userQueryKeys } from '@/hooks/useUserQuery';
+import { setLoggedInFlag } from '@/utils/auth/cookie';
+import type { User } from '@/services/auth/types';
+
+// 用户信息本地存储 key（与 useUserQuery.ts、useAuth.ts 保持一致）
+const USER_STORAGE_KEY = 'cached_user_profile';
+
+/**
+ * 保存用户到本地存储
+ */
+const saveUserToStorage = (user: User) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  } catch (error) {
+    console.warn('Failed to save user to localStorage:', error);
+  }
+};
 
 function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
   const [loginMode, setLoginMode] = useState<LoginMode>('email');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 使用表单 hook
+  // 使用简化版表单 hook
   const {
+    formData,
+    updateField,
+    errors,
+    validateRegisterForm,
+    validateLoginForm,
     showPassword,
     setShowPassword,
     showConfirmPassword,
@@ -33,15 +52,11 @@ function LoginContent() {
     countdown,
     isSendingCode,
     handleSendCode,
-    register,
-    handleSubmit,
-    errors,
-    setError,
-  } = useAuthForm(loginMode);
+  } = useSimpleAuthForm();
 
   useEffect(() => {
     setMounted(true);
-  }, [loginMode]);
+  }, []);
 
   // 保存重定向 URL
   useEffect(() => {
@@ -55,7 +70,7 @@ function LoginContent() {
     if (!mounted) return;
 
     const redirectUrl = redirectManager.get(searchParams);
-    const baseUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}/api/v1/auth/github`;
+    const baseUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/github`;
     const authUrl =
       redirectUrl !== '/dashboard'
         ? `${baseUrl}?state=${encodeURIComponent(redirectUrl)}`
@@ -63,129 +78,111 @@ function LoginContent() {
     window.location.href = authUrl;
   };
 
-  const onSubmit = async (data: LoginFormData) => {
+  // 表单提交处理
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
     const redirectUrl = redirectManager.get(searchParams);
+    console.log('当前登录模式：', loginMode);
+    console.log('表单数据：', formData);
+
     setIsLoading(true);
 
     try {
       if (loginMode === 'password') {
         // 密码登录
-        if (!data.email || !data.password) {
-          toast.error('请输入邮箱和密码');
+        if (!validateLoginForm()) {
           setIsLoading(false);
-
           return;
         }
 
-        const { data: response, error } = await authApi.emailPasswordLogin({
-          email: data.email,
-          password: data.password,
+        const { data: response, error } = await authApi.login({
+          email: formData.email,
+          password: formData.password,
         });
 
         if (error) {
           toast.error(error);
           setIsLoading(false);
-
           return;
         }
 
         if (!response || response.code !== 200) {
           toast.error(response?.message || '登录失败，请重试');
           setIsLoading(false);
-
           return;
         }
 
-        const authData = response.data;
+        // HTTP-Only Cookie 已由后端自动设置
+        setLoggedInFlag();
 
-        // 保存认证数据
-        saveAuthData(authData);
+        // 保存用户数据到 React Query 缓存和 localStorage
+        const authData = response.data;
+        if (authData?.user) {
+          // 1. 保存到 React Query 缓存
+          queryClient.setQueryData<User>([...userQueryKeys.profile(), undefined], authData.user);
+          // 2. 保存到 localStorage
+          saveUserToStorage(authData.user);
+          console.log('💾 用户资料已缓存:', authData.user);
+        }
+
         toast.success('登录成功！');
 
-        // 跳转
         setTimeout(() => {
           router.push(redirectUrl || '/dashboard');
         }, 500);
       } else if (loginMode === 'email') {
         // 验证码登录
-        if (!data.email || !data.code) {
+        if (!formData.email || !formData.code) {
           toast.error('请输入邮箱和验证码');
           setIsLoading(false);
-
           return;
         }
 
-        const { data: response, error } = await authApi.emailCodeLogin({
-          email: data.email,
-          code: data.code,
-        });
-
-        if (error) {
-          toast.error(error);
-          setIsLoading(false);
-
-          return;
-        }
-
-        if (!response || response.code !== 200) {
-          toast.error(response?.message || '登录失败，请重试');
-          setIsLoading(false);
-
-          return;
-        }
-
-        const authData = response.data;
-
-        // 保存认证数据
-        saveAuthData(authData);
-        toast.success('登录成功！');
-
-        // 跳转
-        setTimeout(() => {
-          router.push(redirectUrl || '/dashboard');
-        }, 500);
+        toast.error('验证码登录功能暂未开放，请使用密码登录');
+        setIsLoading(false);
       } else {
         // 注册
-        if (!data.email || !data.password || !data.confirmPassword) {
-          toast.error('请填写完整的注册信息');
-          setIsLoading(false);
+        console.log('注册模式，表单数据：', formData);
 
+        if (!validateRegisterForm()) {
+          setIsLoading(false);
           return;
         }
 
-        if (data.password !== data.confirmPassword) {
-          setError('confirmPassword', {
-            type: 'manual',
-            message: '两次输入的密码不一致',
-          });
-          setIsLoading(false);
-
-          return;
-        }
-
-        const { data: response, error } = await authApi.emailPasswordRegister({
-          email: data.email,
-          password: data.password,
-          confirmPassword: data.confirmPassword,
+        const { data: response, error } = await authApi.register({
+          email: formData.email,
+          password: formData.password,
+          name: formData.email.split('@')[0],
         });
+
+        console.log('注册响应：', response, '错误信息：', error);
 
         if (error) {
           toast.error(error);
           setIsLoading(false);
-
           return;
         }
 
         if (!response || response.code !== 200) {
           toast.error(response?.message || '注册失败，请重试');
           setIsLoading(false);
-
           return;
         }
 
-        if (response.data?.token) {
-          // 注册成功并自动登录
-          saveAuthData(response.data);
+        if (response.data?.accessToken) {
+          setLoggedInFlag();
+
+          // 保存用户数据到 React Query 缓存和 localStorage
+          if (response.data?.user) {
+            queryClient.setQueryData<User>(
+              [...userQueryKeys.profile(), undefined],
+              response.data.user,
+            );
+            saveUserToStorage(response.data.user);
+            console.log('💾 注册用户资料已缓存:', response.data.user);
+          }
+
           toast.success('注册成功，已自动登录！');
 
           setTimeout(() => {
@@ -216,58 +213,143 @@ function LoginContent() {
               <p className="text-gray-600 text-base md:text-base leading-relaxed font-medium">
                 {loginMode === 'register'
                   ? '加入我们，开启您的创作之旅'
-                  : '登录您的账户，继续使用 DocFlow 文档系统'}
+                  : '登录您的账户，继续使用 CoInk 文档系统'}
               </p>
             </div>
 
             {/* 表单 */}
-            <form
-              className="space-y-3.5 md:space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmit(onSubmit)(e);
-              }}
-            >
+            <form className="space-y-3.5 md:space-y-4" onSubmit={handleSubmit}>
+              {/* 邮箱输入 - 所有模式共用 */}
               <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-                <InputField
-                  label="邮箱地址"
-                  name="email"
-                  type="email"
-                  placeholder="请输入您的邮箱地址"
-                  register={register}
-                  error={errors.email?.message}
-                />
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">邮箱地址</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => updateField('email', e.target.value)}
+                    placeholder="请输入您的邮箱地址"
+                    className="w-full bg-gray-50 border border-gray-200 text-base px-3.5 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+                {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>}
               </div>
 
               {/* 密码登录表单 */}
-              <PasswordLoginForm
-                isActive={loginMode === 'password'}
-                showPassword={showPassword}
-                onTogglePassword={() => setShowPassword(!showPassword)}
-                register={register}
-                errors={errors}
-              />
+              {loginMode === 'password' && (
+                <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">密码</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => updateField('password', e.target.value)}
+                      placeholder="请输入您的密码"
+                      className="w-full bg-gray-50 border border-gray-200 text-base px-3.5 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-500 pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1.5 text-sm text-red-600">{errors.password}</p>
+                  )}
+                </div>
+              )}
 
               {/* 邮箱验证码表单 */}
-              <EmailCodeLoginForm
-                isActive={loginMode === 'email'}
-                countdown={countdown}
-                isSending={isSendingCode}
-                onSendCode={handleSendCode}
-                register={register}
-                errors={errors}
-              />
+              {loginMode === 'email' && (
+                <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">验证码</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => updateField('code', e.target.value)}
+                      placeholder="请输入6位验证码"
+                      maxLength={6}
+                      className="flex-1 bg-gray-50 border border-gray-200 text-base px-3.5 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendCode}
+                      disabled={isSendingCode || countdown > 0}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    >
+                      {countdown > 0 ? `${countdown}s` : isSendingCode ? '发送中...' : '获取验证码'}
+                    </button>
+                  </div>
+                  {errors.code && <p className="mt-1.5 text-sm text-red-600">{errors.code}</p>}
+                </div>
+              )}
 
               {/* 注册表单 */}
-              <RegisterForm
-                isActive={loginMode === 'register'}
-                showPassword={showPassword}
-                showConfirmPassword={showConfirmPassword}
-                onTogglePassword={() => setShowPassword(!showPassword)}
-                onToggleConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
-                register={register}
-                errors={errors}
-              />
+              {loginMode === 'register' && (
+                <>
+                  <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
+                    <label className="block text-sm font-medium text-gray-900 mb-1.5">密码</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={(e) => updateField('password', e.target.value)}
+                        placeholder="请输入您的密码"
+                        className="w-full bg-gray-50 border border-gray-200 text-base px-3.5 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-500 pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-3 flex items-center"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                        ) : (
+                          <Eye className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="mt-1.5 text-sm text-red-600">{errors.password}</p>
+                    )}
+                  </div>
+
+                  <div className="animate-fade-in" style={{ animationDelay: '450ms' }}>
+                    <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                      确认密码
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={formData.confirmPassword}
+                        onChange={(e) => updateField('confirmPassword', e.target.value)}
+                        placeholder="请再次输入您的密码"
+                        className="w-full bg-gray-50 border border-gray-200 text-base px-3.5 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-500 pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-3 flex items-center"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                        ) : (
+                          <Eye className="w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="mt-1.5 text-sm text-red-600">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* 提交按钮 */}
               <button

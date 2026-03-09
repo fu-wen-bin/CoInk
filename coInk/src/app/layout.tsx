@@ -4,6 +4,7 @@ import React from 'react';
 import { Toaster } from 'sonner';
 
 import { inter } from '@/app/fonts';
+import { QueryProvider } from '@/components/providers/query-provider';
 
 import '@/styles/index.css';
 
@@ -30,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <main className="h-full">{children}</main>
+        <QueryProvider>
+          <main className="h-full">{children}</main>
+        </QueryProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

@@ -1,13 +1,22 @@
+// Mocks must be at the top before imports
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'test-nanoid-123'),
+}));
+
+jest.mock('argon2', () => ({
+  hash: jest.fn().mockResolvedValue('hashed-password'),
+  verify: jest.fn().mockResolvedValue(true),
+}));
+
 import { BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import * as argon2 from 'argon2';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 
 const prismaMock = {
-  user: {
+  users: {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -33,9 +42,9 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
 
-    prismaMock.user.findUnique.mockReset();
-    prismaMock.user.create.mockReset();
-    prismaMock.user.update.mockReset();
+    prismaMock.users.findUnique.mockReset();
+    prismaMock.users.create.mockReset();
+    prismaMock.users.update.mockReset();
     jwtMock.signAsync.mockReset();
   });
 
@@ -44,7 +53,7 @@ describe('AuthService', () => {
   });
 
   it('register should reject when email already exists', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({ userId: 'u1', email: 'a@b.com' });
+    prismaMock.users.findUnique.mockResolvedValue({ user_id: 'u1', email: 'a@b.com' });
 
     await expect(
       service.register({ email: 'a@b.com', name: 'A', password: '123456' }),
@@ -53,21 +62,20 @@ describe('AuthService', () => {
 
   it('login should return tokens and user on valid credentials', async () => {
     const user = {
-      userId: 'u1',
+      user_id: 'u1',
       email: 'a@b.com',
       name: 'A',
-      passwordHash: 'hash',
-      avatarUrl: null,
-      websiteUrl: null,
-      lastLoginAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      password_hash: 'hash',
+      avatar_url: null,
+      website_url: null,
+      last_login_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    prismaMock.user.findUnique.mockResolvedValue(user);
-    prismaMock.user.update.mockResolvedValue(user);
+    prismaMock.users.findUnique.mockResolvedValue(user);
+    prismaMock.users.update.mockResolvedValue(user);
 
-    jest.spyOn(argon2, 'verify').mockResolvedValue(true);
     jwtMock.signAsync.mockResolvedValueOnce('access').mockResolvedValueOnce('refresh');
 
     const result = await service.login({ email: 'a@b.com', password: '123456' });

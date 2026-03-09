@@ -47,6 +47,54 @@ export function removeCookie(name: string): void {
 }
 
 /**
+ * 标记用户已登录（非敏感信息，用于前端状态判断）
+ * HTTP-Only Cookie 中的 Token 无法被 JavaScript 读取
+ */
+export function setLoggedInFlag(): void {
+  setCookie('logged_in', 'true', 7);
+}
+
+/**
+ * 检查用户是否已登录
+ */
+export function isLoggedIn(): boolean {
+  return getCookie('logged_in') === 'true';
+}
+
+/**
+ * 清除登录标记
+ */
+export function clearLoggedInFlag(): void {
+  removeCookie('logged_in');
+}
+
+/**
+ * Get authentication token from cookies
+ * HTTP-Only Cookie 方案：前端无法读取 Token
+ * @returns 始终返回 null，Token 由浏览器自动携带
+ */
+export function getAuthToken(): null {
+  return null;
+}
+
+/**
+ * Check if a valid authentication token exists
+ * HTTP-Only Cookie 方案：通过 logged_in 标志位判断
+ * @returns True if user is logged in
+ */
+export function hasValidAuthToken(): boolean {
+  return isLoggedIn();
+}
+
+/**
+ * Clear all authentication data from cookies
+ */
+export function clearAuthData(): void {
+  // 清除 HTTP-Only Cookie 标志（实际 Token 由后端清除）
+  clearLoggedInFlag();
+}
+
+/**
  * Authentication data interface
  */
 export interface AuthData {
@@ -85,33 +133,4 @@ export function saveAuthData(authData: AuthData): void {
   }
 
   setCookie('auth_timestamp', Date.now().toString(), expiryDays);
-}
-
-/**
- * Get authentication token from cookies
- * @returns Token string or null if not found
- */
-export function getAuthToken(): string | null {
-  return getCookie('auth_token');
-}
-
-/**
- * Check if a valid authentication token exists
- * @returns True if valid token exists
- */
-export function hasValidAuthToken(): boolean {
-  const token = getAuthToken();
-
-  return !!(token && token.length > 0 && token !== 'undefined' && token !== 'null');
-}
-
-/**
- * Clear all authentication data from cookies
- */
-export function clearAuthData(): void {
-  removeCookie('auth_token');
-  removeCookie('refresh_token');
-  removeCookie('expires_in');
-  removeCookie('refresh_expires_in');
-  removeCookie('auth_timestamp');
 }

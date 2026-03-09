@@ -12,12 +12,20 @@ export class JwtPayload {
 export class AuthResponse {
   accessToken: string;
   refreshToken?: string;
+  githubToken?: string;
   user: {
     userId: string;
     email?: string;
     name: string;
     avatarUrl?: string;
     websiteUrl?: string;
+    location?: string;
+    company?: string;
+    bio?: string;
+    githubId?: string;
+    githubUsername?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
   };
 }
 
@@ -30,6 +38,9 @@ export class Auth {
   githubId?: number;
   avatarUrl?: string;
   websiteUrl?: string;
+  location?: string;
+  company?: string;
+  bio?: string;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;

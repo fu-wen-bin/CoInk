@@ -3,16 +3,18 @@ import { Observable, map } from 'rxjs';
 
 // 统一响应结构类型
 type ApiEnvelope<T = unknown> = {
-  code: string;
+  code: number;
   message: string;
   data: T;
+  timestamp: number;
 };
 
 // 判断返回值是否已是统一结构
-const isApiEnvelope = (value: unknown): value is ApiEnvelope => {
+const isApiEnvelope = (value: unknown): value is ApiEnvelope<unknown> => {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return 'code' in record && 'message' in record;
+  // 检查 code 是否存在且是数字或字符串类型的数字
+  return 'code' in record && 'message' in record && 'data' in record;
 };
 
 // 全局响应拦截器：统一包裹成功响应为 { code, message, data }
@@ -27,12 +29,13 @@ export class ResponseInterceptor implements NestInterceptor {
           return data;
         }
 
-        // 默认成功包裹
+        // 默认成功包裹 - 使用数字 200 作为成功状态码
         return {
-          code: '1',
+          code: 200,
           message: 'success',
           data,
-        } as ApiEnvelope;
+          timestamp: Date.now(),
+        } as ApiEnvelope<unknown>;
       }),
     );
   }

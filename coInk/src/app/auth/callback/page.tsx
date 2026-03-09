@@ -4,18 +4,17 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
-import { useGitHubLogin, useTokenLogin } from '@/hooks/useAuth';
+import { useGitHubCallback } from '@/hooks/useAuth';
 
 function CallbackContent() {
   const [status, setStatus] = useState('处理中...');
   const [state, setState] = useState<'loading' | 'success' | 'error'>('loading');
   const [mounted, setMounted] = useState(false);
-  const [authProcessed, setAuthProcessed] = useState(false); // 添加认证处理标记
+  const [authProcessed, setAuthProcessed] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const gitHubLoginMutation = useGitHubLogin();
-  const tokenLoginMutation = useTokenLogin();
+  const githubCallbackMutation = useGitHubCallback();
 
   // 确保组件在客户端挂载
   useEffect(() => {
@@ -24,16 +23,6 @@ function CallbackContent() {
 
   // 获取重定向 URL
   const getRedirectUrl = (): string => {
-    // 1. 优先从 state 参数获取（GitHub OAuth 标准）
-    const state = searchParams?.get('state');
-
-    if (state) {
-      try {
-        return decodeURIComponent(state);
-      } catch {}
-    }
-
-    // 2. 从 redirect_to 参数获取
     const redirectTo = searchParams?.get('redirect_to');
 
     if (redirectTo) {
@@ -42,20 +31,17 @@ function CallbackContent() {
       } catch {}
     }
 
-    // 3. 从 sessionStorage 获取（仅客户端）
+    // 从 sessionStorage 获取
     if (mounted && typeof window !== 'undefined') {
       try {
         const saved = sessionStorage.getItem('auth_redirect');
-
         if (saved) {
           sessionStorage.removeItem('auth_redirect');
-
           return saved;
         }
       } catch {}
     }
 
-    // 4. 默认跳转到仪表盘
     return '/dashboard';
   };
 
@@ -65,50 +51,15 @@ function CallbackContent() {
     const processAuth = async () => {
       setAuthProcessed(true);
 
-      try {
-        // 场景1: 直接 Token 登录
-        const token = searchParams.get('token');
+      const statusParam = searchParams.get('status');
+      const redirectUrl = getRedirectUrl();
 
-        if (token) {
-          const authData = {
-            token,
-            refresh_token: searchParams.get('refresh_token') || undefined,
-            expires_in: searchParams.get('expires_in')
-              ? parseInt(searchParams.get('expires_in')!)
-              : undefined,
-            refresh_expires_in: searchParams.get('refresh_expires_in')
-              ? parseInt(searchParams.get('refresh_expires_in')!)
-              : undefined,
-          };
+      // GitHub OAuth 登录成功
+      if (statusParam === 'ok') {
+        setStatus('登录成功，正在获取用户信息...');
 
-          setStatus('登录成功，正在跳转...');
-          setState('success');
-
-          tokenLoginMutation.mutate({
-            authData,
-            redirectUrl: getRedirectUrl(),
-          });
-
-          return;
-        }
-
-        // 场景2: GitHub OAuth 授权码登录
-        const code = searchParams.get('code');
-
-        if (!code) {
-          setStatus('缺少授权码，请重新登录');
-          setState('error');
-
-          return;
-        }
-
-        setStatus('正在验证授权...');
-
-        gitHubLoginMutation.mutate(
-          {
-            code,
-            redirectUrl: getRedirectUrl(),
-          },
+        githubCallbackMutation.mutate(
+          { redirectUrl },
           {
             onSuccess: () => {
               setStatus('登录成功，正在跳转...');
@@ -116,16 +67,27 @@ function CallbackContent() {
             },
             onError: (error) => {
               const message = error instanceof Error ? error.message : String(error);
-              setStatus(`认证失败: ${message}`);
+              setStatus(`获取用户信息失败: ${message}`);
               setState('error');
             },
           },
         );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '未知错误';
-        setStatus(`登录失败: ${message}`);
-        setState('error');
+        return;
       }
+
+      // GitHub OAuth 登录失败
+      if (statusParam === 'fail') {
+        const reason = searchParams.get('reason');
+        setStatus(
+          reason === 'bad_state' ? '安全校验失败，请重新登录' : 'GitHub 授权失败，请重新登录',
+        );
+        setState('error');
+        return;
+      }
+
+      // 未知状态
+      setStatus('登录状态异常，请重新登录');
+      setState('error');
     };
 
     processAuth();

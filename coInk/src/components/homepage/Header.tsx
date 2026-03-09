@@ -117,19 +117,6 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onGetStarted, onLogout }) =
 
               {/* 菜单内容 */}
               <div className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <Link
-                    href="https://github.com/xun082/DocFlow"
-                    target="_blank"
-                    aria-label="查看 DocFlow 在 GitHub 上的源代码"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <div className="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors duration-300 px-4 py-4 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10">
-                      <Github className="h-5 w-5" />
-                      <span className="font-medium">GitHub 源码</span>
-                    </div>
-                  </Link>
-                </div>
 
                 <div className="pt-4 border-t border-white/10">
                   <Button

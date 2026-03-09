@@ -3,20 +3,26 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
-import { DocumentsModule } from './documents/documents.module';
 import { AuthModule } from './auth/auth.module';
+import { CommentsModule } from './comments/comments.module';
+import { DocumentsModule } from './documents/documents.module';
+import { GroupsModule } from './groups/groups.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { TemplatesModule } from './templates/templates.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
     PrismaModule,
     UserModule,
-    DocumentsModule, // 初始化 DocumentsModule
+    DocumentsModule,
+    TemplatesModule,
     AuthModule,
+    CommentsModule,
+    GroupsModule,
     ConfigModule.forRoot({
-      isGlobal: true, // 全局可用，无需在其他模块导入
-      envFilePath: '.env', // 指定环境变量文件路径
+      isGlobal: true,
+      envFilePath: '.env',
     }),
   ],
   controllers: [AppController],

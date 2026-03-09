@@ -28,14 +28,19 @@ type GithubTokenResponse = {
   scope?: string;
 };
 
-// GitHub 用户信息响应结构（仅保留当前使用字段）
+// GitHub 用户信息响应结构
+// 完整字段参考：https://docs.github.com/en/rest/users/users#get-the-authenticated-user
 type GithubUserApiResponse = {
   id: number;
+  login: string;
   email?: string | null;
   name?: string | null;
-  login: string;
   avatar_url?: string | null;
+  html_url?: string | null;
   blog?: string | null;
+  location?: string | null;
+  company?: string | null;
+  bio?: string | null;
 };
 
 // 认证服务：包含邮箱登录/注册、GitHub OAuth、刷新 Token 等业务
@@ -49,6 +54,17 @@ export class AuthService {
 
   // ==================== 邮箱密码认证 ====================
 
+  /**
+   * 生成默认头像 URL
+   * 使用 DiceBear API 生成基于用户名的头像
+   */
+  private generateDefaultAvatar(username: string): string {
+    const bgc = Math.floor(Math.random() * 16777215)
+      .toString(16)
+      .padStart(6, '0');
+    return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(username)}&backgroundColor=${bgc}`;
+  }
+
   // 邮箱注册：校验邮箱唯一性 -> 哈希密码 -> 创建用户 -> 返回 token + 用户信息
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
     const email = registerDto.email.trim().toLowerCase();
@@ -61,7 +77,7 @@ export class AuthService {
       throw new BadRequestException('该邮箱已被注册');
     }
 
-    // 创建新用户
+    // 创建新用户，自动生成默认头像
     const passwordHash = await argon2.hash(registerDto.password);
     const user = await this.prisma.users.create({
       data: {
@@ -69,6 +85,7 @@ export class AuthService {
         email,
         name: registerDto.name,
         password_hash: passwordHash,
+        avatar_url: this.generateDefaultAvatar(registerDto.name),
         last_login_at: new Date(),
       },
     });
@@ -119,7 +136,7 @@ export class AuthService {
       data: { last_login_at: new Date() },
     });
 
-    return this.buildAuthResponse(updatedUser);
+    return this.buildAuthResponse(updatedUser, accessToken);
   }
 
   // 账号绑定策略：优先按 githubId；若无则按 email 绑定（避免重复账号）
@@ -128,7 +145,19 @@ export class AuthService {
       where: { github_id: BigInt(githubUserDto.githubId) },
     });
     if (existingByGithub) {
-      return existingByGithub;
+      // 更新 GitHub 信息（可能用户在 GitHub 上修改了资料）
+      return this.prisma.users.update({
+        where: { user_id: existingByGithub.user_id },
+        data: {
+          github_username: githubUserDto.login,
+          avatar_url: githubUserDto.avatarUrl,
+          website_url: githubUserDto.websiteUrl,
+          location: githubUserDto.location,
+          company: githubUserDto.company,
+          bio: githubUserDto.bio,
+          name: githubUserDto.name,
+        },
+      });
     }
 
     if (githubUserDto.email) {
@@ -140,8 +169,12 @@ export class AuthService {
           where: { user_id: existingByEmail.user_id },
           data: {
             github_id: BigInt(githubUserDto.githubId),
+            github_username: githubUserDto.login,
             avatar_url: githubUserDto.avatarUrl,
             website_url: githubUserDto.websiteUrl,
+            location: githubUserDto.location,
+            company: githubUserDto.company,
+            bio: githubUserDto.bio,
             name: githubUserDto.name,
           },
         });
@@ -154,8 +187,12 @@ export class AuthService {
         email: githubUserDto.email?.toLowerCase(),
         name: githubUserDto.name,
         github_id: BigInt(githubUserDto.githubId),
+        github_username: githubUserDto.login,
         avatar_url: githubUserDto.avatarUrl,
         website_url: githubUserDto.websiteUrl,
+        location: githubUserDto.location,
+        company: githubUserDto.company,
+        bio: githubUserDto.bio,
         last_login_at: new Date(),
       },
     });
@@ -227,6 +264,18 @@ export class AuthService {
       updateData.website_url = updateAuthDto.websiteUrl;
     }
 
+    if (updateAuthDto.location !== undefined) {
+      updateData.location = updateAuthDto.location;
+    }
+
+    if (updateAuthDto.company !== undefined) {
+      updateData.company = updateAuthDto.company;
+    }
+
+    if (updateAuthDto.bio !== undefined) {
+      updateData.bio = updateAuthDto.bio;
+    }
+
     const user = await this.prisma.users.update({
       where: { user_id: userId },
       data: updateData,
@@ -266,6 +315,59 @@ export class AuthService {
     // 1. 生成重置 Token
     // 2. 发送重置邮件
     return `This action sends password reset email to: ${email}`;
+  }
+
+  // ==================== Token 验证与退出 ====================
+
+  /**
+   * 验证 JWT Token 有效性
+   */
+  async verifyToken(
+    token: string,
+  ): Promise<{ valid: boolean; payload?: JwtPayload; expired?: boolean }> {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      return { valid: true, payload };
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        // Token过期，尝试解析payload（不验证签名）
+        try {
+          const decoded = this.jwtService.decode(token);
+          return { valid: false, expired: true, payload: decoded };
+        } catch {
+          return { valid: false, expired: true };
+        }
+      }
+      return { valid: false };
+    }
+  }
+
+  /**
+   * 退出登录
+   * 双token策略下，服务端不存储token，只需通知客户端清除即可
+   * 可选：记录用户登出时间
+   */
+  async logout(userId: string): Promise<{ success: boolean }> {
+    const user = await this.prisma.users.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 可选：更新最后活动时间或记录登出日志
+    await this.prisma.users.update({
+      where: { user_id: userId },
+      data: { updated_at: new Date() },
+    });
+
+    // 在实际应用中，可以在这里：
+    // 1. 将token加入黑名单（如果使用Redis等缓存）
+    // 2. 记录登出日志
+    // 3. 清除相关会话
+
+    return { success: true };
   }
 
   // ==================== GitHub OAuth 辅助方法 ====================
@@ -318,13 +420,19 @@ export class AuthService {
     if (!user || !user.id) {
       throw new UnauthorizedException('获取 GitHub 用户信息失败');
     }
+    console.log(user);
 
     return {
       githubId: user.id,
+      login: user.login,
       email: user.email ?? undefined,
       name: user.name || user.login,
       avatarUrl: user.avatar_url ?? undefined,
       websiteUrl: user.blog ?? undefined,
+      htmlUrl: user.html_url ?? undefined,
+      location: user.location ?? undefined,
+      company: user.company ?? undefined,
+      bio: user.bio ?? undefined,
     };
   }
 
@@ -338,6 +446,11 @@ export class AuthService {
       name: user.name,
       avatarUrl: user.avatar_url ?? undefined,
       websiteUrl: user.website_url ?? undefined,
+      location: user.location ?? undefined,
+      company: user.company ?? undefined,
+      bio: user.bio ?? undefined,
+      githubId: user.github_id ? String(user.github_id) : undefined,
+      githubUsername: user.github_username ?? undefined,
       lastLoginAt: user.last_login_at ?? undefined,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
@@ -345,17 +458,25 @@ export class AuthService {
   }
 
   // 生成登录响应：签发 token 并返回用户信息
-  private async buildAuthResponse(user: users): Promise<AuthResponse> {
+  private async buildAuthResponse(user: users, githubToken?: string): Promise<AuthResponse> {
     const { accessToken, refreshToken } = await this.signTokens(user);
     return {
       accessToken,
       refreshToken,
+      githubToken,
       user: {
         userId: user.user_id,
         email: user.email ?? undefined,
         name: user.name,
         avatarUrl: user.avatar_url ?? undefined,
         websiteUrl: user.website_url ?? undefined,
+        location: user.location ?? undefined,
+        company: user.company ?? undefined,
+        bio: user.bio ?? undefined,
+        githubId: user.github_id ? String(user.github_id) : undefined,
+        githubUsername: user.github_username ?? undefined,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
       },
     };
   }

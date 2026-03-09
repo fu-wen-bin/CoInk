@@ -17,6 +17,7 @@ import {
   CreateDocumentVersionDto,
 } from './dto/create-document.dto';
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
+import { document_principals_permission } from '../../generated/prisma/client';
 
 @Controller('documents')
 export class DocumentsController {
@@ -64,13 +65,25 @@ export class DocumentsController {
     return this.documentsService.findDeleted(ownerId);
   }
 
+  // 获取与我共享的文档
+  @Get('shared/me')
+  findSharedWithMe(@Query('userId') userId: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.findSharedWithMe(userId);
+  }
+
   // 通过分享 token 获取文档
   @Get('share/:shareToken')
-  findByShareToken(@Param('shareToken') shareToken: string) {
+  findByShareToken(
+    @Param('shareToken') shareToken: string,
+    @Query('userId') userId?: string,
+  ) {
     if (!shareToken) {
       throw new BadRequestException('shareToken is required');
     }
-    return this.documentsService.findByShareToken(shareToken);
+    return this.documentsService.findByShareToken(shareToken, userId);
   }
 
   // 获取单个文档详情
@@ -83,6 +96,28 @@ export class DocumentsController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateDocumentDto: UpdateDocumentDto) {
     return this.documentsService.update(id, updateDocumentDto);
+  }
+
+  // 重命名文档
+  @Patch(':id/rename')
+  rename(@Param('id') id: string, @Body('title') title: string) {
+    if (!title) {
+      throw new BadRequestException('title is required');
+    }
+    return this.documentsService.rename(id, title);
+  }
+
+  // 移动文档到指定文件夹
+  @Patch(':id/move')
+  move(
+    @Param('id') id: string,
+    @Body('parentId') parentId: string | null,
+    @Body('userId') userId: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.move(id, parentId ?? null, userId);
   }
 
   // 星标/取消星标文档
@@ -107,6 +142,73 @@ export class DocumentsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.documentsService.remove(id);
+  }
+
+  // ==================== 分享相关 ====================
+
+  // 生成/开启分享链接
+  @Post(':id/share')
+  generateShareToken(
+    @Param('id') id: string,
+    @Body('permission') permission: 'view' | 'edit',
+  ) {
+    if (!permission || !['view', 'edit'].includes(permission)) {
+      throw new BadRequestException('permission must be view or edit');
+    }
+    return this.documentsService.generateShareToken(id, permission);
+  }
+
+  // 关闭分享链接
+  @Patch(':id/share')
+  closeShare(@Param('id') id: string) {
+    return this.documentsService.closeShare(id);
+  }
+
+  // ==================== 权限相关 ====================
+
+  // 获取当前用户对文档的权限
+  @Get(':id/permission')
+  getUserPermission(@Param('id') id: string, @Query('userId') userId: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.getUserPermission(id, userId);
+  }
+
+  // 设置用户权限
+  @Post(':id/permissions')
+  setUserPermission(
+    @Param('id') id: string,
+    @Body('targetUserId') targetUserId: string,
+    @Body('permission') permission: document_principals_permission,
+    @Body('grantedBy') grantedBy: string,
+  ) {
+    if (!targetUserId) {
+      throw new BadRequestException('targetUserId is required');
+    }
+    if (!permission) {
+      throw new BadRequestException('permission is required');
+    }
+    if (!grantedBy) {
+      throw new BadRequestException('grantedBy is required');
+    }
+    return this.documentsService.setUserPermission(id, targetUserId, permission, grantedBy);
+  }
+
+  // 移除用户权限
+  @Delete(':id/permissions')
+  removeUserPermission(
+    @Param('id') id: string,
+    @Body('targetUserId') targetUserId: string,
+    @Body('grantedBy') grantedBy: string,
+  ) {
+    if (!targetUserId) {
+      throw new BadRequestException('targetUserId is required');
+    }
+    if (!grantedBy) {
+      throw new BadRequestException('grantedBy is required');
+    }
+    return this.documentsService.removeUserPermission(id, targetUserId, grantedBy);
   }
 
   // ==================== 文档内容 ====================

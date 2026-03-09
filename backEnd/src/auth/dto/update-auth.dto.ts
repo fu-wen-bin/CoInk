@@ -14,4 +14,18 @@ export class UpdateAuthDto extends PartialType(RegisterDto) {
   @IsOptional()
   @MaxLength(512)
   websiteUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  company?: string;
+
+  @IsString()
+  @IsOptional()
+  bio?: string;
 }

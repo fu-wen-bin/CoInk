@@ -9,8 +9,9 @@
  * 4. 可选：执行回调函数（如页面跳转）
  */
 
-import { authApi } from '@/services/auth';
 import { clearLoggedInFlag } from './cookie';
+
+import { authApi } from '@/services/auth';
 
 // 用户信息本地存储 key（与 useUserQuery.ts、useAuth.ts 保持一致）
 const USER_STORAGE_KEY = 'cached_user_profile';

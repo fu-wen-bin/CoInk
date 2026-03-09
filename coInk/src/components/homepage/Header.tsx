@@ -117,7 +117,6 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onGetStarted, onLogout }) =
 
               {/* 菜单内容 */}
               <div className="p-6 space-y-6">
-
                 <div className="pt-4 border-t border-white/10">
                   <Button
                     onClick={() => {

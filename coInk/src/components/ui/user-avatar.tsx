@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { User as UserIcon, Camera } from 'lucide-react';
+
 import Spinner from './Spinner';
 
 interface UserAvatarProps {
@@ -37,10 +38,7 @@ export function UserAvatar({
 
   return (
     <div className="relative">
-      <motion.div
-        whileHover={editable ? { scale: 1.05 } : undefined}
-        className="relative group"
-      >
+      <motion.div whileHover={editable ? { scale: 1.05 } : undefined} className="relative group">
         <div
           className={`${container} rounded-full overflow-hidden ring-4 ring-white/30 shadow-2xl bg-white`}
         >
@@ -65,9 +63,7 @@ export function UserAvatar({
               user.avatarUrl ? 'hidden' : ''
             } ${text}`}
           >
-            {user.name?.[0]?.toUpperCase() || (
-              <UserIcon className={icon} />
-            )}
+            {user.name?.[0]?.toUpperCase() || <UserIcon className={icon} />}
           </div>
         </div>
 

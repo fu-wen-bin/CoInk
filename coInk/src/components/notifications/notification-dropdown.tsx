@@ -41,12 +41,7 @@ export default function NotificationDropdown() {
   // SSR 时渲染占位符，避免与客户端生成不同的 Radix UI id
   if (!mounted) {
     return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="relative hover:bg-gray-100"
-        disabled
-      >
+      <Button variant="ghost" size="sm" className="relative hover:bg-gray-100" disabled>
         <Bell className="h-5 w-5 text-gray-600" />
       </Button>
     );

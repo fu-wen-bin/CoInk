@@ -130,7 +130,11 @@ export function useUserQuery(userId?: string) {
 export function getLocalUserData(queryClient: ReturnType<typeof useQueryClient>): User | undefined {
   // useUserQuery 使用的 queryKey 是 [...userQueryKeys.profile(), userId]
   // 当 userId 为 undefined 时，key 为 ['user', 'profile', undefined]
-  return queryClient.getQueryData<User>([...userQueryKeys.profile(), undefined]) ?? storage.get() ?? undefined;
+  return (
+    queryClient.getQueryData<User>([...userQueryKeys.profile(), undefined]) ??
+    storage.get() ??
+    undefined
+  );
 }
 
 // 更新用户信息的 mutation hook

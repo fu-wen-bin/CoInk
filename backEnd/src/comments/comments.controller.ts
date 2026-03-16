@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { CommentsService } from './comments.service';
 import { CreateCommentDto, ReplyCommentDto } from './dto/create-comment.dto';
@@ -79,10 +70,7 @@ export class CommentDetailController {
    * 删除评论
    */
   @Delete(':commentId')
-  remove(
-    @Param('commentId') commentId: string,
-    @Query('userId') userId: string,
-  ) {
+  remove(@Param('commentId') commentId: string, @Query('userId') userId: string) {
     return this.commentsService.remove(commentId, userId);
   }
 
@@ -90,10 +78,7 @@ export class CommentDetailController {
    * 解决评论
    */
   @Patch(':commentId/resolve')
-  resolve(
-    @Param('commentId') commentId: string,
-    @Body('userId') userId: string,
-  ) {
+  resolve(@Param('commentId') commentId: string, @Body('userId') userId: string) {
     return this.commentsService.resolve(commentId, userId);
   }
 
@@ -101,10 +86,7 @@ export class CommentDetailController {
    * 取消解决评论
    */
   @Patch(':commentId/unresolve')
-  unresolve(
-    @Param('commentId') commentId: string,
-    @Body('userId') userId: string,
-  ) {
+  unresolve(@Param('commentId') commentId: string, @Body('userId') userId: string) {
     return this.commentsService.unresolve(commentId, userId);
   }
 }

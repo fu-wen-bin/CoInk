@@ -3,12 +3,25 @@ import { useRouter } from 'next/navigation';
 
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
-import DocumentApi from '@/services/document';
-import { SharedDocumentItem } from '@/services/document/type';
+import { documentsApi } from '@/services/documents';
+import type { Document } from '@/services/documents/types';
 
 interface SharedDocumentsProps {
   isExpanded: boolean;
   onToggle: () => void;
+}
+
+interface SharedDocumentItem {
+  id: string;
+  title: string;
+  type: 'FILE' | 'FOLDER';
+  owner: {
+    userId: string;
+    name: string;
+    avatarUrl?: string;
+  };
+  permission: string;
+  updatedAt: string;
 }
 
 const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle }) => {
@@ -25,12 +38,21 @@ const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle 
     setError(null);
 
     try {
-      const response = await DocumentApi.GetSharedDocuments();
+      const response = await documentsApi.getSharedWithMe({ userId: '' });
 
-      if (response?.data?.code === 200) {
-        setSharedDocs(response.data.data || []);
+      if (response?.data?.documents) {
+        // Map documents to shared document items
+        const items: SharedDocumentItem[] = response.data.documents.map((doc: Document) => ({
+          id: doc.documentId,
+          title: doc.title,
+          type: doc.type,
+          owner: doc.owner || { userId: '', name: '未知用户' },
+          permission: 'view',
+          updatedAt: doc.updatedAt,
+        }));
+        setSharedDocs(items);
       } else {
-        setError('加载失败');
+        setSharedDocs([]);
       }
     } catch (err) {
       console.error('Failed to load shared documents:', err);
@@ -72,15 +94,15 @@ const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle 
 
   // 获取权限显示文本
   const getPermissionText = (permission: string) => {
-    const permissionMap = {
-      VIEW: '查看',
-      EDIT: '编辑',
-      COMMENT: '评论',
-      MANAGE: '管理',
-      FULL: '完全控制',
+    const permissionMap: Record<string, string> = {
+      view: '查看',
+      edit: '编辑',
+      comment: '评论',
+      manage: '管理',
+      full: '完全控制',
     };
 
-    return permissionMap[permission as keyof typeof permissionMap] || permission;
+    return permissionMap[permission] || permission;
   };
 
   return (
@@ -155,55 +177,25 @@ const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle 
                     {/* 文档信息 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h5 className="text-sm font-medium text-gray-900 truncate">
-                          {doc.shareInfo?.custom_title || doc.customTitle || doc.title}
-                        </h5>
+                        <h5 className="text-sm font-medium text-gray-900 truncate">{doc.title}</h5>
                         <span className="text-xs text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">
-                          {getPermissionText(doc.shareInfo?.permission || doc.permission)}
+                          {getPermissionText(doc.permission)}
                         </span>
                       </div>
 
                       {/* 所有者信息 */}
                       <div className="flex items-center mt-1 text-xs text-gray-500">
                         <img
-                          src={doc.owner.avatar_url || doc.owner.avatar || ''}
-                          alt={doc.owner.name || doc.owner.username}
+                          src={doc.owner.avatarUrl || ''}
+                          alt={doc.owner.name}
                           className="h-4 w-4 rounded-full mr-1"
                         />
-                        <span className="truncate">{doc.owner.name || doc.owner.username}</span>
+                        <span className="truncate">{doc.owner.name}</span>
                       </div>
 
                       {/* 访问信息 */}
                       <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
-                        <span>
-                          最后访问：
-                          {formatTime(
-                            doc.shareInfo?.last_accessed_at || doc.lastAccessedAt || doc.updated_at,
-                          )}
-                        </span>
-                        <span>访问 {doc.shareInfo?.access_count || doc.accessCount || 0} 次</span>
-                      </div>
-
-                      {/* 分享链接信息 */}
-                      <div className="flex items-center mt-1 text-xs text-gray-400 space-x-2">
-                        {doc.shareInfo?.share_link.has_password && (
-                          <span className="flex items-center">
-                            <Icon name="Lock" className="h-3 w-3 mr-1" />
-                            有密码
-                          </span>
-                        )}
-                        {doc.shareInfo?.share_link.expires_at && (
-                          <span className="flex items-center">
-                            <Icon name="Clock" className="h-3 w-3 mr-1" />
-                            {formatTime(doc.shareInfo.share_link.expires_at)} 过期
-                          </span>
-                        )}
-                        {(doc.shareInfo?.is_favorited || doc.isFavorite) && (
-                          <span className="flex items-center">
-                            <Icon name="Star" className="h-3 w-3 mr-1 text-yellow-400" />
-                            已收藏
-                          </span>
-                        )}
+                        <span>最后访问：{formatTime(doc.updatedAt)}</span>
                       </div>
                     </div>
                   </div>

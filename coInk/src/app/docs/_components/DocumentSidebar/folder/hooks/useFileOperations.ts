@@ -2,8 +2,20 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 
 import type { FileItem } from '@/types/file-system';
-import DocumentApi from '@/services/document';
-import { CreateDocumentDto } from '@/services/document/type';
+import { documentsApi } from '@/services/documents';
+
+// 从 localStorage 获取当前用户ID
+const getCurrentUserId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem('cached_user_profile');
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    return parsed.userId || null;
+  } catch {
+    return null;
+  }
+};
 
 interface UseFileOperationsReturn {
   handleShare: (file: FileItem) => void;
@@ -31,15 +43,16 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
   // 处理文件下载
   const handleDownload = async (file: FileItem) => {
     try {
-      const response = await DocumentApi.DownloadDocument(parseInt(file.id));
+      const response = await documentsApi.getById(file.id);
 
-      if (response?.data?.data) {
+      if (response?.data) {
         // 创建下载链接
-        const blob = response.data.data as unknown as Blob;
+        const content = JSON.stringify(response.data, null, 2);
+        const blob = new Blob([content], { type: 'application/json' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = file.name;
+        link.download = `${file.name}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -56,12 +69,20 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
   // 处理文件复制
   const handleDuplicate = async (file: FileItem) => {
     try {
-      const response = await DocumentApi.DuplicateDocument({
-        document_id: parseInt(file.id),
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast.error('用户未登录，无法复制文件');
+        return;
+      }
+
+      // Create a new document with similar title
+      const response = await documentsApi.create({
         title: `${file.name} - 副本`,
+        type: file.type === 'folder' ? 'FOLDER' : 'FILE',
+        ownerId: userId,
       });
 
-      if (response?.data?.code === 201) {
+      if (response?.data) {
         // 刷新文件列表
         await refreshFiles();
         toast.success(`文件 "${file.name}" 已复制`);
@@ -85,19 +106,12 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
       setShowDeleteDialog(false);
 
       const fileName = fileToDelete.name;
-      const response = await DocumentApi.DeleteDocument({
-        document_id: parseInt(fileToDelete.id),
-        permanent: false, // 软删除
-      });
+      await documentsApi.softDelete(fileToDelete.id);
 
-      if (response?.data?.code === 200) {
-        toast.success(`文件 "${fileName}" 已删除`);
-        // 先清空状态，再刷新列表
-        setFileToDelete(null);
-        await refreshFiles();
-      } else {
-        toast.error('删除文件失败，请重试');
-      }
+      toast.success(`文件 "${fileName}" 已删除`);
+      // 先清空状态，再刷新列表
+      setFileToDelete(null);
+      await refreshFiles();
     } catch (error) {
       console.error('删除文件失败:', error);
       toast.error('删除文件失败，请重试');
@@ -113,16 +127,11 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
   // 处理文件重命名
   const handleRename = async (fileId: string, newName: string) => {
     try {
-      const response = await DocumentApi.RenameDocument({
-        document_id: parseInt(fileId),
-        title: newName.trim(),
-      });
+      await documentsApi.rename(fileId, { title: newName.trim() });
 
-      if (response?.data?.code === 200) {
-        // 刷新文件列表
-        await refreshFiles();
-        toast.success(`重命名成功`);
-      }
+      // 刷新文件列表
+      await refreshFiles();
+      toast.success(`重命名成功`);
     } catch (error) {
       console.error('重命名失败:', error);
       toast.error('重命名失败，请重试');
@@ -132,31 +141,23 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
   // 处理文件创建
   const handleCreate = async (name: string, type: 'file' | 'folder', parentId?: string) => {
     try {
-      const createParams: CreateDocumentDto = {
-        title: name.trim(),
-        type: type === 'folder' ? 'FOLDER' : 'FILE',
-        sort_order: 0,
-        is_starred: false,
-      };
-
-      if (parentId && parentId !== 'root') {
-        createParams.parent_id = parseInt(parentId);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast.error('用户未登录，无法创建文件');
+        return false;
       }
 
-      const response = await DocumentApi.CreateDocument(createParams);
+      const response = await documentsApi.create({
+        title: name.trim(),
+        type: type === 'folder' ? 'FOLDER' : 'FILE',
+        ownerId: userId,
+        parentId: parentId,
+      });
 
-      if (response?.data?.code === 200) {
+      if (response?.data) {
         // 刷新文件列表
         await refreshFiles();
         toast.success(`${type === 'folder' ? '文件夹' : '文件'} "${name}" 创建成功`);
-
-        return true;
-      }
-
-      if (response?.data?.code === 201) {
-        // 刷新文件列表
-        await refreshFiles();
-        toast.success(`${type === 'folder' ? '文件夹' : '文件'} "${name}" 已创建`);
 
         return true;
       }

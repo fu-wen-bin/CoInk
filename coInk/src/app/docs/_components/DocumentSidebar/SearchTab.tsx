@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
-import DocumentApi from '@/services/document';
-import { DocumentItem } from '@/services/document/type';
+import { documentsApi } from '@/services/documents';
+import type { Document } from '@/services/documents/types';
 
 interface SearchTabProps {
   isActive: boolean;
@@ -20,7 +20,7 @@ interface SearchResult {
   is_starred: boolean;
   updated_at: string;
   created_at: string;
-  parent_id?: number;
+  parentId?: string;
   path?: string[];
   matches: {
     field: 'title' | 'content';
@@ -38,7 +38,7 @@ interface FileStructure {
   is_starred: boolean;
   updated_at: string;
   created_at: string;
-  parent_id?: number;
+  parentId?: string;
 }
 
 const SearchTab = ({ isActive }: SearchTabProps) => {
@@ -46,17 +46,17 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [fileStructure, setFileStructure] = useState<FileStructure[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [searchMode, setSearchMode] = useState<'all' | 'files' | 'content'>('all');
 
   // 处理API返回的文档数据，转换为文件结构
-  const processDocumentsToFileStructure = (docs: DocumentItem[]): FileStructure[] => {
-    const docMap = new Map<number, DocumentItem>();
+  const processDocumentsToFileStructure = (docs: Document[]): FileStructure[] => {
+    const docMap = new Map<string, Document>();
     docs.forEach((doc) => {
-      docMap.set(doc.id, doc);
+      docMap.set(doc.documentId, doc);
     });
 
     const result: FileStructure[] = [];
@@ -68,25 +68,25 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
 
     docMap.forEach((doc) => {
       const fileItem: FileStructure = {
-        id: String(doc.id),
+        id: doc.documentId,
         name: doc.title,
         type: doc.type === 'FOLDER' ? 'folder' : 'file',
-        is_starred: doc.is_starred,
-        created_at: doc.created_at,
-        updated_at: doc.updated_at,
-        parent_id: doc.parent_id ?? undefined,
+        is_starred: doc.isStarred,
+        created_at: doc.createdAt,
+        updated_at: doc.updatedAt,
+        parentId: doc.parentId ?? undefined,
       };
 
       if (doc.type === 'FOLDER') {
-        fileItem.children = childrenMap.get(doc.id) || [];
+        fileItem.children = childrenMap.get(doc.documentId) || [];
       }
 
-      if (doc.parent_id === null) {
+      if (doc.parentId === null) {
         result.push(fileItem);
-      } else if (docMap.has(doc.parent_id)) {
-        const parentChildren = childrenMap.get(doc.parent_id) || [];
+      } else if (doc.parentId && docMap.has(doc.parentId)) {
+        const parentChildren = childrenMap.get(doc.parentId) || [];
         parentChildren.push(fileItem);
-        childrenMap.set(doc.parent_id, parentChildren);
+        childrenMap.set(doc.parentId, parentChildren);
       }
     });
 
@@ -145,20 +145,14 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
 
   // 加载所有文档数据
   const loadDocuments = async () => {
-    const res = await DocumentApi.GetDocument();
+    const res = await documentsApi.getMyDocuments('');
 
-    if (res?.data?.code === 200 && res?.data?.data) {
-      const { personal, organizations, shared } = res.data.data;
-      // 合并所有文档
-      const allDocs = [
-        ...(personal || []),
-        ...(organizations?.flatMap((org) => org.documents || []) || []),
-        ...(shared || []),
-      ];
-      setDocuments(allDocs);
+    if (res?.data) {
+      const { documents } = res.data;
+      setDocuments(documents);
 
       // 转换为文件结构
-      const structure = processDocumentsToFileStructure(allDocs);
+      const structure = processDocumentsToFileStructure(documents);
       setFileStructure(structure);
     }
   };
@@ -212,13 +206,13 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
           }
 
           return {
-            id: String(doc.id),
+            id: doc.documentId,
             title: doc.title,
             type: doc.type,
-            is_starred: doc.is_starred,
-            updated_at: doc.updated_at,
-            created_at: doc.created_at,
-            parent_id: doc.parent_id ?? undefined,
+            is_starred: doc.isStarred,
+            updated_at: doc.updatedAt,
+            created_at: doc.createdAt,
+            parentId: doc.parentId ?? undefined,
             matches,
           } as SearchResult;
         });

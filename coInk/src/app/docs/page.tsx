@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { generateHTML } from '@tiptap/html';
 
-import { markdownComponents } from '@/components/business/ai/markdown-components';
 import { TemplateApi } from '@/services/template';
+import { StaticExtensionKit } from '@/extensions/extension-kit';
 
 const DocsPage = () => {
-  const [content, setContent] = useState('');
+  const [htmlContent, setHtmlContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,19 +18,30 @@ const DocsPage = () => {
       try {
         const res = await TemplateApi.ProjectorIntro();
 
-        console.log(res);
         if (!isActive) return;
 
         if (res.data?.code === 200) {
-          const markdown = res.data.data.content;
-          setContent(markdown);
+          const content = res.data.data.content;
+
+          // 将 TipTap JSON 转换为 HTML
+          let html: string;
+          if (typeof content === 'string') {
+            // 如果已经是字符串，直接使用
+            html = content;
+          } else {
+            // 如果是 TipTap JSON，使用 generateHTML 转换
+            html = generateHTML(content, StaticExtensionKit);
+          }
+
+          setHtmlContent(html);
           setError(null);
         } else {
           setError('内容加载失败');
         }
-      } catch {
+      } catch (err) {
         if (isActive) {
           setError('内容加载失败');
+          console.error(err);
         }
       } finally {
         if (isActive) {
@@ -49,20 +59,21 @@ const DocsPage = () => {
 
   return (
     <div className="h-full w-full overflow-auto bg-white dark:bg-slate-900">
-      <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        {isLoading ? (
-          <div className="text-sm text-slate-500 dark:text-slate-400">加载中...</div>
-        ) : error ? (
-          <div className="text-sm text-rose-500">{error}</div>
-        ) : content ? (
-          <div className="prose prose-sm prose-gray dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {content}
-            </ReactMarkdown>
-          </div>
-        ) : (
-          <div className="text-sm text-slate-500 dark:text-slate-400">暂无内容</div>
-        )}
+      <div className="h-full overflow-y-auto overflow-x-hidden relative w-full">
+        <div className="prose-container h-full pl-14 pr-14 py-8">
+          {isLoading ? (
+            <div className="text-sm text-slate-500 dark:text-slate-400">加载中...</div>
+          ) : error ? (
+            <div className="text-sm text-rose-500">{error}</div>
+          ) : htmlContent ? (
+            <div
+              className="ProseMirror prose prose-sm prose-gray dark:prose-invert max-w-none focus:outline-none"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+          ) : (
+            <div className="text-sm text-slate-500 dark:text-slate-400">暂无内容</div>
+          )}
+        </div>
       </div>
     </div>
   );

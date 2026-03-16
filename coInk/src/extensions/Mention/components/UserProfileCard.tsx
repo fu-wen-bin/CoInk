@@ -25,9 +25,9 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({ user }) => {
     <Card className="w-80 p-4 shadow-xl border-gray-200 dark:border-gray-700">
       {/* 头部 - 头像和基本信息 */}
       <div className="flex items-start gap-3 mb-4">
-        {user.avatar_url ? (
+        {user.avatarUrl ? (
           <img
-            src={user.avatar_url}
+            src={user.avatarUrl}
             alt={user.name || '用户'}
             className="w-16 h-16 rounded-full object-cover ring-2 ring-blue-100 dark:ring-blue-900"
           />
@@ -78,24 +78,24 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({ user }) => {
           </div>
         )}
 
-        {user.website_url && (
+        {user.websiteUrl && (
           <div className="flex items-center gap-2 text-sm">
             <Globe className="w-4 h-4 flex-shrink-0 text-gray-600 dark:text-gray-400" />
             <a
-              href={user.website_url}
+              href={user.websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 dark:text-blue-400 hover:underline truncate"
             >
-              {user.website_url.replace(/^https?:\/\//, '')}
+              {user.websiteUrl.replace(/^https?:\/\//, '')}
             </a>
           </div>
         )}
 
-        {user.created_at && (
+        {user.createdAt && (
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
             <Calendar className="w-4 h-4 flex-shrink-0" />
-            <span className="text-xs">加入于 {formatDate(user.created_at)}</span>
+            <span className="text-xs">加入于 {formatDate(user.createdAt)}</span>
           </div>
         )}
       </div>

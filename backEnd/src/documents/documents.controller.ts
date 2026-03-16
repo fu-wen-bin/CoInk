@@ -17,7 +17,7 @@ import {
   CreateDocumentVersionDto,
 } from './dto/create-document.dto';
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
-import { document_principals_permission } from '../../generated/prisma/client';
+import { document_principals_permission } from '../../generated/prisma/enums';
 
 @Controller('documents')
 export class DocumentsController {
@@ -32,8 +32,14 @@ export class DocumentsController {
   // 获取当前用户的全部文档列表
   @Get()
   findAll(@Query('ownerId') ownerId: string) {
+    // 如果传了 ownerId 就使用，否则返回空列表（实际应从 JWT 获取）
     if (!ownerId) {
-      throw new BadRequestException('ownerId is required');
+      return {
+        code: 200,
+        message: 'success',
+        data: { documents: [], total: 0 },
+        timestamp: Date.now(),
+      };
     }
     return this.documentsService.findAll(ownerId);
   }
@@ -76,10 +82,7 @@ export class DocumentsController {
 
   // 通过分享 token 获取文档
   @Get('share/:shareToken')
-  findByShareToken(
-    @Param('shareToken') shareToken: string,
-    @Query('userId') userId?: string,
-  ) {
+  findByShareToken(@Param('shareToken') shareToken: string, @Query('userId') userId?: string) {
     if (!shareToken) {
       throw new BadRequestException('shareToken is required');
     }
@@ -148,10 +151,7 @@ export class DocumentsController {
 
   // 生成/开启分享链接
   @Post(':id/share')
-  generateShareToken(
-    @Param('id') id: string,
-    @Body('permission') permission: 'view' | 'edit',
-  ) {
+  generateShareToken(@Param('id') id: string, @Body('permission') permission: 'view' | 'edit') {
     if (!permission || !['view', 'edit'].includes(permission)) {
       throw new BadRequestException('permission must be view or edit');
     }

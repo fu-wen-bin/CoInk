@@ -91,11 +91,7 @@ export class GroupsService {
   /**
    * 更新权限组
    */
-  async update(
-    groupId: string,
-    updateGroupDto: UpdateGroupDto,
-    userId: string,
-  ): Promise<Group> {
+  async update(groupId: string, updateGroupDto: UpdateGroupDto, userId: string): Promise<Group> {
     const group = await this.prisma.groups.findUnique({
       where: { group_id: groupId },
     });
@@ -150,11 +146,7 @@ export class GroupsService {
   /**
    * 添加组成员
    */
-  async addMember(
-    groupId: string,
-    targetUserId: string,
-    userId: string,
-  ): Promise<void> {
+  async addMember(groupId: string, targetUserId: string, userId: string): Promise<void> {
     const group = await this.prisma.groups.findUnique({
       where: { group_id: groupId },
     });
@@ -193,11 +185,7 @@ export class GroupsService {
   /**
    * 移除组成员
    */
-  async removeMember(
-    groupId: string,
-    targetUserId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeMember(groupId: string, targetUserId: string, userId: string): Promise<void> {
     const group = await this.prisma.groups.findUnique({
       where: { group_id: groupId },
     });

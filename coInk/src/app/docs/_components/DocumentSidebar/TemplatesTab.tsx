@@ -12,7 +12,7 @@ import { CreateDocumentFromTemplateDialog } from './folder/components/CreateDocu
 
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
-import { DocumentApi } from '@/services/document';
+import { documentsApi } from '@/services/documents';
 import { storage, STORAGE_KEYS } from '@/utils/storage/local-storage';
 import { TemplateApi } from '@/services/template';
 import {
@@ -20,6 +20,19 @@ import {
   TemplateCategory,
   QueryTemplate,
 } from '@/services/template/type';
+
+// 从 localStorage 获取当前用户ID
+const getCurrentUserId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem('cached_user_profile');
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    return parsed.userId || null;
+  } catch {
+    return null;
+  }
+};
 
 const categories = [
   { id: 'all', name: '全部', icon: 'Grid3X3' },
@@ -79,6 +92,12 @@ const TemplatesTab = () => {
   const handleConfirmCreateFromTemplate = async (fileName: string) => {
     if (!selectedTemplate || isCreating) return;
 
+    const userId = getCurrentUserId();
+    if (!userId) {
+      toast.error('用户未登录，无法创建文档');
+      return;
+    }
+
     setIsCreating(true);
 
     try {
@@ -91,18 +110,14 @@ const TemplatesTab = () => {
       }
 
       // 创建空文档
-      const document = await DocumentApi.CreateDocument({
+      const document = await documentsApi.create({
         title: fileName,
         type: 'FILE',
-        content: {
-          type: 'doc',
-          content: [{ type: 'paragraph' }],
-        },
+        ownerId: userId,
       });
 
-      if (document.data?.code === 200) {
-        const documentId = document.data?.data?.id;
-        const docIdString = String(documentId);
+      if (document.data) {
+        const docIdString = document.data.documentId;
 
         // 将模板内容存储到 localStorage，供文档页面使用
         const existingContents = storage.get(STORAGE_KEYS.TEMPLATE_CONTENT) || {};

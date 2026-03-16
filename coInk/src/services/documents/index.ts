@@ -295,7 +295,7 @@ const rename = (
   params: RenameDocumentParams,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<Document>> =>
-  clientRequest.patch<Document>(`/api/v1/documents/${id}/rename`, {
+  clientRequest.patch<Document>(`/documents/${id}/rename`, {
     params,
     errorHandler,
   });
@@ -326,7 +326,7 @@ const move = (
   params: MoveDocumentParams,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<Document>> =>
-  clientRequest.patch<Document>(`/api/v1/documents/${id}/move`, {
+  clientRequest.patch<Document>(`/documents/${id}/move`, {
     params,
     errorHandler,
   });
@@ -353,7 +353,7 @@ const star = (
   params: StarDocumentParams,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<Document>> =>
-  clientRequest.patch<Document>(`/api/v1/documents/${id}/star`, {
+  clientRequest.patch<Document>(`/documents/${id}/star`, {
     params,
     errorHandler,
   });
@@ -376,7 +376,7 @@ const star = (
  * ```
  */
 const softDelete = (id: string, errorHandler?: ErrorHandler): Promise<RequestResult<Document>> =>
-  clientRequest.patch<Document>(`/api/v1/documents/${id}/soft-delete`, {
+  clientRequest.patch<Document>(`/documents/${id}/soft-delete`, {
     errorHandler,
   });
 
@@ -398,7 +398,7 @@ const softDelete = (id: string, errorHandler?: ErrorHandler): Promise<RequestRes
  * ```
  */
 const restore = (id: string, errorHandler?: ErrorHandler): Promise<RequestResult<Document>> =>
-  clientRequest.post<Document>(`/api/v1/documents/${id}/restore`, {
+  clientRequest.post<Document>(`/documents/${id}/restore`, {
     errorHandler,
   });
 
@@ -448,7 +448,7 @@ const share = (
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<{ shareToken: string; shareUrl: string; permission: string }>> =>
   clientRequest.post<{ shareToken: string; shareUrl: string; permission: string }>(
-    `/api/v1/documents/${id}/share`,
+    `/documents/${id}/share`,
     {
       params,
       errorHandler,
@@ -473,7 +473,7 @@ const share = (
  * ```
  */
 const closeShare = (id: string, errorHandler?: ErrorHandler): Promise<RequestResult<Document>> =>
-  clientRequest.patch<Document>(`/api/v1/documents/${id}/share`, {
+  clientRequest.patch<Document>(`/documents/${id}/share`, {
     errorHandler,
   });
 
@@ -508,7 +508,7 @@ const getCurrentPermission = (
   clientRequest.get<{
     permission: string;
     source: string;
-  }>(`/api/v1/documents/${id}/permission`, {
+  }>(`/documents/${id}/permission`, {
     params,
     errorHandler,
   });
@@ -540,7 +540,7 @@ const setPermission = (
   params: SetPermissionParams,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<null>> =>
-  clientRequest.post<null>(`/api/v1/documents/${id}/permissions`, {
+  clientRequest.post<null>(`/documents/${id}/permissions`, {
     params,
     errorHandler,
   });
@@ -571,7 +571,7 @@ const removePermission = (
   params: RemovePermissionParams,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<null>> =>
-  clientRequest.delete<null>(`/api/v1/documents/${id}/permissions`, {
+  clientRequest.delete<null>(`/documents/${id}/permissions`, {
     params,
     errorHandler,
   });

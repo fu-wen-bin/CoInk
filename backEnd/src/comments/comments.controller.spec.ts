@@ -34,10 +34,7 @@ describe('CommentsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CommentsController, CommentDetailController],
-      providers: [
-        CommentsService,
-        { provide: PrismaService, useValue: prismaMock },
-      ],
+      providers: [CommentsService, { provide: PrismaService, useValue: prismaMock }],
     }).compile();
 
     controller = module.get<CommentsController>(CommentsController);

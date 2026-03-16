@@ -13,7 +13,7 @@ import request, { ErrorHandler } from '@/services/request';
  * 上传服务类
  */
 export class UploadService {
-  private baseUrl = '/api/v1/upload';
+  private baseUrl = '/upload';
 
   /**
    * 检查文件是否已存在（基于文件哈希）

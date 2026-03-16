@@ -256,7 +256,7 @@ export class DocumentsService {
     });
 
     // 构建权限映射
-    const permissionMap = new Map<string, typeof principals[0]>();
+    const permissionMap = new Map<string, (typeof principals)[0]>();
     for (const p of [...principals, ...groupPrincipals]) {
       const existing = permissionMap.get(p.document_id);
       if (!existing || PERMISSION_LEVELS[p.permission] > PERMISSION_LEVELS[existing.permission]) {

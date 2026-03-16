@@ -29,9 +29,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
-import DocumentApi from '@/services/document';
-import { CreateShareLinkDto } from '@/services/document/type';
-import { User } from '@/services/users/type';
+import { documentsApi } from '@/services/documents';
+import type { User } from '@/services/users/types';
 
 // 表单验证 schema
 const shareFormSchema = z.object({
@@ -41,10 +40,10 @@ const shareFormSchema = z.object({
   selectedUsers: z
     .array(
       z.object({
-        id: z.number(),
+        userId: z.string(),
         name: z.string(),
         email: z.string().nullable().optional(),
-        avatar_url: z.string(),
+        avatarUrl: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -114,20 +113,14 @@ const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
     setIsLoading(true);
 
     try {
-      const shareData: CreateShareLinkDto = {
-        permission: data.permission,
-        password: data.password || undefined,
-        expires_at: data.expiresAt ? data.expiresAt.toISOString() : undefined,
-        shareWithUserIds:
-          selectedUsers.length > 0 ? selectedUsers.map((user) => user.id) : undefined,
-      };
+      const response = await documentsApi.share(file.id, {
+        permission: data.permission === 'VIEW' ? 'view' : 'edit',
+      });
 
-      const response = await DocumentApi.CreateShareLink(parseInt(file.id), shareData);
-
-      if (response?.data?.code === 200 && response?.data?.data) {
+      if (response?.data) {
         // 根据实际返回的数据结构构建分享链接
-        const shareId = response.data.data.id;
-        let shareUrl = `${window.location.origin}/share/${shareId}`;
+        const shareToken = response.data.shareToken;
+        let shareUrl = `${window.location.origin}/share/${shareToken}`;
 
         // 如果有密码，添加密码参数到URL中
         if (data.password) {
@@ -141,15 +134,8 @@ const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
         // 复制到剪贴板
         await navigator.clipboard.writeText(shareUrl);
 
-        const userCount = selectedUsers.length;
-        const description = data.password
-          ? '链接包含访问密码'
-          : userCount > 0
-            ? `已分享给 ${userCount} 个用户`
-            : '任何人都可以通过此链接访问';
-
         toast.success('分享链接已创建并复制到剪贴板！', {
-          description,
+          description: '任何人都可以通过此链接访问',
           duration: 4000,
         });
       } else {
@@ -369,12 +355,12 @@ const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
                       <div className="flex flex-wrap gap-1">
                         {selectedUsers.map((user) => (
                           <span
-                            key={user.id}
+                            key={user.userId}
                             className="inline-flex items-center gap-1 bg-green-200 text-green-800 px-2 py-1 rounded text-xs"
                           >
-                            {user.avatar_url && (
+                            {user.avatarUrl && (
                               <img
-                                src={user.avatar_url}
+                                src={user.avatarUrl}
                                 alt={user.name}
                                 className="w-3 h-3 rounded-full"
                               />

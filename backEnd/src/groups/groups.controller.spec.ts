@@ -35,10 +35,7 @@ describe('GroupsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GroupsController],
-      providers: [
-        GroupsService,
-        { provide: PrismaService, useValue: prismaMock },
-      ],
+      providers: [GroupsService, { provide: PrismaService, useValue: prismaMock }],
     }).compile();
 
     controller = module.get<GroupsController>(GroupsController);

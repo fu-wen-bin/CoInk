@@ -449,6 +449,7 @@ export class AuthService {
       location: user.location ?? undefined,
       company: user.company ?? undefined,
       bio: user.bio ?? undefined,
+      role: user.role ?? 'USER',
       githubId: user.github_id ? String(user.github_id) : undefined,
       githubUsername: user.github_username ?? undefined,
       lastLoginAt: user.last_login_at ?? undefined,
@@ -464,20 +465,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       githubToken,
-      user: {
-        userId: user.user_id,
-        email: user.email ?? undefined,
-        name: user.name,
-        avatarUrl: user.avatar_url ?? undefined,
-        websiteUrl: user.website_url ?? undefined,
-        location: user.location ?? undefined,
-        company: user.company ?? undefined,
-        bio: user.bio ?? undefined,
-        githubId: user.github_id ? String(user.github_id) : undefined,
-        githubUsername: user.github_username ?? undefined,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-      },
+      user: this.sanitizeUser(user),
     };
   }
 

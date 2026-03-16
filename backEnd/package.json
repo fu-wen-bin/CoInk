@@ -23,7 +23,8 @@
     "prepare": "husky",
     "commit": "git-cz",
     "type-check": "tsc --noEmit",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:seed": "ts-node prisma/seed.ts"
   },
   "config": {
     "commitizen": {
@@ -31,6 +32,9 @@
     }
   },
   "dependencies": {
+    "@hocuspocus/extension-database": "^3.4.4",
+    "@hocuspocus/extension-logger": "^3.4.4",
+    "@hocuspocus/server": "^3.4.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -53,7 +57,8 @@
     "passport-jwt": "^4.0.1",
     "prisma": "^6.19.2",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "yjs": "^13.6.29"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
@@ -67,6 +72,7 @@
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.2",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",

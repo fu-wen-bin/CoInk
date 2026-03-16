@@ -64,7 +64,7 @@ class CommentApi {
    */
   async getComments(documentId: string): Promise<CommentThread[]> {
     const { data, error } = await request.get<GetCommentsApiResponse>(
-      `/api/v1/comments/documents/${documentId}`,
+      `/comments/documents/${documentId}`,
       {
         params: {
           page: 1,
@@ -118,7 +118,7 @@ class CommentApi {
    */
   async createComment(data: CreateCommentRequest): Promise<CommentThread> {
     const { data: response, error } = await request.post<CommentApiResponse>(
-      `/api/v1/comments/documents/${data.documentId}`,
+      `/comments/documents/${data.documentId}`,
       {
         params: {
           content: data.content,
@@ -143,7 +143,7 @@ class CommentApi {
    */
   async updateComment(data: UpdateCommentRequest): Promise<CommentThread> {
     const { data: response, error } = await request.patch<CommentApiResponse>(
-      `/api/v1/comments/${data.id}/resolve`,
+      `/comments/${data.id}/resolve`,
       {
         params: {
           resolved: data.resolved ?? true,
@@ -165,7 +165,7 @@ class CommentApi {
    * 删除评论
    */
   async deleteComment(data: DeleteCommentRequest): Promise<void> {
-    const { error } = await request.delete<void>(`/api/v1/comments/${data.id}`);
+    const { error } = await request.delete<void>(`/comments/${data.id}`);
 
     if (error) {
       throw new Error(error);
@@ -177,7 +177,7 @@ class CommentApi {
    */
   async createReply(data: CreateReplyRequest): Promise<CommentReply> {
     const { data: response, error } = await request.post<CommentApiResponse>(
-      `/api/v1/comments/${data.threadId}/replies`,
+      `/comments/${data.threadId}/replies`,
       {
         params: {
           content: data.content,
@@ -207,7 +207,7 @@ class CommentApi {
    * 删除回复
    */
   async deleteReply(data: DeleteReplyRequest): Promise<void> {
-    const { error } = await request.delete<void>(`/api/v1/comments/${data.id}`);
+    const { error } = await request.delete<void>(`/comments/${data.id}`);
 
     if (error) {
       throw new Error(error);

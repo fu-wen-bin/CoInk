@@ -11,7 +11,6 @@ import {
   ImageUpload,
   Link,
   CodeBlock,
-  Bilibili,
   Chart,
   Table,
   TableCell,
@@ -57,7 +56,6 @@ export function isCustomNodeSelected(editor: Editor, node: HTMLElement): boolean
     Link.name,
     Figcaption.name,
     TableOfContentsNode.name,
-    Bilibili.name,
     Chart.name,
     Table.name,
     TableCell.name,
@@ -71,3 +69,4 @@ export function isCustomNodeSelected(editor: Editor, node: HTMLElement): boolean
 
   return customNodes.some((type) => editor.isActive(type)) || isTableGripSelected(node);
 }
+

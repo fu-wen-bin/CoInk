@@ -1,39 +1,44 @@
 import { create } from 'zustand';
 
 import type { FileItem } from '@/types/file-system';
-import DocumentApi from '@/services/document';
-import { DocumentItem, OrganizationDocumentGroup } from '@/services/document/type';
-import { organizationService } from '@/services/organization';
+import { documentsApi } from '@/services/documents';
+import type { Document } from '@/services/documents/types';
 
-export interface DocumentGroup {
+// 从 localStorage 获取当前用户ID
+const getCurrentUserId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem('cached_user_profile');
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    return parsed.userId || null;
+  } catch {
+    return null;
+  }
+};
+
+export interface FileDocumentGroup {
   id: string;
   name: string;
-  type: 'personal' | 'organization' | 'shared';
+  type: 'personal';
   files: FileItem[];
-  organizationId?: number;
 }
 
 interface FileState {
-  // 文件状态 - 分组数据
-  documentGroups: DocumentGroup[];
+  documentGroups: FileDocumentGroup[];
   expandedFolders: Record<string, boolean>;
-  expandedGroups: Record<string, boolean>; // 分组折叠状态
+  expandedGroups: Record<string, boolean>;
   selectedFileId: string | null;
   isLoading: boolean;
-
-  // UI 状态
   isRenaming: string | null;
   newItemFolder: string | null;
   newItemType: 'file' | 'folder' | null;
   newItemName: string;
-  newItemGroupId: string | null; // 新建项目所属的分组
-
-  // 分享状态
+  newItemGroupId: string | null;
   shareDialogOpen: boolean;
   shareDialogFile: FileItem | null;
 
-  // Actions
-  setDocumentGroups: (groups: DocumentGroup[]) => void;
+  setDocumentGroups: (groups: FileDocumentGroup[]) => void;
   setExpandedFolders: (folders: Record<string, boolean>) => void;
   setExpandedGroups: (groups: Record<string, boolean>) => void;
   setSelectedFileId: (id: string | null) => void;
@@ -41,54 +46,34 @@ interface FileState {
   toggleFolder: (folderId: string) => void;
   toggleGroup: (groupId: string) => void;
   collapseAll: () => void;
-
-  // UI Actions
   setIsRenaming: (id: string | null) => void;
   setNewItemFolder: (id: string | null) => void;
   setNewItemType: (type: 'file' | 'folder' | null) => void;
   setNewItemName: (name: string) => void;
   setNewItemGroupId: (groupId: string | null) => void;
-
-  // 分享 Actions
   setShareDialogOpen: (open: boolean) => void;
   setShareDialogFile: (file: FileItem | null) => void;
-
-  // 文件操作
   loadFiles: (isInitialLoad?: boolean) => Promise<void>;
-  processApiDocuments: (documents: DocumentItem[]) => FileItem[];
-  createNewItem: (
-    name: string,
-    type: 'file' | 'folder',
-    parentId?: string,
-    groupId?: string,
-  ) => Promise<boolean>;
+  processApiDocuments: (documents: Document[]) => FileItem[];
+  createNewItem: (name: string, type: 'file' | 'folder', parentId?: string) => Promise<boolean>;
   finishCreateNewItem: () => Promise<void>;
   cancelCreateNewItem: () => void;
 }
 
 export const useFileStore = create<FileState>((set, get) => ({
-  // 初始状态
   documentGroups: [],
   expandedFolders: {},
-  expandedGroups: {
-    personal: true,
-    shared: true,
-  },
+  expandedGroups: { personal: true },
   selectedFileId: null,
   isLoading: true,
-
-  // UI 状态
   isRenaming: null,
   newItemFolder: null,
   newItemType: null,
   newItemName: '',
   newItemGroupId: null,
-
-  // 分享状态
   shareDialogOpen: false,
   shareDialogFile: null,
 
-  // 基础 Actions
   setDocumentGroups: (groups) => set({ documentGroups: groups }),
   setExpandedFolders: (folders) => set({ expandedFolders: folders }),
   setExpandedGroups: (groups) => set({ expandedGroups: groups }),
@@ -109,74 +94,58 @@ export const useFileStore = create<FileState>((set, get) => ({
       },
     })),
   collapseAll: () => set({ expandedFolders: {}, expandedGroups: {} }),
-
-  // UI Actions
   setIsRenaming: (id) => set({ isRenaming: id }),
   setNewItemFolder: (id) => set({ newItemFolder: id }),
   setNewItemType: (type) => set({ newItemType: type }),
   setNewItemName: (name) => set({ newItemName: name }),
   setNewItemGroupId: (groupId) => set({ newItemGroupId: groupId }),
-
-  // 分享 Actions
   setShareDialogOpen: (open) => set({ shareDialogOpen: open }),
   setShareDialogFile: (file) => set({ shareDialogFile: file }),
 
-  // 处理API返回的文档数据
   processApiDocuments: (documents) => {
-    const docMap = new Map<number, DocumentItem>();
-    documents.forEach((doc) => {
-      docMap.set(doc.id, doc);
-    });
+    const docMap = new Map<string, Document>();
+    documents.forEach((doc) => docMap.set(doc.documentId, doc));
 
     const result: FileItem[] = [];
-    const childrenMap = new Map<number, FileItem[]>();
-
-    docMap.forEach((doc) => {
-      childrenMap.set(doc.id, []);
-    });
+    const childrenMap = new Map<string, FileItem[]>();
+    docMap.forEach((doc) => childrenMap.set(doc.documentId, []));
 
     docMap.forEach((doc) => {
       const fileItem: FileItem = {
-        id: String(doc.id),
+        id: doc.documentId,
         name: doc.title,
         type: doc.type === 'FOLDER' ? 'folder' : 'file',
-        order: doc.sort_order,
-        is_starred: doc.is_starred,
-        created_at: doc.created_at,
-        updated_at: doc.updated_at,
+        order: doc.sortOrder,
+        is_starred: doc.isStarred,
+        created_at: doc.createdAt,
+        updated_at: doc.updatedAt,
         depth: 0,
       };
 
       if (doc.type === 'FOLDER') {
-        fileItem.children = childrenMap.get(doc.id) || [];
+        fileItem.children = childrenMap.get(doc.documentId) || [];
       }
 
-      if (doc.parent_id === null) {
+      if (doc.parentId === null) {
         result.push(fileItem);
-      } else if (docMap.has(doc.parent_id)) {
-        const parentChildren = childrenMap.get(doc.parent_id) || [];
+      } else if (doc.parentId && docMap.has(doc.parentId)) {
+        const parentChildren = childrenMap.get(doc.parentId) || [];
         parentChildren.push(fileItem);
-        childrenMap.set(doc.parent_id, parentChildren);
+        childrenMap.set(doc.parentId, parentChildren);
       }
     });
 
-    // 递归设置深度
-    const setDepthRecursively = (items: FileItem[], depth: number = 0) => {
+    const setDepthRecursively = (items: FileItem[], depth = 0) => {
       items.forEach((item) => {
         item.depth = depth;
-
-        if (item.children && item.children.length > 0) {
-          setDepthRecursively(item.children, depth + 1);
-        }
+        if (item.children?.length) setDepthRecursively(item.children, depth + 1);
       });
     };
 
     setDepthRecursively(result);
-
     return result;
   },
 
-  // 加载文件列表
   loadFiles: async (isInitialLoad = false) => {
     const {
       selectedFileId,
@@ -188,116 +157,51 @@ export const useFileStore = create<FileState>((set, get) => ({
       setIsLoading,
     } = get();
 
+    const userId = getCurrentUserId();
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // 并行获取组织列表和文档列表
-      const [orgListResult, docsResult] = await Promise.all([
-        organizationService.getMyOrganizations({ page: 1, limit: 100 }),
-        DocumentApi.GetDocument(),
-      ]);
+      const docsResult = await documentsApi.getMyDocuments(userId);
 
-      if (docsResult?.data?.code === 200 && docsResult?.data?.data) {
-        const { personal, organizations: orgDocs, shared } = docsResult.data.data;
-        const groups: DocumentGroup[] = [];
+      if (docsResult?.data?.data) {
+        const documents = docsResult.data.data;
+        const personalFiles =
+          Array.isArray(documents) && documents.length ? processApiDocuments(documents) : [];
 
-        // 处理个人文档 - 始终创建个人文档分组（即使为空）
-        const personalFiles = personal && personal.length > 0 ? processApiDocuments(personal) : [];
-        groups.push({
-          id: 'personal',
-          name: '个人文档',
-          type: 'personal',
-          files: personalFiles,
-        });
+        setDocumentGroups([
+          {
+            id: 'personal',
+            name: '个人文档',
+            type: 'personal',
+            files: personalFiles,
+          },
+        ]);
 
-        // 处理组织文档 - 先获取所有组织，然后匹配文档
-        if (orgListResult && orgListResult.list) {
-          // 创建一个映射，便于快速查找组织的文档
-          const orgDocsMap = new Map<number, DocumentItem[]>();
-
-          if (orgDocs && orgDocs.length > 0) {
-            orgDocs.forEach((org: OrganizationDocumentGroup) => {
-              orgDocsMap.set(org.id, org.documents || []);
-            });
-          }
-
-          // 为每个组织创建一个分组（即使没有文档）
-          orgListResult.list.forEach((org) => {
-            const documents = orgDocsMap.get(org.id) || [];
-            const orgFiles = documents.length > 0 ? processApiDocuments(documents) : [];
-
-            groups.push({
-              id: `org-${org.id}`,
-              name: org.name,
-              type: 'organization',
-              files: orgFiles,
-              organizationId: org.id,
-            });
-          });
-        }
-
-        // 处理分享文档
-        if (shared && shared.length > 0) {
-          const sharedFiles = processApiDocuments(shared);
-          groups.push({
-            id: 'shared',
-            name: '分享给我',
-            type: 'shared',
-            files: sharedFiles,
-          });
-        }
-
-        setDocumentGroups(groups);
-
-        // 检查选中的文件是否仍然存在
         if (!isInitialLoad && selectedFileId) {
-          const findFileById = (items: FileItem[], id: string): boolean => {
-            for (const item of items) {
-              if (item.id === id) return true;
-              if (item.children && findFileById(item.children, id)) return true;
-            }
+          const findFileById = (items: FileItem[], id: string): boolean =>
+            items.some(
+              (item) => item.id === id || (item.children && findFileById(item.children, id)),
+            );
 
-            return false;
-          };
-
-          let fileExists = false;
-
-          for (const group of groups) {
-            if (findFileById(group.files, selectedFileId)) {
-              fileExists = true;
-              break;
-            }
-          }
-
-          if (!fileExists) {
-            setSelectedFileId(null);
-          }
+          const fileExists = personalFiles.some((file) => findFileById([file], selectedFileId));
+          if (!fileExists) setSelectedFileId(null);
         }
 
-        // 初始化展开状态
         if (isInitialLoad) {
           const initialExpandedFolders: Record<string, boolean> = {};
-          const initialExpandedGroups: Record<string, boolean> = {
-            personal: true,
-            shared: true,
-          };
-
-          groups.forEach((group) => {
-            // 默认展开所有组
-            initialExpandedGroups[group.id] = true;
-
-            // 展开根级文件夹
-            const rootFolders = group.files
-              .filter((file) => file.type === 'folder')
-              .map((folder) => folder.id);
-
-            rootFolders.forEach((id) => {
-              initialExpandedFolders[id] = true;
+          personalFiles
+            .filter((file) => file.type === 'folder')
+            .forEach((folder) => {
+              initialExpandedFolders[folder.id] = true;
             });
-          });
 
           setExpandedFolders(initialExpandedFolders);
-          setExpandedGroups(initialExpandedGroups);
+          setExpandedGroups({ personal: true });
         }
       }
     } catch (error) {
@@ -307,35 +211,24 @@ export const useFileStore = create<FileState>((set, get) => ({
     }
   },
 
-  // 创建新文件/文件夹
-  createNewItem: async (name, type, parentId, groupId) => {
-    const { documentGroups } = get();
-    const group = documentGroups.find((g) => g.id === groupId);
+  createNewItem: async (name, type, parentId) => {
+    const userId = getCurrentUserId();
+    if (!userId) return false;
 
-    const payload: any = {
+    const res = await documentsApi.create({
       title: name,
       type: type === 'folder' ? 'FOLDER' : 'FILE',
-      parent_id: parentId ? Number(parentId) : undefined,
-    };
+      ownerId: userId,
+      parentId,
+    });
 
-    // 如果是组织文档，添加组织ID
-    if (group?.type === 'organization' && group.organizationId) {
-      payload.organization_id = group.organizationId;
-    }
-
-    const res = await DocumentApi.CreateDocument(payload);
-
-    if (res?.data?.code === 200) {
-      // 创建成功后自动刷新文件列表
+    if (res?.data) {
       await get().loadFiles(false);
-
       return true;
     }
-
     return false;
   },
 
-  // 完成创建新项目
   finishCreateNewItem: async () => {
     const {
       newItemName,
@@ -352,7 +245,6 @@ export const useFileStore = create<FileState>((set, get) => ({
       setNewItemFolder(null);
       setNewItemType(null);
       setNewItemGroupId(null);
-
       return;
     }
 
@@ -360,9 +252,7 @@ export const useFileStore = create<FileState>((set, get) => ({
       newItemName,
       newItemType,
       newItemFolder === 'root' ? undefined : newItemFolder,
-      newItemGroupId,
     );
-
     if (success) {
       setNewItemFolder(null);
       setNewItemType(null);
@@ -370,8 +260,5 @@ export const useFileStore = create<FileState>((set, get) => ({
     }
   },
 
-  // 取消创建新项目
-  cancelCreateNewItem: () => {
-    set({ newItemFolder: null, newItemType: null, newItemGroupId: null });
-  },
+  cancelCreateNewItem: () => set({ newItemFolder: null, newItemType: null, newItemGroupId: null }),
 }));

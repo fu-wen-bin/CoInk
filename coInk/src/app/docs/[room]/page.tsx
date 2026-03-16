@@ -56,9 +56,9 @@ import { LinkMenu } from '@/components/menus';
 import { TextMenu } from '@/components/menus/TextMenu';
 import { TableRowMenu, TableColumnMenu, TableMenu, TableCellMenu } from '@/extensions/Table/menus';
 import { ImageBlockMenu } from '@/components/menus';
-import DocumentApi from '@/services/document';
+import { documentsApi } from '@/services/documents';
 import NoPermission from '@/app/docs/_components/NoPermission';
-import { DocumentPermissionData } from '@/services/document/type';
+import type { PermissionLevel } from '@/services/documents/types';
 import { useCommentStore } from '@/stores/commentStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
@@ -71,6 +71,17 @@ interface CollaborationUser {
   name: string;
   color: string;
   avatar: string;
+}
+
+interface DocumentPermissionData {
+  documentId: string;
+  userId: string;
+  username: string;
+  avatar: string;
+  documentTitle: string;
+  documentType: 'FILE' | 'FOLDER';
+  isOwner: boolean;
+  permission: PermissionLevel;
 }
 
 export default function DocumentPage() {
@@ -154,7 +165,19 @@ export default function DocumentPage() {
       setIsLoadingPermission(true);
       setPermissionError(null);
 
-      const { data, error } = await DocumentApi.GetDocumentPermissions(Number(documentId));
+      // 从 localStorage 获取当前用户ID
+      let userId = '';
+      try {
+        const cachedUser = localStorage.getItem('cached_user_profile');
+        if (cachedUser) {
+          const user = JSON.parse(cachedUser) as { userId?: string };
+          userId = user.userId || '';
+        }
+      } catch {
+        // 解析失败时 userId 保持为空字符串
+      }
+
+      const { data, error } = await documentsApi.getCurrentPermission(documentId, { userId });
 
       if (error) {
         setPermissionError(error);
@@ -170,7 +193,17 @@ export default function DocumentPage() {
         return;
       }
 
-      const permData = data.data;
+      // Map the response to the expected format
+      const permData: DocumentPermissionData = {
+        documentId,
+        userId: '', // Will be set from JWT by backend
+        username: '',
+        avatar: '',
+        documentTitle: '',
+        documentType: 'FILE',
+        isOwner: false,
+        permission: data.data.permission,
+      };
       setPermissionData(permData);
       setIsLoadingPermission(false);
 
@@ -184,9 +217,9 @@ export default function DocumentPage() {
       // 初始化编辑器和用户信息
       setDoc(new Y.Doc());
       setCurrentUser({
-        id: permData.userId.toString(),
+        id: permData.userId,
         name: permData.username,
-        color: getCursorColorByUserId(permData.userId.toString()),
+        color: getCursorColorByUserId(permData.userId),
         avatar: permData.avatar,
       });
       setIsMounted(true);

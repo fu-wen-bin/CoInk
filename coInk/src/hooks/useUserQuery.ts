@@ -7,29 +7,6 @@ import UserApi from '@/services/users';
 import type { User } from '@/services/users/types';
 import { clearLoggedInFlag, isLoggedIn } from '@/utils/auth/cookie';
 
-// 本地存储的 User 类型（旧格式，id 为 number）
-interface LegacyUser {
-  id: number;
-  name: string;
-  avatar_url: string;
-  // ... 其他字段
-}
-
-/**
- * 将旧版 User 格式转换为新版
- */
-function migrateUserFormat(legacy: LegacyUser): User {
-  return {
-    userId: String(legacy.id),
-    email: (legacy as any).email || '',
-    name: legacy.name,
-    avatarUrl: legacy.avatar_url,
-    role: (legacy as any).role || 'USER',
-    createdAt: (legacy as any).created_at,
-    updatedAt: (legacy as any).updated_at,
-  };
-}
-
 /**
  * User Query Keys
  * 集中管理用户相关的查询键
@@ -50,17 +27,7 @@ const storage = {
 
     try {
       const cached = localStorage.getItem(USER_STORAGE_KEY);
-
-      if (!cached) return null;
-
-      const parsed = JSON.parse(cached);
-
-      // 检测旧格式并转换
-      if (parsed.id && !parsed.userId) {
-        return migrateUserFormat(parsed as LegacyUser);
-      }
-
-      return parsed as User;
+      return cached ? (JSON.parse(cached) as User) : null;
     } catch {
       return null;
     }
@@ -96,13 +63,7 @@ export function useUserQuery(userId?: string) {
     queryFn: async (): Promise<User | null> => {
       // 如果没有 userId，尝试从本地缓存获取
       if (!userId) {
-        const cached = storage.get();
-
-        if (cached) {
-          return cached as unknown as User;
-        }
-
-        return null;
+        return storage.get();
       }
 
       const { data, error } = await authApi.getProfile(userId);
@@ -111,13 +72,15 @@ export function useUserQuery(userId?: string) {
         throw new Error(error || 'Failed to fetch user');
       }
 
-      // 自动持久化到本地存储
-      storage.set(data.data as unknown as User);
+      const user = data.data as User;
 
-      return data.data as unknown as User;
+      // 自动持久化到本地存储
+      storage.set(user);
+
+      return user;
     },
     // 使用本地缓存作为占位数据，实现无缝加载
-    placeholderData: () => (storage.get() as unknown as User) ?? undefined,
+    placeholderData: () => storage.get() ?? undefined,
     enabled: isLoggedIn() && (!!userId || !!storage.get()), // 仅在已登录且有 userId 或缓存时查询
     staleTime: 5 * 60 * 1000, // 5分钟
     gcTime: 30 * 60 * 1000, // 30分钟
@@ -163,7 +126,7 @@ export function useUpdateUserMutation() {
       // 返回回滚数据
       return { previousUser };
     },
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       // 回滚到之前的数据
       if (context?.previousUser) {
         queryClient.setQueryData(userQueryKeys.profile(), context.previousUser);
@@ -172,7 +135,7 @@ export function useUpdateUserMutation() {
       console.error('更新用户信息失败:', error);
       toast.error('更新失败，请重试');
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // 成功后重新获取最新数据
       queryClient.invalidateQueries({ queryKey: userQueryKeys.profile() });
 

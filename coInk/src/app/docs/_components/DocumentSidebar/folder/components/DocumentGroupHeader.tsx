@@ -5,7 +5,7 @@ import { cn } from '@/utils';
 
 interface DocumentGroupHeaderProps {
   name: string;
-  type: 'personal' | 'organization' | 'shared';
+  type: 'personal';
   isExpanded: boolean;
   fileCount: number;
   onToggle: () => void;
@@ -23,29 +23,11 @@ const DocumentGroupHeader: React.FC<DocumentGroupHeaderProps> = ({
   onCreateFolder,
 }) => {
   const getGroupIcon = () => {
-    switch (type) {
-      case 'personal':
-        return 'User';
-      case 'organization':
-        return 'Users';
-      case 'shared':
-        return 'Share2';
-      default:
-        return 'Folder';
-    }
+    return 'User';
   };
 
   const getGroupColor = () => {
-    switch (type) {
-      case 'personal':
-        return 'from-blue-500 to-indigo-600';
-      case 'organization':
-        return 'from-purple-500 to-pink-600';
-      case 'shared':
-        return 'from-green-500 to-emerald-600';
-      default:
-        return 'from-slate-500 to-slate-600';
-    }
+    return 'from-blue-500 to-indigo-600';
   };
 
   return (
@@ -93,8 +75,8 @@ const DocumentGroupHeader: React.FC<DocumentGroupHeaderProps> = ({
         </span>
       </div>
 
-      {/* 快捷操作按钮 - 仅个人和组织文档显示 */}
-      {(type === 'personal' || type === 'organization') && (
+      {/* 快捷操作按钮 */}
+      {type === 'personal' && (
         <div
           className={cn(
             'flex items-center space-x-1 opacity-0 group-hover:opacity-100',

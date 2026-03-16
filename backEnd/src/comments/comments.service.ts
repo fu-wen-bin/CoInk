@@ -128,8 +128,8 @@ export class CommentsService {
 
     // 获取所有相关用户
     const userIds = new Set([
-      ...topLevelComments.map(c => c.user_id),
-      ...replies.map(r => r.user_id),
+      ...topLevelComments.map((c) => c.user_id),
+      ...replies.map((r) => r.user_id),
     ]);
 
     const users = await this.prisma.users.findMany({
@@ -141,7 +141,7 @@ export class CommentsService {
       },
     });
 
-    const userMap = new Map(users.map(u => [u.user_id, u]));
+    const userMap = new Map(users.map((u) => [u.user_id, u]));
 
     // 构建树形结构
     return topLevelComments.map((comment) => {

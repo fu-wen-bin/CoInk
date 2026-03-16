@@ -11,7 +11,7 @@ import {
 export const TemplateApi = {
   // 获取模版列表
   GetTemplates: (params?: QueryTemplate, errorHandler?: ErrorHandler) =>
-    request.get<TemplateListData>('/api/v1/template', {
+    request.get<TemplateListData>('/template', {
       errorHandler,
       cacheTime: 0,
       params,
@@ -19,26 +19,26 @@ export const TemplateApi = {
 
   // 创建模版
   CreateTemplate: (data: CreateTemplate, errorHandler?: ErrorHandler) =>
-    request.post<TemplateResponse>('/api/v1/template', {
+    request.post<TemplateResponse>('/template', {
       errorHandler,
       params: data,
     }),
 
   // 删除模版
   DeleteTemplate: (templateId: number, errorHandler?: ErrorHandler) =>
-    request.delete<{ success: boolean }>(`/api/v1/template/${templateId}`, {
+    request.delete<{ success: boolean }>(`/template/${templateId}`, {
       errorHandler,
     }),
 
   // 更新模版（重命名、修改描述等）
   UpdateTemplate: (templateId: number, data: UpdateTemplate, errorHandler?: ErrorHandler) =>
-    request.patch<TemplateResponse>(`/api/v1/template/${templateId}`, {
+    request.patch<TemplateResponse>(`/template/${templateId}`, {
       errorHandler,
       params: data,
     }),
 
   ProjectorIntro: (errorHandler?: ErrorHandler) =>
-    request.get<ProjectorIntroduction>(`/api/v1/template/project-introduction`, {
+    request.get<ProjectorIntroduction>(`/templates/project-introduction`, {
       errorHandler,
       cacheTime: 0,
     }),

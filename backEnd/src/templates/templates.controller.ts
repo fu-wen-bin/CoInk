@@ -87,6 +87,26 @@ export class TemplatesController {
   }
 
   /**
+   * 获取项目介绍模板
+   */
+  @Get('project-introduction')
+  async getProjectIntroduction() {
+    const template = await this.templatesService.getProjectIntroduction();
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        id: template.templateId,
+        name: template.title,
+        description: template.description,
+        category: template.category,
+        content: template.content,
+      },
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
    * 获取模板详情
    */
   @Get(':id')

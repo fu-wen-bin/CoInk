@@ -3,7 +3,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 
 import type { FileItem } from '@/types/file-system';
 import { flattenTreeFile, buildTree } from '@/utils';
-import DocumentApi from '@/services/document';
+import { documentsApi } from '@/services/documents';
 
 interface DragDropState {
   // 拖拽状态
@@ -84,12 +84,9 @@ export const useDragDropStore = create<DragDropState>((set, get) => ({
 
     // 调用API移动文档
     try {
-      const documentIds = [Number(activeId)];
-      const targetFolderId = parentId ? Number(parentId) : 0;
-
-      await DocumentApi.MoveDocuments({
-        document_ids: documentIds,
-        target_folder_id: targetFolderId,
+      await documentsApi.move(activeId, {
+        parentId: parentId ?? null,
+        userId: '', // userId will be handled by the backend from JWT
       });
 
       // API调用成功后刷新文件列表以确保数据同步

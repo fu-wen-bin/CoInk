@@ -300,7 +300,7 @@ export default function ChatInterface({
               <DropdownMenuTrigger asChild>
                 <button className="p-0 rounded-full transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                   <Avatar className="h-8 w-8 ring-2 ring-white shadow-sm group-hover:ring-blue-50 transition-all">
-                    <AvatarImage src={user.avatar_url || ''} alt={user.name || 'User'} />
+                    <AvatarImage src={user.avatarUrl || ''} alt={user.name || 'User'} />
                     <AvatarFallback className="bg-blue-500 text-white">
                       <User className="h-4 w-4" />
                     </AvatarFallback>

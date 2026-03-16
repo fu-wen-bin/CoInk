@@ -134,7 +134,7 @@ export const NotificationApi = {
    * 获取未读通知数量
    */
   getUnreadCount: (errorHandler?: ErrorHandler) => {
-    return request.get<UnreadCountResponseDto>('/api/v1/notifications/unread', {
+    return request.get<UnreadCountResponseDto>('/notifications/unread', {
       errorHandler,
     });
   },
@@ -144,7 +144,7 @@ export const NotificationApi = {
    * @param query 分页参数
    */
   getNotifications: (query?: GetNotificationsQuery, errorHandler?: ErrorHandler) => {
-    return request.get<NotificationListResponseDto>('/api/v1/notifications', {
+    return request.get<NotificationListResponseDto>('/notifications', {
       params: query,
       errorHandler,
     });
@@ -155,7 +155,7 @@ export const NotificationApi = {
    * @param notificationId 通知ID
    */
   markAsRead: (notificationId: number, errorHandler?: ErrorHandler) => {
-    return request.patch<MarkAsReadResponseDto>(`/api/v1/notifications/${notificationId}/read`, {
+    return request.patch<MarkAsReadResponseDto>(`/notifications/${notificationId}/read`, {
       errorHandler,
     });
   },
@@ -164,7 +164,7 @@ export const NotificationApi = {
    * 标记所有通知为已读
    */
   markAllAsRead: (errorHandler?: ErrorHandler) => {
-    return request.patch<MarkAsReadResponseDto>('/api/v1/notifications/read-all', {
+    return request.patch<MarkAsReadResponseDto>('/notifications/read-all', {
       errorHandler,
     });
   },
@@ -174,19 +174,16 @@ export const NotificationApi = {
    * @param notificationId 通知ID
    */
   deleteNotification: (notificationId: number, errorHandler?: ErrorHandler) => {
-    return request.delete<DeleteNotificationResponseDto>(
-      `/api/v1/notifications/${notificationId}`,
-      {
-        errorHandler,
-      },
-    );
+    return request.delete<DeleteNotificationResponseDto>(`/notifications/${notificationId}`, {
+      errorHandler,
+    });
   },
 
   /**
    * 重试推送失败的通知
    */
   retryFailedNotifications: (errorHandler?: ErrorHandler) => {
-    return request.post<RetryFailedResponseDto>('/api/v1/notifications/failed/retry', {
+    return request.post<RetryFailedResponseDto>('/notifications/failed/retry', {
       errorHandler,
     });
   },
@@ -195,7 +192,7 @@ export const NotificationApi = {
    * 清理过期通知（管理员功能）
    */
   cleanupExpiredNotifications: (errorHandler?: ErrorHandler) => {
-    return request.delete<CleanupResultResponseDto>('/api/v1/notifications/expired', {
+    return request.delete<CleanupResultResponseDto>('/notifications/expired', {
       errorHandler,
     });
   },

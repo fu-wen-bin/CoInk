@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Get,
   Headers,
@@ -10,6 +11,7 @@ import {
   Query,
   Res,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { randomBytes } from 'crypto';
@@ -24,6 +26,7 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
  * - access_token: Access Token (15分钟)
  * - refresh_token: Refresh Token (7天)
  */
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

@@ -58,7 +58,6 @@ import {
   FileHandler,
   Youtube,
   ClearMarksOnEnter,
-  Bilibili,
   Chart,
   Countdown,
   Comment,
@@ -69,8 +68,8 @@ import {
 } from '.';
 import { ImageUpload } from './ImageUpload';
 import { TableOfContentsNode } from './TableOfContentsNode';
-import { SelectOnlyCode } from './CodeBlock/SelectOnlyCode';
 
+import { SelectOnlyCode } from '@/extensions/CodeBlock';
 import uploadService from '@/services/upload';
 
 export interface ExtensionKitProps {
@@ -422,7 +421,6 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
     },
   }),
   ClearMarksOnEnter,
-  Bilibili,
   Chart,
   Countdown,
   Comment.configure({
@@ -437,6 +435,134 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
       class: 'mention',
     },
     suggestion: mentionSuggestion,
+  }),
+  SearchAndReplace.configure({
+    searchResultClass: 'search-result',
+    currentSearchResultClass: 'current-search-result',
+    disableRegex: true,
+    caseSensitive: false,
+  }),
+];
+
+// 静态 ExtensionKit 配置（用于服务端/静态 HTML 生成）
+// 不包含需要 provider 的协作相关扩展
+export const StaticExtensionKit = [
+  Document,
+  HardBreak,
+  Paragraph,
+  Text,
+  Columns,
+  TaskList,
+  TaskItem.configure({
+    nested: true,
+  }),
+  Column,
+  Selection,
+  Heading.configure({
+    levels: [1, 2, 3, 4, 5, 6],
+  }),
+  HorizontalRule,
+  StarterKit.configure({
+    document: false,
+    dropcursor: false,
+    heading: false,
+    horizontalRule: false,
+    undoRedo: false,
+    codeBlock: false,
+    paragraph: false,
+    hardBreak: false,
+    text: false,
+    link: false,
+    underline: false,
+    trailingNode: false,
+  } as any),
+  Details.configure({
+    persist: true,
+    HTMLAttributes: {
+      class: 'details',
+    },
+  }),
+  DetailsContent,
+  DetailsSummary,
+  CodeBlock,
+  TextStyle,
+  FontSize,
+  FontFamily,
+  Color,
+  TrailingNode,
+  Link.configure({
+    openOnClick: false,
+  }),
+  Highlight.configure({ multicolor: true }),
+  Underline,
+  CharacterCount.configure({ limit: 50000 }),
+  TableOfContents,
+  TableOfContentsNode,
+  ImageBlock,
+  TableImage,
+  DraggableBlock,
+  DragHandler,
+  Emoji.configure({
+    enableEmoticons: true,
+  }),
+  TextAlign.extend({}).configure({
+    types: ['heading', 'paragraph'],
+  }),
+  Subscript,
+  Superscript,
+  Table,
+  TableCell,
+  TableHeader,
+  TableRow,
+  Typography,
+  Placeholder.configure({
+    includeChildren: true,
+    showOnlyCurrent: false,
+    placeholder: () => '',
+  }),
+  SlashCommand,
+  Focus,
+  Figcaption,
+  Dropcursor.configure({
+    width: 2,
+    class: 'ProseMirror-dropcursor border-black',
+  }),
+  JsonPaste,
+  MarkdownPaste,
+  SelectOnlyCode,
+  MathLiveExtension,
+  Mathematics.configure({
+    katexOptions: {
+      throwOnError: false,
+      macros: {
+        '\\R': '\\mathbb{R}',
+        '\\N': '\\mathbb{N}',
+        '\\Z': '\\mathbb{Z}',
+        '\\Q': '\\mathbb{Q}',
+        '\\C': '\\mathbb{C}',
+      },
+    },
+  }),
+  Youtube.configure({
+    controls: false,
+    nocookie: true,
+    inline: false,
+    HTMLAttributes: {
+      class: 'youtube-video-wrapper',
+    },
+  }),
+  ClearMarksOnEnter,
+  Chart,
+  Countdown,
+  Comment.configure({
+    HTMLAttributes: {
+      class: 'comment',
+    },
+  }),
+  Mention.configure({
+    HTMLAttributes: {
+      class: 'mention',
+    },
   }),
   SearchAndReplace.configure({
     searchResultClass: 'search-result',

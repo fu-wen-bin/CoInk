@@ -498,8 +498,8 @@ export function ChatPanel({ className }: ChatPanelProps) {
                   <MessageBubble
                     key={message.id}
                     message={message}
-                    userAvatar={user?.avatar_url}
-                    userName={user?.name}
+                    userAvatar={user?.avatarUrl ?? undefined}
+                    userName={user?.name ?? undefined}
                   />
                 ))}
               </div>
@@ -515,8 +515,8 @@ export function ChatPanel({ className }: ChatPanelProps) {
                   <MessageBubble
                     key={message.id}
                     message={message}
-                    userAvatar={user?.avatar_url}
-                    userName={user?.name}
+                    userAvatar={user?.avatarUrl ?? undefined}
+                    userName={user?.name ?? undefined}
                   />
                 ))}
               </div>

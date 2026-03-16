@@ -50,10 +50,7 @@ describe('DocumentsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DocumentsController],
-      providers: [
-        DocumentsService,
-        { provide: PrismaService, useValue: prismaMock },
-      ],
+      providers: [DocumentsService, { provide: PrismaService, useValue: prismaMock }],
     }).compile();
 
     controller = module.get<DocumentsController>(DocumentsController);

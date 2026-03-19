@@ -1,7 +1,7 @@
 export function GithubLink() {
   return (
     <a
-      href="https://github.com/xun082/DocFlow"
+      href="https://github.com/fu-wen-bin/CoInk"
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-center justify-center p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 cursor-pointer"

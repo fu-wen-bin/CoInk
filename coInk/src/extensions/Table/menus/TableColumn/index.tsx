@@ -55,26 +55,21 @@ export function TableColumnMenu({ editor }: MenuProps): JSX.Element {
         <PopoverMenu.Item
           iconComponent={<Icon name="ArrowLeftToLine" />}
           close={false}
-          label="Add column before"
+          label="在左侧添加列"
           onClick={onAddColumnBefore}
         />
         <PopoverMenu.Item
           iconComponent={<Icon name="ArrowRightToLine" />}
           close={false}
-          label="Add column after"
+          label="在右侧添加列"
           onClick={onAddColumnAfter}
         />
-        <PopoverMenu.Item
-          icon="Trash"
-          close={false}
-          label="Delete column"
-          onClick={onDeleteColumn}
-        />
+        <PopoverMenu.Item icon="Trash" close={false} label="删除列" onClick={onDeleteColumn} />
         {/* 增加一个合并单元格的操作 */}
         <PopoverMenu.Item
           iconComponent={<Icon name="TableCellsMerge" />}
           close={false}
-          label="Merge cells"
+          label="合并单元格"
           onClick={() => editor.chain().focus().mergeCells().run()}
         />
       </Toolbar.Wrapper>

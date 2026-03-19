@@ -24,6 +24,9 @@ export interface FileDocumentGroup {
   files: FileItem[];
 }
 
+// 别名导出，兼容旧代码
+export type DocumentGroup = FileDocumentGroup;
+
 interface FileState {
   documentGroups: FileDocumentGroup[];
   expandedFolders: Record<string, boolean>;
@@ -37,6 +40,9 @@ interface FileState {
   newItemGroupId: string | null;
   shareDialogOpen: boolean;
   shareDialogFile: FileItem | null;
+  // 批量选择
+  batchMode: boolean;
+  selectedItems: string[];
 
   setDocumentGroups: (groups: FileDocumentGroup[]) => void;
   setExpandedFolders: (folders: Record<string, boolean>) => void;
@@ -53,6 +59,15 @@ interface FileState {
   setNewItemGroupId: (groupId: string | null) => void;
   setShareDialogOpen: (open: boolean) => void;
   setShareDialogFile: (file: FileItem | null) => void;
+  // 批量选择
+  setBatchMode: (mode: boolean) => void;
+  toggleItemSelection: (id: string) => void;
+  clearSelection: () => void;
+  selectAll: () => void;
+  // 批量操作
+  batchCopy: () => Promise<void>;
+  batchMove: (targetFolderId: string | null) => Promise<void>;
+  batchDelete: () => Promise<void>;
   loadFiles: (isInitialLoad?: boolean) => Promise<void>;
   processApiDocuments: (documents: Document[]) => FileItem[];
   createNewItem: (name: string, type: 'file' | 'folder', parentId?: string) => Promise<boolean>;
@@ -73,6 +88,9 @@ export const useFileStore = create<FileState>((set, get) => ({
   newItemGroupId: null,
   shareDialogOpen: false,
   shareDialogFile: null,
+  // 批量选择
+  batchMode: false,
+  selectedItems: [],
 
   setDocumentGroups: (groups) => set({ documentGroups: groups }),
   setExpandedFolders: (folders) => set({ expandedFolders: folders }),
@@ -101,6 +119,31 @@ export const useFileStore = create<FileState>((set, get) => ({
   setNewItemGroupId: (groupId) => set({ newItemGroupId: groupId }),
   setShareDialogOpen: (open) => set({ shareDialogOpen: open }),
   setShareDialogFile: (file) => set({ shareDialogFile: file }),
+  // 批量选择
+  setBatchMode: (mode) => set({ batchMode: mode }),
+  toggleItemSelection: (id) =>
+    set((state) => {
+      const idStr = String(id);
+      const exists = state.selectedItems.some((item) => String(item) === idStr);
+      return {
+        selectedItems: exists
+          ? state.selectedItems.filter((item) => String(item) !== idStr)
+          : [...state.selectedItems, idStr],
+      };
+    }),
+  clearSelection: () => set({ selectedItems: [], batchMode: false, selectedFileId: null }),
+  selectAll: () => {
+    const { documentGroups } = get();
+    const allIds: string[] = [];
+    const collectIds = (items: FileItem[]) => {
+      items.forEach((item) => {
+        allIds.push(String(item.id));
+        if (item.children) collectIds(item.children);
+      });
+    };
+    documentGroups.forEach((group) => collectIds(group.files));
+    set({ selectedItems: allIds });
+  },
 
   processApiDocuments: (documents) => {
     const docMap = new Map<string, Document>();
@@ -183,12 +226,14 @@ export const useFileStore = create<FileState>((set, get) => ({
         ]);
 
         if (!isInitialLoad && selectedFileId) {
+          const selectedIdStr = String(selectedFileId);
           const findFileById = (items: FileItem[], id: string): boolean =>
             items.some(
-              (item) => item.id === id || (item.children && findFileById(item.children, id)),
+              (item) =>
+                String(item.id) === id || (item.children && findFileById(item.children, id)),
             );
 
-          const fileExists = personalFiles.some((file) => findFileById([file], selectedFileId));
+          const fileExists = personalFiles.some((file) => findFileById([file], selectedIdStr));
           if (!fileExists) setSelectedFileId(null);
         }
 
@@ -261,4 +306,69 @@ export const useFileStore = create<FileState>((set, get) => ({
   },
 
   cancelCreateNewItem: () => set({ newItemFolder: null, newItemType: null, newItemGroupId: null }),
+
+  // 批量操作方法
+  batchCopy: async () => {
+    const { selectedItems, documentGroups, loadFiles } = get();
+    const userId = getCurrentUserId();
+    if (!userId || selectedItems.length === 0) return;
+
+    // 获取所有选中的文件信息
+    const filesToCopy: FileItem[] = [];
+    const findFiles = (items: FileItem[]) => {
+      items.forEach((item) => {
+        if (selectedItems.includes(item.id)) {
+          filesToCopy.push(item);
+        }
+        if (item.children) findFiles(item.children);
+      });
+    };
+    documentGroups.forEach((group) => findFiles(group.files));
+
+    // 复制每个文件
+    for (const file of filesToCopy) {
+      await documentsApi.create({
+        title: `${file.name}_copy`,
+        type: file.type === 'folder' ? 'FOLDER' : 'FILE',
+        ownerId: userId,
+        parentId: undefined, // 复制到根目录
+      });
+    }
+
+    // 清空选择并刷新
+    set({ selectedItems: [], batchMode: false });
+    await loadFiles(false);
+  },
+
+  batchMove: async (targetFolderId: string | null) => {
+    const { selectedItems, loadFiles } = get();
+    const userId = getCurrentUserId();
+    if (!userId || selectedItems.length === 0) return;
+
+    // 移动每个文件
+    for (const id of selectedItems) {
+      await documentsApi.move(id, {
+        parentId: targetFolderId as string,
+        userId,
+      });
+    }
+
+    // 清空选择并刷新
+    set({ selectedItems: [], batchMode: false });
+    await loadFiles(false);
+  },
+
+  batchDelete: async () => {
+    const { selectedItems, loadFiles } = get();
+    if (selectedItems.length === 0) return;
+
+    // 软删除每个文件
+    for (const id of selectedItems) {
+      await documentsApi.softDelete(id);
+    }
+
+    // 清空选择并刷新
+    set({ selectedItems: [], batchMode: false });
+    await loadFiles(false);
+  },
 }));

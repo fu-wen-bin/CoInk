@@ -1,0 +1,166 @@
+@layer utilities {
+  /* 重要：保留空格和换行 */
+  .ProseMirror {
+    white-space: pre-wrap;
+  }
+
+  .ProseMirror p {
+    @apply leading-relaxed my-3;
+  }
+
+  .ProseMirror p:first-child {
+    @apply mt-0;
+  }
+
+  .ProseMirror p:last-child {
+    @apply mb-0;
+  }
+
+  .ProseMirror > p {
+    @apply my-6;
+  }
+
+  .ProseMirror > p:first-child {
+    @apply mt-0;
+  }
+
+  .ProseMirror > p:last-child {
+    @apply mb-0;
+  }
+
+  .ProseMirror h1 {
+    @apply font-bold mt-10 mb-4 leading-tight;
+    font-size: 2rem; /* 32px */
+  }
+
+  .ProseMirror h2 {
+    @apply font-bold mt-8 mb-4 leading-tight;
+    font-size: 1.625rem; /* 26px */
+  }
+
+  .ProseMirror h3 {
+    @apply font-bold mt-6 mb-3 leading-snug;
+    font-size: 1.375rem; /* 22px */
+  }
+
+  .ProseMirror h4 {
+    @apply font-semibold mt-5 mb-2 leading-snug;
+    font-size: 1.175rem; /* 18.8px */
+  }
+
+  .ProseMirror h5 {
+    @apply font-semibold mt-4 mb-2 leading-normal;
+    font-size: 1.05rem; /* 16.8px */
+  }
+
+  .ProseMirror h6 {
+    @apply font-semibold mt-4 mb-2 leading-normal;
+    font-size: 0.95rem; /* 15.2px */
+  }
+
+  .ProseMirror h1:first-child,
+  .ProseMirror h2:first-child,
+  .ProseMirror h3:first-child,
+  .ProseMirror h4:first-child,
+  .ProseMirror h5:first-child,
+  .ProseMirror h6:first-child {
+    @apply mt-0;
+  }
+
+  .ProseMirror h1:last-child,
+  .ProseMirror h2:last-child,
+  .ProseMirror h3:last-child,
+  .ProseMirror h4:last-child,
+  .ProseMirror h5:last-child,
+  .ProseMirror h6:last-child {
+    @apply mb-0;
+  }
+
+  .ProseMirror a.link {
+    @apply text-blue-500 font-extrabold underline;
+  }
+
+  .dark .ProseMirror a.link {
+    @apply text-blue-400;
+  }
+
+  .ProseMirror mark {
+    @apply bg-red-500 rounded-sm decoration-clone text-inherit py-1 px-0;
+  }
+
+  .dark .ProseMirror mark {
+    @apply bg-red-400;
+  }
+
+  .ProseMirror img {
+    @apply h-auto w-full max-w-full;
+  }
+
+  .ProseMirror [data-type='horizontalRule'] {
+    @apply my-8 py-4 transition-all duration-100 ease-in-out cursor-pointer;
+  }
+
+  .ProseMirror [data-type='horizontalRule'].ProseMirror-selectednode {
+    @apply bg-black/5;
+  }
+
+  .dark .ProseMirror [data-type='horizontalRule'].ProseMirror-selectednode {
+    @apply bg-white/10;
+  }
+
+  .ProseMirror [data-type='horizontalRule']:hover:not(.ProseMirror-selectednode) {
+    @apply bg-black/5;
+  }
+
+  .dark .ProseMirror [data-type='horizontalRule']:hover:not(.ProseMirror-selectednode) {
+    @apply bg-white/10;
+  }
+
+  .ProseMirror [data-type='horizontalRule'] hr {
+    @apply border-0 border-t border-black/20 bg-black/80;
+  }
+
+  .dark .ProseMirror [data-type='horizontalRule'] hr {
+    @apply border-white/20 bg-white/80;
+  }
+
+  .ProseMirror [data-type='horizontalRule'].ProseMirror-selectednode hr {
+    border-top-color: rgb(0 0 0 / 0.3);
+  }
+
+  .dark .ProseMirror [data-type='horizontalRule'].ProseMirror-selectednode hr {
+    border-top-color: rgb(255 255 255 / 0.3);
+  }
+
+  .ProseMirror [data-type='emoji'] {
+    display: inline-block;
+  }
+
+  .ProseMirror [data-type='emoji'] img {
+    width: 1em;
+    height: 1em;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Mathematics styles */
+  .ProseMirror .katex {
+    @apply text-inherit;
+  }
+
+  .ProseMirror .katex-display {
+    @apply my-4;
+  }
+
+  .ProseMirror .katex-display > .katex {
+    @apply text-center;
+  }
+
+  .ProseMirror [data-type='inlineMath'] {
+    @apply inline-block;
+  }
+
+  .ProseMirror [data-type='blockMath'] {
+    @apply block my-4;
+  }
+}

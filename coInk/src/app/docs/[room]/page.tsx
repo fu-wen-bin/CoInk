@@ -47,7 +47,7 @@ import { ExtensionKit } from '@/extensions/extension-kit';
 import { getCursorColorByUserId, getAuthToken } from '@/utils';
 import { getSelectionLineRange } from '@/utils/editor';
 import DocumentHeader from '@/app/docs/_components/DocumentHeader';
-import { FloatingToc } from '@/app/docs/_components/FloatingToc';
+import { TocPanel } from '@/app/docs/_components/TocPanel';
 import { SearchPanel } from '@/app/docs/_components/SearchPanel';
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
@@ -64,6 +64,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
 import { storage, STORAGE_KEYS } from '@/utils/storage/local-storage';
 import { useChatStore } from '@/stores/chatStore';
+import { useSidebar } from '@/stores/sidebarStore';
 
 // 类型定义
 interface CollaborationUser {
@@ -97,9 +98,14 @@ export default function DocumentPage() {
 
   const { documentGroups } = useFileStore();
   const { isOpen: isChatOpen } = useChatStore();
+  const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
 
   // 防止水合不匹配的强制客户端渲染
   const [isMounted, setIsMounted] = useState(false);
+
+  // 目录显示状态
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const toggleToc = () => setIsTocOpen((prev) => !prev);
 
   // 权限相关状态
   const [permissionData, setPermissionData] = useState<DocumentPermissionData | null>(null);
@@ -112,6 +118,7 @@ export default function DocumentPage() {
   const [currentUser, setCurrentUser] = useState<CollaborationUser | null>(null);
   const [connectedUsers, setConnectedUsers] = useState<CollaborationUser[]>([]);
   const [isIndexedDBReady, setIsIndexedDBReady] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const { openPanel, setActiveCommentId, closePanel, isPanelOpen } = useCommentStore();
   const { setEditor, clearEditor } = useEditorStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -127,23 +134,23 @@ export default function DocumentPage() {
   // Editor编辑器的容器元素
   const editorContainRef = useRef<HTMLDivElement>(null);
 
+  // 递归查找文件的函数，支持嵌套文件夹
+  const findFileById = (items: FileItem[], id: string): FileItem | null => {
+    for (const item of items) {
+      if (item.id === id) return item;
+
+      if (item.children && item.children.length > 0) {
+        const found = findFileById(item.children, id);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
   // 获取当前文档的名称
   const getCurrentDocumentName = () => {
     if (!documentId || documentGroups.length === 0) return null;
-
-    // 递归查找文件的函数，支持嵌套文件夹
-    const findFileById = (items: FileItem[], id: string): FileItem | null => {
-      for (const item of items) {
-        if (item.id === id) return item;
-
-        if (item.children && item.children.length > 0) {
-          const found = findFileById(item.children, id);
-          if (found) return found;
-        }
-      }
-
-      return null;
-    };
 
     // 在所有分组中查找
     for (const group of documentGroups) {
@@ -156,6 +163,9 @@ export default function DocumentPage() {
 
     return null;
   };
+
+  // 计算当前文档名称（用于传递给子组件）
+  const currentDocumentName = getCurrentDocumentName();
 
   // 获取权限并初始化
   useEffect(() => {
@@ -193,22 +203,41 @@ export default function DocumentPage() {
         return;
       }
 
+      // 从 localStorage 获取当前用户信息
+      let name = '';
+      let avatarUrl = '';
+      try {
+        const cachedUser = localStorage.getItem('cached_user_profile');
+        if (cachedUser) {
+          const user = JSON.parse(cachedUser) as {
+            userId?: string;
+            name?: string;
+            avatarUrl?: string;
+          };
+          userId = user.userId || '';
+          name = user.name || '';
+          avatarUrl = user.avatarUrl || '';
+        }
+      } catch {
+        // 解析失败时保持空字符串
+      }
+
       // Map the response to the expected format
       const permData: DocumentPermissionData = {
         documentId,
-        userId: '', // Will be set from JWT by backend
-        username: '',
-        avatar: '',
+        userId,
+        username: name,
+        avatar: avatarUrl,
         documentTitle: '',
         documentType: 'FILE',
         isOwner: false,
-        permission: data.data.permission,
+        permission: data.data.permission as PermissionLevel,
       };
       setPermissionData(permData);
       setIsLoadingPermission(false);
 
-      // 无权限时不初始化编辑器
-      if (permData.permission === 'NONE') {
+      // 无权限时不初始化编辑器 (没有 'view' 权限表示无权限)
+      if (!data.data.permission || data.data.permission === '') {
         setIsMounted(true);
 
         return;
@@ -217,10 +246,10 @@ export default function DocumentPage() {
       // 初始化编辑器和用户信息
       setDoc(new Y.Doc());
       setCurrentUser({
-        id: permData.userId,
-        name: permData.username,
-        color: getCursorColorByUserId(permData.userId),
-        avatar: permData.avatar,
+        id: userId,
+        name: name,
+        color: getCursorColorByUserId(userId),
+        avatar: avatarUrl,
       });
       setIsMounted(true);
     }
@@ -257,11 +286,39 @@ export default function DocumentPage() {
     }
 
     const authToken = getAuthToken();
+    setConnectionStatus('connecting');
     const hocuspocusProvider = new HocuspocusProvider({
       url: websocketUrl,
       name: documentId,
       document: doc,
       token: authToken,
+
+      onConnect: () => {
+        console.log('WebSocket连接建立');
+        setConnectionStatus('connecting');
+      },
+
+      onAuthenticated: () => {
+        console.log('身份验证成功');
+        setConnectionStatus('connected');
+      },
+
+      onAuthenticationFailed: () => {
+        setConnectionStatus('error');
+      },
+
+      onSynced: ({ state }) => {
+        console.log('文档同步完成', state);
+        setConnectionStatus('connected');
+      },
+
+      onDisconnect: () => {
+        setConnectionStatus('disconnected');
+      },
+
+      onClose: () => {
+        setConnectionStatus('disconnected');
+      },
     });
 
     setProvider(hocuspocusProvider);
@@ -280,7 +337,7 @@ export default function DocumentPage() {
 
   // 协作用户管理
   useEffect(() => {
-    if (!provider?.awareness) return;
+    if (!provider?.awareness || !currentUser?.id) return;
 
     const handleAwarenessUpdate = () => {
       const states = provider.awareness!.getStates();
@@ -291,12 +348,13 @@ export default function DocumentPage() {
           const userData = state.user;
           const userId = userData.id || clientId.toString();
 
-          if (currentUser && userId !== currentUser.id) {
+          // 只添加其他用户，排除当前用户
+          if (userId && userId !== currentUser.id) {
             users.push({
               id: userId,
-              name: userData.name,
-              color: getCursorColorByUserId(userId),
-              avatar: userData.avatar,
+              name: userData.name || '未知用户',
+              color: userData.color || getCursorColorByUserId(userId),
+              avatar: userData.avatar || '',
             });
           }
         }
@@ -306,12 +364,14 @@ export default function DocumentPage() {
     };
 
     provider.awareness.on('update', handleAwarenessUpdate);
+    // 初始调用一次，确保状态正确
+    handleAwarenessUpdate();
 
     return () => provider.awareness?.off('update', handleAwarenessUpdate);
   }, [provider, currentUser]);
 
   // 判断是否为只读模式
-  const isReadOnly = forceReadOnly || permissionData?.permission === 'VIEW';
+  const isReadOnly = forceReadOnly || permissionData?.permission === 'view';
 
   // 搜索快捷键监听
   useEffect(() => {
@@ -335,18 +395,19 @@ export default function DocumentPage() {
 
   // 同步聊天面板的折叠/展开状态
   useEffect(() => {
-    const panel = chatPanelRef.current;
     const group = groupRef.current;
-    if (!panel || !group) return;
+    if (!group) return;
 
     if (isChatOpen) {
-      panel.expand();
-      // 强制设置布局确保面板尺寸正确（setLayout 的数字参数为百分比 0-100）
+      // 展开：编辑器 65%，聊天面板 35%
       requestAnimationFrame(() => {
         group.setLayout({ editor: 65, chat: 35 });
       });
     } else {
-      panel.collapse();
+      // 关闭：编辑器 100%，聊天面板 0%
+      requestAnimationFrame(() => {
+        group.setLayout({ editor: 100, chat: 0 });
+      });
     }
   }, [isChatOpen]);
 
@@ -356,24 +417,6 @@ export default function DocumentPage() {
       extensions: [
         ...ExtensionKit({
           provider,
-          commentCallbacks: {
-            onCommentActivated: (commentId) => {
-              // 使用 setTimeout 确保在下一个事件循环中更新状态，避免渲染期间更新
-              setTimeout(() => {
-                setActiveCommentId(commentId);
-
-                if (commentId) {
-                  openPanel();
-                }
-              }, 0);
-            },
-            onCommentClick: (commentId) => {
-              setTimeout(() => {
-                setActiveCommentId(commentId);
-                openPanel();
-              }, 0);
-            },
-          },
         }),
         ...(doc && isIndexedDBReady
           ? [Collaboration.configure({ document: doc, field: 'content' })]
@@ -390,6 +433,34 @@ export default function DocumentPage() {
           autocapitalize: 'off',
           class: 'min-h-full',
           spellcheck: 'false',
+        },
+        handleKeyDown: (view, event) => {
+          if (event.key === 'Tab') {
+            if (event.shiftKey) {
+              const { state } = view;
+              const { from } = state.selection;
+              const $from = state.doc.resolve(from);
+              const startOfLine = $from.start($from.depth);
+              const textBeforeCursor = state.doc.textBetween(startOfLine, from);
+
+              if (textBeforeCursor.endsWith('  ')) {
+                const deleteFrom = Math.max(startOfLine, from - 2);
+                view.dispatch(state.tr.deleteRange(deleteFrom, from));
+
+                return true;
+              } else if (textBeforeCursor.endsWith(' ')) {
+                view.dispatch(state.tr.deleteRange(from - 1, from));
+
+                return true;
+              }
+            } else {
+              view.dispatch(view.state.tr.insertText('  '));
+
+              return true;
+            }
+          }
+
+          return false;
         },
       },
       immediatelyRender: false,
@@ -573,7 +644,7 @@ export default function DocumentPage() {
   }
 
   // 权限错误或无权限访问
-  if (permissionError || permissionData?.permission === 'NONE') {
+  if (permissionError || !permissionData?.permission) {
     return (
       <NoPermission
         documentTitle={permissionData?.documentTitle}
@@ -620,9 +691,14 @@ export default function DocumentPage() {
         connectedUsers={connectedUsers}
         currentUser={currentUser}
         documentId={documentId}
-        documentTitle={permissionData?.documentTitle ?? getCurrentDocumentName() ?? undefined}
-        documentName={`文档 ${documentId}`}
+        documentTitle={currentDocumentName ?? undefined}
+        documentName={currentDocumentName ?? `文档 ${documentId}`}
         doc={doc}
+        isSidebarOpen={isSidebarOpen}
+        toggleSidebar={toggleSidebar}
+        isTocOpen={isTocOpen}
+        toggleToc={toggleToc}
+        connectionStatus={connectionStatus}
       />
 
       {/* 主内容区域 - 使用可调整大小的面板布局 */}
@@ -631,14 +707,13 @@ export default function DocumentPage() {
           {/* 编辑器面板 */}
           <Panel id="editor" defaultSize="65" minSize="30">
             <div className="h-full relative overflow-hidden">
+              <TocPanel editor={editor} isOpen={isTocOpen} />
               <div
                 ref={editorContainRef}
-                className="h-full overflow-y-auto overflow-x-hidden relative w-full"
+                className={`w-full h-full overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isTocOpen ? 'pl-[220px]' : ''}`}
               >
-                <EditorContent editor={editor} className="prose-container h-full pl-14" />
+                <EditorContent editor={editor} className="prose-container h-full px-20" />
               </div>
-              {/* 浮动目录 - 相对于编辑器面板定位 */}
-              <FloatingToc editor={editor} />
             </div>
           </Panel>
 
@@ -655,18 +730,20 @@ export default function DocumentPage() {
             id="chat"
             panelRef={chatPanelRef}
             defaultSize="35"
-            minSize="20"
+            minSize="25"
             maxSize="60"
-            collapsible
-            collapsedSize="0"
           >
-            <Activity mode={isChatOpen ? 'visible' : 'hidden'}>
-              <ChatPanel documentId={documentId} />
-            </Activity>
+            <div
+              className="h-full transition-transform duration-300 ease-in-out"
+              style={{ transform: isChatOpen ? 'translateX(0)' : 'translateX(100%)' }}
+            >
+              <Activity mode={isChatOpen ? 'visible' : 'hidden'}>
+                <ChatPanel documentId={documentId} />
+              </Activity>
+            </div>
           </Panel>
         </Group>
       </div>
-
       {/* 评论面板 */}
       {editor && (
         <Activity>

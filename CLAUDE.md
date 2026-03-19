@@ -136,3 +136,11 @@ src/
 - **TypeScript Backend**: Target ES2023, CommonJS modules
 - **Tailwind**: v4.1.7 with CSS-based configuration
 - **ESLint**: Prettier integration, import ordering rules
+
+## 程序迭代
+
+- **计划编写**: 每次需要改动程序、迭代功能时汇总出迭代计划和功能列表
+- **用户检查**: 迭代计划和功能列表需要用户确认后才能开始编写代码
+- **迭代说明**: 每次迭代完成后需要编写迭代说明，说明本次迭代的功能和改动点
+
+编写的程序迭代内容参考根目录下`程序迭代文档.md`的格式和内容要求。

@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type SidebarTab = 'home' | 'starred' | 'recent' | 'folder' | 'search' | 'trash';
+
 interface SidebarState {
   isOpen: boolean;
-  activeTab: string;
+  activeTab: SidebarTab;
   width: number;
   refreshTrigger: number;
   lastOperationSource: string | null; // 标识最后一次操作来源：'document-page' | 'sidebar' | null
   toggle: () => void;
   open: () => void;
   close: () => void;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: SidebarTab) => void;
   setWidth: (width: number) => void;
   triggerRefresh: (source: string) => void;
 }
@@ -26,7 +28,7 @@ export const useSidebar = create<SidebarState>()(
       toggle: () => set((state) => ({ isOpen: !state.isOpen })),
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
-      setActiveTab: (tab: string) => set({ activeTab: tab }),
+      setActiveTab: (tab: SidebarTab) => set({ activeTab: tab }),
       setWidth: (width: number) => set({ width }),
       triggerRefresh: (source: string = 'unknown') =>
         set((state) => ({

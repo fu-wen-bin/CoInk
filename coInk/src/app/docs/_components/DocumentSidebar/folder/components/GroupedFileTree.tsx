@@ -3,7 +3,6 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
 import { RenderFile } from './RenderFile';
 import PortalOverlay from './PortalOverlay';
-import DocumentGroupHeader from './DocumentGroupHeader';
 
 import type { FileItem } from '@/types/file-system';
 import { DocumentGroup } from '@/stores/fileStore';
@@ -54,8 +53,6 @@ const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
     newItemType,
     newItemName,
     dndState,
-    onToggleGroup,
-    onStartCreateNewItem,
     onFinishCreateNewItem,
     onCancelCreateNewItem,
     onKeyDown,
@@ -169,39 +166,15 @@ const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
   const allFileIds = getAllFileIds();
   const activeFile = allFileIds.find((id) => id === dndState.activeId);
 
-  // 计算文件总数（包括子文件）
-  const countFiles = (files: FileItem[]): number => {
-    let count = files.length;
-    files.forEach((file) => {
-      if (file.children) {
-        count += countFiles(file.children);
-      }
-    });
-
-    return count;
-  };
-
   return (
     <div className="py-2">
       <SortableContext strategy={verticalListSortingStrategy} items={allFileIds}>
         {groups.map((group) => {
           const isExpanded = expandedGroups[group.id];
-          const fileCount = countFiles(group.files);
 
           return (
             <div key={group.id} className="mb-1">
-              {/* 分组头部 */}
-              <DocumentGroupHeader
-                name={group.name}
-                type={group.type}
-                isExpanded={isExpanded}
-                fileCount={fileCount}
-                onToggle={() => onToggleGroup(group.id)}
-                onCreateFile={() => onStartCreateNewItem('root', 'file', group.id)}
-                onCreateFolder={() => onStartCreateNewItem('root', 'folder', group.id)}
-              />
-
-              {/* 分组内容 */}
+              {/* 分组内容 - 直接显示，不使用头部 */}
               {isExpanded && (
                 <div className="ml-0">
                   {/* 渲染根级新建输入框 */}
@@ -220,10 +193,7 @@ const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
                           >
                             <Icon
                               name="FolderOpen"
-                              className={cn(
-                                'w-8 h-8',
-                                'text-blue-500 dark:text-blue-400',
-                              )}
+                              className={cn('w-8 h-8', 'text-blue-500 dark:text-blue-400')}
                             />
                           </div>
                           {/* 装饰性光点 */}
@@ -235,9 +205,8 @@ const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
                             暂无个人文档
                           </p>
                           <p className="text-xs text-slate-400 dark:text-slate-500">
-                            点击上方的 <Icon name="FilePlus" className="inline w-3 h-3 mx-0.5" />{' '}
-                            或 <Icon name="FolderPlus" className="inline w-3 h-3 mx-0.5" />{' '}
-                            按钮创建
+                            点击上方的 <Icon name="FilePlus" className="inline w-3 h-3 mx-0.5" /> 或{' '}
+                            <Icon name="FolderPlus" className="inline w-3 h-3 mx-0.5" /> 按钮创建
                           </p>
                         </div>
                       </div>

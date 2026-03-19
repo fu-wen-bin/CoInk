@@ -1,6 +1,9 @@
+'use client';
+
 import React, { Ref, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { FileText, Folder, Check, MoreVertical, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 import FileItemMenu from '../FileItemMenu';
 import { useFileActions } from '../hooks/useFileActions';
@@ -8,9 +11,8 @@ import { useFileActions } from '../hooks/useFileActions';
 import type { FileItem } from '@/types/file-system';
 import { useFileStore } from '@/stores/fileStore';
 import { cn } from '@/utils';
-import { Icon } from '@/components/ui/Icon';
 
-export const RenderFile: React.FC<{
+interface RenderFileProps {
   file: FileItem;
   isOverlay?: boolean;
   depth?: number;
@@ -28,7 +30,9 @@ export const RenderFile: React.FC<{
   onDelete: (file: FileItem) => void;
   onDuplicate: (file: FileItem) => void;
   onDownload: (file: FileItem) => void;
-}> = ({
+}
+
+export const RenderFile: React.FC<RenderFileProps> = ({
   file,
   inputRef,
   depth = 0,
@@ -57,6 +61,10 @@ export const RenderFile: React.FC<{
     newItemType,
     newItemName,
     setNewItemName,
+    // 批量选择
+    batchMode,
+    selectedItems,
+    toggleItemSelection,
   } = useFileStore();
 
   // Use file actions hook
@@ -64,9 +72,11 @@ export const RenderFile: React.FC<{
 
   const isFolder = file.type === 'folder';
   const isExpanded = isFolder && expandedFolders[file.id];
-  const isSelected = selectedFileId === file.id;
-  const isItemRenaming = isRenaming === file.id;
-  const isAddingNewItem = newItemFolder === file.id && newItemGroupId === groupId;
+  // 确保类型一致（字符串 vs 数字）
+  const isSelected = String(selectedFileId) === String(file.id);
+  const isItemRenaming = String(isRenaming) === String(file.id);
+  const isAddingNewItem = String(newItemFolder) === String(file.id) && newItemGroupId === groupId;
+  const isBatchSelected = selectedItems.some((item) => String(item) === String(file.id));
 
   const FileItemHeight = 46;
 
@@ -100,6 +110,24 @@ export const RenderFile: React.FC<{
     }
   }, [isItemRenaming, inputRef]);
 
+  // 处理点击事件
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (batchMode) {
+      // 批量模式下点击切换选中状态
+      toggleItemSelection(file.id);
+    } else {
+      // 普通模式下正常处理
+      if (isFolder) {
+        onToggleFolder(file.id, e);
+      } else {
+        onFileSelect(file, e);
+      }
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -117,124 +145,118 @@ export const RenderFile: React.FC<{
           '[&>div>div>*]:opacity-0 [&>div>div>*]:h-0',
         ],
       )}
-      style={{ paddingLeft: `${(depth === 0 ? 1 : depth) * 20}px` }}
+      style={{ paddingLeft: `${depth * 12}px` }}
     >
       <div style={style} {...listeners}>
         <div
           className={cn(
-            'flex items-center py-2 px-3 text-sm cursor-pointer relative group box-border',
-            'transition-all duration-300 ease-out rounded-lg mx-2 my-0.5 hover:z-[100]',
-            isSelected && [
-              'bg-blue-500/10 dark:bg-blue-400/15',
-              'text-blue-700 dark:text-blue-300',
+            'flex items-center py-2 px-3 text-[13px] font-normal cursor-pointer relative group box-border',
+            'transition-all duration-200 ease-out rounded-md my-0.5',
+            // 批量选中状态
+            isBatchSelected && [
+              'bg-blue-100 dark:bg-blue-900/30',
               'border-2 border-blue-500 dark:border-blue-400',
-              'shadow-sm shadow-blue-500/20',
             ],
-            !isSelected && [
-              'hover:bg-gradient-to-r hover:from-blue-50/80 hover:via-blue-100/60 hover:to-blue-50/80',
-              'dark:hover:from-blue-900/20 dark:hover:via-blue-800/30 dark:hover:to-blue-900/20',
-              'hover:shadow-md hover:shadow-blue-200/40 dark:hover:shadow-blue-900/30',
-              'hover:transform hover:scale-[1.01]',
-              'text-slate-700 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-300',
-              'border-2 border-transparent',
-            ],
+            // 普通选中状态
+            !isBatchSelected &&
+              isSelected && [
+                'bg-blue-50 dark:bg-blue-900/20',
+                'text-blue-700 dark:text-blue-300',
+                'border-2 border-blue-500 dark:border-blue-400',
+              ],
+            // 未选中状态
+            !isBatchSelected &&
+              !isSelected && [
+                'hover:bg-gray-100 dark:hover:bg-gray-800',
+                'text-gray-700 dark:text-gray-300',
+                'border-2 border-transparent',
+              ],
             isOverlay && 'border-lime-500 border-2',
           )}
           style={{
             animationDelay: `${depth * 50}ms`,
           }}
-          onClick={(e) => (isFolder ? onToggleFolder(file.id, e) : onFileSelect(file, e))}
+          onClick={handleClick}
           onContextMenu={(e) => onContextMenu(e, file.id)}
         >
+          {/* 批量选择复选框 */}
+          {batchMode && (
+            <div className="mr-2 flex-shrink-0">
+              <div
+                className={cn(
+                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+                  isBatchSelected
+                    ? 'bg-blue-500 border-blue-500'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400',
+                )}
+              >
+                {isBatchSelected && <Check className="w-3 h-3 text-white" />}
+              </div>
+            </div>
+          )}
+
           {/* 展开/折叠图标 - 只为文件夹显示 */}
           {isFolder && (
             <div className="mr-2 w-5 h-5 flex-shrink-0 flex items-center justify-center">
               <button
                 className={cn(
-                  'w-5 h-5 rounded-md flex items-center justify-center group/chevron',
-                  'transition-all duration-300 transform hover:scale-110',
-                  isSelected
-                    ? 'hover:bg-blue-100/50 text-blue-600 hover:text-blue-700'
-                    : 'hover:bg-blue-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400',
+                  'w-5 h-5 rounded flex items-center justify-center transition-colors',
+                  'hover:bg-gray-200 dark:hover:bg-gray-700',
+                  isSelected || isBatchSelected
+                    ? 'text-blue-600'
+                    : 'text-gray-400 hover:text-gray-600',
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleFolder(file.id, e);
                 }}
               >
-                <Icon
-                  name={isExpanded ? 'ChevronDown' : 'ChevronRight'}
-                  className={cn(
-                    'h-3.5 w-3.5 transition-all duration-300',
-                    'group-hover/chevron:scale-110 drop-shadow-sm',
-                    isExpanded && 'transform rotate-0',
-                    !isExpanded && 'transform rotate-0',
-                  )}
-                />
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
             </div>
           )}
 
-          {/* 文件/文件夹图标 - 更精美的设计 */}
-          <div className="w-6 h-6 mr-3 flex-shrink-0 flex items-center justify-center">
+          {/* 文件/文件夹图标 */}
+          <div className="w-5 h-5 mr-2 flex-shrink-0 flex items-center justify-center">
             {isFolder ? (
-              <div
-                className={cn(
-                  'w-5 h-5 rounded-md flex items-center justify-center',
-                  'transition-all duration-300 group-hover:scale-110',
-                  isExpanded
-                    ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/30'
-                    : 'bg-gradient-to-br from-yellow-400 to-amber-500 shadow-md shadow-yellow-500/30',
-                )}
-              >
-                <Icon
-                  name={isExpanded ? 'FolderOpen' : 'Folder'}
-                  className="h-3.5 w-3.5 text-white drop-shadow-sm"
-                />
-              </div>
+              <Folder className={cn('w-4 h-4', isExpanded ? 'text-amber-500' : 'text-amber-400')} />
             ) : (
-              <div
-                className={cn(
-                  'w-5 h-5 rounded-md flex items-center justify-center',
-                  'bg-gradient-to-br from-blue-400 to-indigo-500',
-                  'shadow-md shadow-blue-500/30 transition-all duration-300 group-hover:scale-110',
-                )}
-              >
-                <Icon name="FileText" className="h-3.5 w-3.5 text-white drop-shadow-sm" />
-              </div>
+              <FileText className="w-4 h-4 text-blue-500" />
             )}
           </div>
 
-          {/* 名称/重命名输入框 - 美化样式 */}
-          <div className="flex-1 min-w-0 mr-3">
+          {/* 名称/重命名输入框 */}
+          <div className="flex-1 min-w-0 mr-2">
             <input
               ref={inputRef}
               type="text"
               readOnly={!isItemRenaming}
               className={cn(
-                'w-full text-sm rounded-lg transition-all duration-300 font-medium',
-                'outline-none border-2',
+                'w-full text-sm rounded transition-all font-medium',
+                'outline-none border',
                 isItemRenaming
                   ? [
                       // 编辑状态
-                      'bg-white/90 dark:bg-slate-700/90 backdrop-blur-sm',
-                      'border-blue-400/70 dark:border-blue-500/70',
-                      'focus:border-blue-500 dark:focus:border-blue-400',
-                      'focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30',
+                      'bg-white dark:bg-gray-700',
+                      'border-blue-400',
+                      'focus:border-blue-500',
                       'px-2 py-1',
-                      'text-slate-900 dark:text-slate-100',
-                      'shadow-lg shadow-blue-200/30 dark:shadow-blue-800/20',
+                      'text-gray-900 dark:text-gray-100',
                       'cursor-text',
                     ]
                   : [
-                      // 只读状态（看起来像普通文本）
+                      // 只读状态
                       'bg-transparent border-transparent',
                       'px-0 py-0',
                       'cursor-pointer pointer-events-none',
                       'truncate',
-                      isSelected
+                      isSelected || isBatchSelected
                         ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300',
+                        : 'text-gray-700 dark:text-gray-300',
                     ],
               )}
               defaultValue={file.name}
@@ -255,53 +277,16 @@ export const RenderFile: React.FC<{
             />
           </div>
 
-          {/* 快捷操作按钮区域 - 更精美的设计 */}
-          <div
-            className={cn(
-              'flex items-center space-x-1 opacity-0 group-hover:opacity-100',
-              'transition-all duration-300 transform translate-x-2 group-hover:translate-x-0',
-            )}
-          >
-            {/* 文件夹快捷操作按钮 */}
-            {isFolder && groupId && (
-              <>
-                <button
-                  title="新建文件"
-                  className={cn(
-                    'p-1.5 rounded-lg transition-all duration-300 transform hover:scale-110',
-                    isSelected
-                      ? 'hover:bg-blue-100/50 text-blue-600 hover:text-blue-700'
-                      : 'hover:bg-blue-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400',
-                    'shadow-sm hover:shadow-md',
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startCreateNewItem(file.id, 'file', groupId);
-                  }}
-                >
-                  <Icon name="FilePlus" className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  title="新建文件夹"
-                  className={cn(
-                    'p-1.5 rounded-lg transition-all duration-300 transform hover:scale-110',
-                    isSelected
-                      ? 'hover:bg-blue-100/50 text-blue-600 hover:text-blue-700'
-                      : 'hover:bg-blue-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400',
-                    'shadow-sm hover:shadow-md',
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startCreateNewItem(file.id, 'folder', groupId);
-                  }}
-                >
-                  <Icon name="FolderPlus" className="h-3.5 w-3.5" />
-                </button>
-              </>
-            )}
-
-            {/* 三个点菜单 */}
-            <div className={cn('transition-all duration-300 transform hover:scale-110')}>
+          {/* 操作按钮区域 */}
+          {!batchMode && (
+            <div
+              className={cn(
+                'flex items-center space-x-1',
+                'opacity-0 group-hover:opacity-100',
+                'transition-opacity duration-200',
+              )}
+            >
+              {/* 更多操作菜单 */}
               <FileItemMenu
                 file={file}
                 onShare={onShare}
@@ -310,36 +295,17 @@ export const RenderFile: React.FC<{
                 onDuplicate={onDuplicate}
                 onDownload={onDownload}
                 onMenuOpen={closeContextMenu}
-                className={cn(
-                  'p-1.5 rounded-lg',
-                  isSelected
-                    ? 'hover:bg-blue-100/50 text-blue-600 hover:text-blue-700'
-                    : 'hover:bg-blue-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400',
-                )}
               />
             </div>
-          </div>
-
-          {/* 选中状态的光晕效果 */}
-          {isSelected && (
-            <div
-              className={cn(
-                'absolute inset-0 rounded-lg pointer-events-none',
-                'bg-blue-500/5 dark:bg-blue-400/8',
-              )}
-            />
           )}
         </div>
+
         {/* 如果是展开的文件夹，则递归渲染其子项 */}
         {isFolder && isExpanded && (
-          <div className=" relative">
+          <div className="relative">
             {/* 连接线 */}
             <div
-              className={cn(
-                `absolute left-6   w-px`,
-                'bg-gradient-to-b from-slate-200 via-slate-300 to-transparent',
-                'dark:from-slate-600 dark:via-slate-500',
-              )}
+              className={cn('absolute left-4 w-px', 'bg-gray-200 dark:bg-gray-700')}
               style={{ marginLeft: `${depth * 16}px`, height: `${folderLineHeight}px` }}
             ></div>
             <div className="relative">
@@ -348,39 +314,28 @@ export const RenderFile: React.FC<{
                 <div
                   className={cn(
                     'flex items-center py-2 px-3 text-sm mx-2 my-0.5',
-                    'bg-gradient-to-r from-green-50 via-emerald-50/80 to-green-50',
-                    'dark:from-green-900/20 dark:via-emerald-900/20 dark:to-green-900/20',
-                    'border border-green-200/60 dark:border-green-700/50 rounded-lg',
-                    'shadow-md shadow-green-200/20 dark:shadow-green-800/20',
+                    'bg-green-50 dark:bg-green-900/20',
+                    'border border-green-200 dark:border-green-700 rounded-lg',
                   )}
                   style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}
                 >
-                  <div className="w-6 h-6 mr-2 flex-shrink-0 flex items-center justify-center">
-                    <div
-                      className={cn(
-                        'w-5 h-5 rounded-md flex items-center justify-center',
-                        'bg-gradient-to-br from-emerald-400 to-green-500',
-                        'shadow-md shadow-emerald-500/30',
-                      )}
-                    >
-                      <Icon
-                        name={newItemType === 'folder' ? 'Folder' : 'FileText'}
-                        className="h-3.5 w-3.5 text-white drop-shadow-sm"
-                      />
-                    </div>
+                  <div className="w-5 h-5 mr-2 flex-shrink-0">
+                    {newItemType === 'folder' ? (
+                      <Folder className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-green-500" />
+                    )}
                   </div>
                   <div className="flex-1 flex items-center space-x-2">
                     <input
                       ref={inputRef}
                       type="text"
                       className={cn(
-                        'flex-1 bg-white/90 dark:bg-slate-700/90 backdrop-blur-sm',
-                        'border-2 border-green-400/70 dark:border-green-500/70',
-                        'focus:border-green-500 dark:focus:border-green-400',
-                        'focus:ring-2 focus:ring-green-500/30 dark:focus:ring-green-400/30',
-                        'px-3 py-2 text-sm rounded-lg transition-all duration-300',
-                        'text-slate-900 dark:text-slate-100',
-                        'shadow-lg shadow-green-200/30 dark:shadow-green-800/20',
+                        'flex-1 bg-white dark:bg-gray-700',
+                        'border border-green-400',
+                        'focus:border-green-500 focus:ring-1 focus:ring-green-500',
+                        'px-2 py-1 text-sm rounded',
+                        'text-gray-900 dark:text-gray-100',
                       )}
                       value={newItemName}
                       onChange={(e) => setNewItemName(e.target.value)}
@@ -390,33 +345,47 @@ export const RenderFile: React.FC<{
                     />
                     <div className="flex items-center space-x-1 flex-shrink-0">
                       <button
-                        className={cn(
-                          'p-2 rounded-xl transition-all duration-300 transform hover:scale-110',
-                          'bg-gradient-to-br from-green-500 to-emerald-600',
-                          'text-white shadow-lg shadow-green-500/30',
-                          'hover:from-green-600 hover:to-emerald-700',
-                        )}
+                        className="p-1.5 rounded bg-green-500 text-white hover:bg-green-600 transition-colors"
                         onClick={() => finishCreateNewItem()}
                         title="确认"
                       >
-                        <Icon name="Check" className="h-3.5 w-3.5" />
+                        <Check className="h-3 w-3" />
                       </button>
                       <button
-                        className={cn(
-                          'p-2 rounded-xl transition-all duration-300 transform hover:scale-110',
-                          'bg-gradient-to-br from-red-500 to-pink-600',
-                          'text-white shadow-lg shadow-red-500/30',
-                          'hover:from-red-600 hover:to-pink-700',
-                        )}
+                        className="p-1.5 rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
                         onClick={cancelCreateNewItem}
                         title="取消"
                       >
-                        <Icon name="X" className="h-3.5 w-3.5" />
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* 递归渲染子文件/子文件夹 */}
+              {file.children?.map((child) => (
+                <RenderFile
+                  key={child.id}
+                  file={child}
+                  id={child.id}
+                  depth={depth + 1}
+                  groupId={groupId}
+                  inputRef={inputRef}
+                  isOverlay={isOverlay}
+                  onFileSelect={onFileSelect}
+                  onToggleFolder={onToggleFolder}
+                  onContextMenu={onContextMenu}
+                  closeContextMenu={closeContextMenu}
+                  onFinishRenaming={onFinishRenaming}
+                  onKeyDown={onKeyDown}
+                  onRename={onRename}
+                  onShare={onShare}
+                  onDelete={onDelete}
+                  onDuplicate={onDuplicate}
+                  onDownload={onDownload}
+                />
+              ))}
             </div>
           </div>
         )}

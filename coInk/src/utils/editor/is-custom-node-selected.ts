@@ -69,4 +69,3 @@ export function isCustomNodeSelected(editor: Editor, node: HTMLElement): boolean
 
   return customNodes.some((type) => editor.isActive(type)) || isTableGripSelected(node);
 }
-

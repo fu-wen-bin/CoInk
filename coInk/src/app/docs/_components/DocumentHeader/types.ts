@@ -18,6 +18,13 @@ export interface DocumentHeaderProps {
   documentName?: string;
   documentTitle?: string;
   doc?: Y.Doc;
+  // 新增：侧边栏和目录控制
+  isSidebarOpen?: boolean;
+  toggleSidebar?: () => void;
+  isTocOpen?: boolean;
+  toggleToc?: () => void;
+  // 新增：连接状态
+  connectionStatus?: string;
 }
 
 export interface DocumentActionsProps {

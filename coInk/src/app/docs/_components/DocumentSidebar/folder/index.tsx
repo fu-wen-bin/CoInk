@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, startTransition } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { closestCenter, DndContext, MeasuringStrategy, PointerSensor } from '@dnd-kit/core';
 import { useSensor, useSensors } from '@dnd-kit/core';
+import { Folder as FolderIcon } from 'lucide-react';
 
 import ShareDialog from './ShareDialog';
 import GroupedFileTree from './components/GroupedFileTree';
@@ -30,7 +31,7 @@ import { flattenTreeFile, getProjection, removeChildrenOf } from '@/utils';
 
 export const TRASH_ID = 'void';
 
-const Folder = ({ onFileSelect }: FileExplorerProps) => {
+const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const { refreshTrigger, lastOperationSource, triggerRefresh } = useSidebar();
@@ -129,48 +130,55 @@ const Folder = ({ onFileSelect }: FileExplorerProps) => {
     }
   }, [refreshTrigger, lastOperationSource, loadFiles]);
 
-  // URL选中逻辑
+  // URL选中逻辑 - 从URL参数识别当前选中的文档
   useEffect(() => {
-    if (documentGroups.length === 0) return;
-
     const match = pathname.match(/^\/docs\/(\d+)$/);
 
     if (match) {
-      const fileId = match[1];
-      const findFileById = (items: FileItem[], id: string): boolean => {
-        for (const item of items) {
-          if (item.id === id) return true;
-          if (item.children && findFileById(item.children, id)) return true;
-        }
-
-        return false;
-      };
-
-      let found = false;
-
-      for (const group of documentGroups) {
-        if (findFileById(group.files, fileId)) {
-          found = true;
-          setSelectedFileId(fileId);
-          break;
-        }
-      }
-
-      if (!found) {
-        setSelectedFileId(null);
-      }
+      const fileId = String(match[1]);
+      setSelectedFileId(fileId);
     } else {
       setSelectedFileId(null);
     }
-  }, [pathname, documentGroups, setSelectedFileId]);
+  }, [pathname, setSelectedFileId]);
 
-  // 文件选择
+  // 当文件列表加载完成后，验证选中的文件是否存在
+  useEffect(() => {
+    if (documentGroups.length === 0 || !selectedFileId) return;
+
+    const selectedIdStr = String(selectedFileId);
+
+    const findFileById = (items: FileItem[], id: string): boolean => {
+      for (const item of items) {
+        if (String(item.id) === id) return true;
+        if (item.children && findFileById(item.children, id)) return true;
+      }
+      return false;
+    };
+
+    let found = false;
+    for (const group of documentGroups) {
+      if (findFileById(group.files, selectedIdStr)) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      setSelectedFileId(null);
+    }
+  }, [documentGroups, selectedFileId, setSelectedFileId]);
+
+  // 文件选择 - 使用 startTransition 优化导航，避免页面闪烁
   const handleFileSelect = (file: FileItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedFileId(file.id);
+    setSelectedFileId(String(file.id));
 
     if (file.type === 'file') {
-      router.push(`/docs/${file.id}`);
+      // 使用 startTransition 让导航在后台执行，避免阻塞 UI
+      startTransition(() => {
+        router.push(`/docs/${file.id}`, { scroll: false });
+      });
     }
 
     if (onFileSelect) onFileSelect(file);
@@ -315,28 +323,30 @@ const Folder = ({ onFileSelect }: FileExplorerProps) => {
 
   return (
     <div ref={containerRef} className="flex flex-col flex-1 h-full">
-      {/* 头部工具栏 - 始终显示 */}
-      <Toolbar
-        onCreateFile={() => {
-          // 默认在个人文档分组创建
-          const personalGroup = documentGroups.find((g) => g.type === 'personal');
+      {/* 头部工具栏 - 非紧凑模式下显示 */}
+      {!compact && (
+        <Toolbar
+          onCreateFile={() => {
+            // 默认在个人文档分组创建
+            const personalGroup = documentGroups.find((g) => g.type === 'personal');
 
-          if (personalGroup) {
-            startCreateNewItem('root', 'file', personalGroup.id);
-          }
-        }}
-        onCreateFolder={() => {
-          // 默认在个人文档分组创建
-          const personalGroup = documentGroups.find((g) => g.type === 'personal');
+            if (personalGroup) {
+              startCreateNewItem('root', 'file', personalGroup.id);
+            }
+          }}
+          onCreateFolder={() => {
+            // 默认在个人文档分组创建
+            const personalGroup = documentGroups.find((g) => g.type === 'personal');
 
-          if (personalGroup) {
-            startCreateNewItem('root', 'folder', personalGroup.id);
-          }
-        }}
-        onRefresh={refreshFiles}
-        onCollapseAll={collapseAll}
-        isLoading={isLoading}
-      />
+            if (personalGroup) {
+              startCreateNewItem('root', 'folder', personalGroup.id);
+            }
+          }}
+          onRefresh={refreshFiles}
+          onCollapseAll={collapseAll}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* 拖拽上下文 */}
       <DndContext
@@ -381,105 +391,9 @@ const Folder = ({ onFileSelect }: FileExplorerProps) => {
               const isCompletelyEmpty = documentGroups.length === 0 || !hasAnyFiles;
 
               return isCompletelyEmpty && !newItemFolder ? (
-                <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
-                  {/* 图标 */}
-                  <div className="relative mb-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 dark:from-blue-900/30 dark:via-indigo-900/30 dark:to-purple-900/30 rounded-3xl flex items-center justify-center shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30">
-                      <svg
-                        className="w-10 h-10 text-blue-500 dark:text-blue-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </div>
-                    {/* 装饰性光效 */}
-                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full opacity-80 blur-sm"></div>
-                  </div>
-
-                  {/* 标题和描述 */}
-                  <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                    开始创建文档
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-xs leading-relaxed">
-                    这里还没有任何文档。点击下方按钮创建您的第一个文档，开启高效协作之旅！
-                  </p>
-
-                  {/* 操作按钮 */}
-                  <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-                    <button
-                      onClick={() => {
-                        const personalGroup = documentGroups.find((g) => g.type === 'personal');
-
-                        if (personalGroup) {
-                          startCreateNewItem('root', 'file', personalGroup.id);
-                        }
-                      }}
-                      className="flex-1 group relative px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105"
-                    >
-                      <span className="flex items-center justify-center gap-2">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        新建文档
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const personalGroup = documentGroups.find((g) => g.type === 'personal');
-
-                        if (personalGroup) {
-                          startCreateNewItem('root', 'folder', personalGroup.id);
-                        }
-                      }}
-                      className="flex-1 group px-5 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium rounded-xl transition-all duration-300 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 hover:shadow-slate-300/50 dark:hover:shadow-slate-800/50 hover:scale-105 border border-slate-200 dark:border-slate-600"
-                    >
-                      <span className="flex items-center justify-center gap-2">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                          />
-                        </svg>
-                        新建文件夹
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* 提示文字 */}
-                  <div className="mt-8 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>也可以点击上方工具栏的按钮创建</span>
-                  </div>
+                <div className="flex flex-col items-center justify-center text-gray-400 h-40">
+                  <FolderIcon className="w-12 h-12 mb-2 opacity-30" />
+                  <p className="text-sm">暂无文档</p>
                 </div>
               ) : (
                 <>

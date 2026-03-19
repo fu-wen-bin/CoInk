@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { RenderFile } from './RenderFile';
 import PortalOverlay from './PortalOverlay';
 
+import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
@@ -54,6 +55,8 @@ const FileTree: React.FC<FileTreeProps> = (props) => {
   } = props;
   const fileSordId = files.map((file) => file.id);
   const activeFile = files.find(({ id }) => id === dndState.activeId);
+  const selectedFileId = useFileStore((state) => state.selectedFileId);
+  const setSelectedFileId = useFileStore((state) => state.setSelectedFileId);
 
   // 渲染顶级新建输入框
   const renderNewRootItem = () => {

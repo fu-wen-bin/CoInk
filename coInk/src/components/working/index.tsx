@@ -79,7 +79,7 @@ const ComingSoonPage: React.FC = () => {
               </Link>
 
               <Link
-                href="https://github.com/xun082/DocFlow"
+                href="https://github.com/fu-wen-bin/CoInk"
                 target="_blank"
                 className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg hover:from-emerald-500 hover:to-green-500"
               >

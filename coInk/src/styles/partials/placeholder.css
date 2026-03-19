@@ -1,0 +1,38 @@
+@layer utilities {
+  .ProseMirror .is-empty::before {
+    @apply float-left h-0 pointer-events-none w-full text-black/40;
+  }
+
+  .dark .ProseMirror .is-empty::before {
+    @apply text-white/40;
+  }
+
+  .ProseMirror.ProseMirror-focused > p.has-focus.is-empty::before {
+    content: 'Type  /  to browse options';
+  }
+
+  .ProseMirror > .is-editor-empty:first-child:last-child::before {
+    content: 'Click here to start writing …';
+  }
+
+  .ProseMirror blockquote .is-empty:not(.is-editor-empty):first-child:last-child::before {
+    content: 'Enter a quote';
+  }
+
+  .ProseMirror [data-placeholder][data-suggestion]::before,
+  .ProseMirror [data-placeholder][data-suggestion] *::before {
+    content: none !important;
+  }
+
+  .ProseMirror [data-type='details'].is-editor-empty::before {
+    content: none !important;
+  }
+
+  .ProseMirror [data-type='details'] summary.is-empty::before {
+    content: 'Enter a summary';
+  }
+
+  .ProseMirror [data-type='detailsContent'] .is-empty::before {
+    content: 'Enter details';
+  }
+}

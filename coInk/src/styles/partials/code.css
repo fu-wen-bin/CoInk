@@ -1,0 +1,15 @@
+@layer utilities {
+  /* 行内代码样式 - 不影响代码块 */
+  .ProseMirror code:not(.code-block *) {
+    color: #e6edf3;
+    background: #21262d;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    font-size: 0.875em;
+  }
+
+  .ProseMirror code:not(.code-block *)::selection {
+    background-color: rgba(56, 139, 253, 0.4);
+  }
+}

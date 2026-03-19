@@ -35,4 +35,5 @@ export type SearchResultItem = {
 export interface FileExplorerProps {
   initialFiles?: FileItem[];
   onFileSelect?: (file: FileItem) => void;
+  compact?: boolean;
 }

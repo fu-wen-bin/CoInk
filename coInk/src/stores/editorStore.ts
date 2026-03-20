@@ -5,12 +5,14 @@ interface EditorState {
   editor: Editor | null;
   documentId: string | null;
   isContentItemMenuOpen: boolean;
+  isHeaderHovered: boolean;
 }
 
 interface EditorActions {
   setEditor: (editor: Editor, documentId: string) => void;
   clearEditor: () => void;
   setIsContentItemMenuOpen: (isOpen: boolean) => void;
+  setIsHeaderHovered: (v: boolean) => void;
 }
 
 type EditorStore = EditorState & EditorActions;
@@ -20,9 +22,11 @@ export const useEditorStore = create<EditorStore>((set) => ({
   editor: null,
   documentId: null,
   isContentItemMenuOpen: false,
+  isHeaderHovered: false,
 
   // Actions
   setEditor: (editor, documentId) => set({ editor, documentId }),
   clearEditor: () => set({ editor: null, documentId: null }),
   setIsContentItemMenuOpen: (isOpen) => set({ isContentItemMenuOpen: isOpen }),
+  setIsHeaderHovered: (v) => set({ isHeaderHovered: v }),
 }));

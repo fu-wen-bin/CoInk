@@ -54,7 +54,9 @@ function DocumentSidebar() {
   return (
     <div
       ref={sidebarRef}
-      className="flex h-full relative bg-white dark:bg-[#1a1a1a] border-r border-gray-200 dark:border-gray-800 transition-all duration-300 overflow-hidden"
+      className={`flex h-full relative bg-white dark:bg-[#1a1a1a] border-r border-gray-200 dark:border-gray-800 overflow-hidden ${
+        isResizing ? '' : 'transition-all duration-300'
+      }`}
       style={{ width: isOpen ? `${sidebarWidth}px` : '0px' }}
     >
       {/* 右侧内容区域 */}
@@ -66,8 +68,12 @@ function DocumentSidebar() {
 
           {/* 右侧拖拽调整条 */}
           <div
-            className="absolute -right-1.5 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors z-50"
-            onMouseDown={() => setIsResizing(true)}
+            className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 transition-colors z-50"
+            style={{ right: '-4px', width: '8px' }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
           />
         </>
       )}

@@ -10,13 +10,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Eye } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import {
-  Group,
-  Panel,
-  Separator,
-  type PanelImperativeHandle,
-  type GroupImperativeHandle,
-} from 'react-resizable-panels';
+import { Group, Panel, type GroupImperativeHandle } from 'react-resizable-panels';
 import 'md-editor-rt/lib/preview.css';
 
 // 动态导入 CommentPanel，禁用 SSR
@@ -29,9 +23,12 @@ const CommentPanel = dynamic(
   },
 );
 
-// 动态导入 ChatPanel，禁用 SSR
-const ChatPanel = dynamic(
-  () => import('@/app/docs/_components/ChatPanel').then((mod) => ({ default: mod.ChatPanel })),
+// 动态导入 ChatPanelContainer，禁用 SSR
+const ChatPanelContainer = dynamic(
+  () =>
+    import('@/app/docs/_components/ChatPanel/ChatPanelContainer').then((mod) => ({
+      default: mod.ChatPanelContainer,
+    })),
   {
     ssr: false,
     loading: () => (
@@ -90,14 +87,13 @@ export default function DocumentPage() {
   const searchParams = useSearchParams();
   const documentId = params?.room as string;
   const menuContainerRef = useRef<HTMLDivElement>(null);
-  const chatPanelRef = useRef<PanelImperativeHandle>(null);
   const groupRef = useRef<GroupImperativeHandle>(null);
 
   // 获取URL参数中的只读模式设置
   const forceReadOnly = searchParams?.get('readonly') === 'true';
 
   const { documentGroups } = useFileStore();
-  const { isOpen: isChatOpen } = useChatStore();
+  const { isOpen: isChatOpen, width: chatWidth, isResizing: isChatResizing } = useChatStore();
   const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
 
   // 防止水合不匹配的强制客户端渲染
@@ -392,24 +388,6 @@ export default function DocumentPage() {
 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isSearchOpen]);
-
-  // 同步聊天面板的折叠/展开状态
-  useEffect(() => {
-    const group = groupRef.current;
-    if (!group) return;
-
-    if (isChatOpen) {
-      // 展开：编辑器 65%，聊天面板 35%
-      requestAnimationFrame(() => {
-        group.setLayout({ editor: 65, chat: 35 });
-      });
-    } else {
-      // 关闭：编辑器 100%，聊天面板 0%
-      requestAnimationFrame(() => {
-        group.setLayout({ editor: 100, chat: 0 });
-      });
-    }
-  }, [isChatOpen]);
 
   // 创建编辑器 - 只有在 IndexedDB 准备好之后才创建
   const editor = useEditor(
@@ -708,38 +686,23 @@ export default function DocumentPage() {
           <Panel id="editor" defaultSize="65" minSize="30">
             <div className="h-full relative overflow-hidden">
               <TocPanel editor={editor} isOpen={isTocOpen} />
+
+              {/* AI 助手 - 右侧可调节宽度 */}
+              <ChatPanelContainer documentId={documentId} />
+
               <div
                 ref={editorContainRef}
-                className={`w-full h-full overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isTocOpen ? 'pl-[220px]' : ''}`}
+                className="w-full h-full overflow-y-auto overflow-x-hidden relative"
+                style={{
+                  paddingLeft: isTocOpen ? '220px' : '0px',
+                  paddingRight: isChatOpen ? `${chatWidth}px` : '0px',
+                  transition: isChatResizing
+                    ? 'none'
+                    : 'padding-left 300ms ease-in-out, padding-right 300ms ease-in-out',
+                }}
               >
                 <EditorContent editor={editor} className="prose-container h-full px-20" />
               </div>
-            </div>
-          </Panel>
-
-          {/* 聊天面板 - 使用 collapsible 控制显隐，避免条件渲染导致的布局重算问题 */}
-          <Separator
-            disabled={!isChatOpen}
-            className={
-              isChatOpen
-                ? 'w-1 bg-gray-200 dark:bg-gray-800 hover:bg-blue-500 dark:hover:bg-blue-500 transition-colors cursor-col-resize'
-                : 'w-0 opacity-0 pointer-events-none'
-            }
-          />
-          <Panel
-            id="chat"
-            panelRef={chatPanelRef}
-            defaultSize="35"
-            minSize="25"
-            maxSize="60"
-          >
-            <div
-              className="h-full transition-transform duration-300 ease-in-out"
-              style={{ transform: isChatOpen ? 'translateX(0)' : 'translateX(100%)' }}
-            >
-              <Activity mode={isChatOpen ? 'visible' : 'hidden'}>
-                <ChatPanel documentId={documentId} />
-              </Activity>
             </div>
           </Panel>
         </Group>

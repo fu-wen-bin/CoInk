@@ -137,10 +137,14 @@ src/
 - **Tailwind**: v4.1.7 with CSS-based configuration
 - **ESLint**: Prettier integration, import ordering rules
 
-## 程序迭代
+## Program Iteration
 
-- **计划编写**: 每次需要改动程序、迭代功能时汇总出迭代计划和功能列表
-- **用户检查**: 迭代计划和功能列表需要用户确认后才能开始编写代码
-- **迭代说明**: 每次迭代完成后需要编写迭代说明，说明本次迭代的功能和改动点
+- **Plan Writing**: When changes to the program or iterative features are needed, summarize the iteration plan and feature list
+- **User Review**: The iteration plan and feature list must be confirmed by the user before starting to write code
+- **Iteration Description**: After each iteration, an iteration description needs to be written, explaining the features and changes of this iteration
 
-编写的程序迭代内容参考根目录下`程序迭代文档.md`的格式和内容要求。
+The program iteration content should follow the format and requirements specified in the `Program Iteration Document.md` in the root directory.
+
+## Language
+
+- **Answer questions in the user's language!

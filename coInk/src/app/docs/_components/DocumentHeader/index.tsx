@@ -252,7 +252,7 @@ export default function DocumentHeader({
 }: DocumentHeaderProps) {
   const pathname = usePathname();
   const isCollaborationMode = Boolean(provider) && Array.isArray(connectedUsers);
-  const { editor } = useEditorStore();
+  const { editor, setIsHeaderHovered } = useEditorStore();
   const { isOpen: isChatOpen, togglePanel } = useChatStore();
   const { documentGroups } = useFileStore();
 
@@ -288,7 +288,11 @@ export default function DocumentHeader({
     : null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700 min-h-[60px] relative z-10">
+    <div
+      className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700 min-h-[60px] relative z-10"
+      onMouseEnter={() => setIsHeaderHovered(true)}
+      onMouseLeave={() => setIsHeaderHovered(false)}
+    >
       {/* 目录切换按钮 */}
       {toggleToc && (
         <button

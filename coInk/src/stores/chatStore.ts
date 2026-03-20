@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export const MIN_CHAT_WIDTH = 280;
+const MAX_CHAT_WIDTH = 500;
 
 export interface ChatTab {
   id: string;
@@ -16,12 +20,16 @@ export interface DocumentReference {
 
 interface ChatState {
   isOpen: boolean;
+  width: number;
   tabs: ChatTab[];
   activeTabId: string | null;
   documentReference: DocumentReference | null;
   presetMessage: string | null;
+  isResizing: boolean;
 
   setIsOpen: (isOpen: boolean) => void;
+  setWidth: (width: number) => void;
+  setIsResizing: (v: boolean) => void;
   togglePanel: () => void;
   addTab: (tab?: Partial<Omit<ChatTab, 'id'>>) => string;
   removeTab: (id: string) => void;
@@ -35,81 +43,90 @@ let tabCounter = 0;
 
 function createTabId(): string {
   tabCounter += 1;
-
   return `tab-${tabCounter}-${Date.now()}`;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
-  isOpen: true,
-  tabs: [],
-  activeTabId: null,
-  documentReference: null,
-  presetMessage: null,
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      isOpen: false,
+      width: MIN_CHAT_WIDTH,
+      tabs: [],
+      activeTabId: null,
+      documentReference: null,
+      presetMessage: null,
+      isResizing: false,
 
-  setIsOpen: (isOpen) => {
-    set({ isOpen });
-
-    if (isOpen && get().tabs.length === 0) {
-      get().addTab();
-    }
-  },
-
-  togglePanel: () => {
-    const next = !get().isOpen;
-    set({ isOpen: next });
-
-    if (next && get().tabs.length === 0) {
-      get().addTab();
-    }
-  },
-
-  addTab: (tab) => {
-    const id = createTabId();
-    const newTab: ChatTab = {
-      id,
-      title: tab?.title || '新对话',
-      conversationId: tab?.conversationId || null,
-    };
-
-    set((state) => ({
-      tabs: [...state.tabs, newTab],
-      activeTabId: id,
-    }));
-
-    return id;
-  },
-
-  removeTab: (id) => {
-    set((state) => {
-      const newTabs = state.tabs.filter((t) => t.id !== id);
-      let newActiveId = state.activeTabId;
-
-      if (state.activeTabId === id) {
-        const removedIndex = state.tabs.findIndex((t) => t.id === id);
-
-        if (newTabs.length > 0) {
-          newActiveId = newTabs[Math.min(removedIndex, newTabs.length - 1)].id;
-        } else {
-          newActiveId = null;
+      setIsOpen: (isOpen) => {
+        set({ isOpen });
+        if (isOpen && get().tabs.length === 0) {
+          get().addTab();
         }
-      }
+      },
 
-      return {
-        tabs: newTabs,
-        activeTabId: newActiveId,
-        isOpen: newTabs.length > 0 ? state.isOpen : false,
-      };
-    });
-  },
+      setWidth: (width) => {
+        const clampedWidth = Math.max(MIN_CHAT_WIDTH, Math.min(MAX_CHAT_WIDTH, width));
+        set({ width: clampedWidth });
+      },
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+      setIsResizing: (v) => set({ isResizing: v }),
 
-  updateTab: (id, updates) =>
-    set((state) => ({
-      tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-    })),
+      togglePanel: () => {
+        const next = !get().isOpen;
+        set({ isOpen: next });
+        if (next && get().tabs.length === 0) {
+          get().addTab();
+        }
+      },
 
-  setDocumentReference: (reference) => set({ documentReference: reference }),
+      addTab: (tab) => {
+        const id = createTabId();
+        const newTab: ChatTab = {
+          id,
+          title: tab?.title || '新对话',
+          conversationId: tab?.conversationId || null,
+        };
+        set((state) => ({
+          tabs: [...state.tabs, newTab],
+          activeTabId: id,
+        }));
+        return id;
+      },
 
-  setPresetMessage: (message) => set({ presetMessage: message }),
-}));
+      removeTab: (id) => {
+        set((state) => {
+          const newTabs = state.tabs.filter((t) => t.id !== id);
+          let newActiveId = state.activeTabId;
+          if (state.activeTabId === id) {
+            const removedIndex = state.tabs.findIndex((t) => t.id === id);
+            if (newTabs.length > 0) {
+              newActiveId = newTabs[Math.min(removedIndex, newTabs.length - 1)].id;
+            } else {
+              newActiveId = null;
+            }
+          }
+          return {
+            tabs: newTabs,
+            activeTabId: newActiveId,
+            isOpen: newTabs.length > 0 ? state.isOpen : false,
+          };
+        });
+      },
+
+      setActiveTab: (id) => set({ activeTabId: id }),
+
+      updateTab: (id, updates) =>
+        set((state) => ({
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+        })),
+
+      setDocumentReference: (reference) => set({ documentReference: reference }),
+
+      setPresetMessage: (message) => set({ presetMessage: message }),
+    }),
+    {
+      name: 'chat-store',
+      partialize: (state) => ({ width: state.width }),
+    }
+  )
+);

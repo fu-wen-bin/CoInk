@@ -21,7 +21,7 @@ export const ContentItemMenu = ({ editor, isEditable = true }: ContentItemMenuPr
   const [menuOpen, setMenuOpen] = useState(false);
   const data = useData();
   const actions = useContentItemActions(editor, data.currentNode, data.currentNodePos);
-  const { setIsContentItemMenuOpen } = useEditorStore();
+  const { setIsContentItemMenuOpen, isHeaderHovered } = useEditorStore();
 
   useEffect(() => {
     if (menuOpen) {
@@ -35,7 +35,7 @@ export const ContentItemMenu = ({ editor, isEditable = true }: ContentItemMenuPr
 
   return (
     <DragHandle pluginKey="ContentItemMenu" editor={editor} onNodeChange={data.handleNodeChange}>
-      {isEditable ? (
+      {isEditable && !isHeaderHovered ? (
         <div className="flex items-center gap-0.5 relative -top-[6px]">
           <Toolbar.Button onClick={actions.handleAdd}>
             <Icon name="Plus" />

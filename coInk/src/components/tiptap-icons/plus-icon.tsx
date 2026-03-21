@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const PlusIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -18,7 +18,7 @@ export const PlusIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-PlusIcon.displayName = "PlusIcon"
+PlusIcon.displayName = 'PlusIcon';

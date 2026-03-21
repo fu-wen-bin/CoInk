@@ -1,25 +1,24 @@
-"use client"
+'use client';
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from 'react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseTableClearRowColumnContentConfig } from "@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button"
-import { useTableClearRowColumnContent } from "@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button"
+import type { UseTableClearRowColumnContentConfig } from '@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button';
+import { useTableClearRowColumnContent } from '@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-import { Button } from "@/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
 
 export interface TableClearRowColumnContentButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseTableClearRowColumnContentConfig {
+  extends Omit<ButtonProps, 'type'>, UseTableClearRowColumnContentConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -44,9 +43,9 @@ export const TableClearRowColumnContentButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleClear, label, canClearRowColumnContent, Icon } =
       useTableClearRowColumnContent({
         editor,
@@ -55,19 +54,19 @@ export const TableClearRowColumnContentButton = forwardRef<
         hideWhenUnavailable,
         resetAttrs,
         onCleared,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleClear()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleClear();
       },
-      [handleClear, onClick]
-    )
+      [handleClear, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -93,9 +92,8 @@ export const TableClearRowColumnContentButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TableClearRowColumnContentButton.displayName =
-  "TableClearRowColumnContentButton"
+TableClearRowColumnContentButton.displayName = 'TableClearRowColumnContentButton';

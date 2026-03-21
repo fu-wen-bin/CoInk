@@ -1,23 +1,16 @@
-import type { Editor } from "@tiptap/react"
+import type { Editor } from '@tiptap/react';
 
-export const isElementWithinEditor = (
-  editor: Editor | null,
-  element: Node | null
-) => {
+export const isElementWithinEditor = (editor: Editor | null, element: Node | null) => {
   if (!element || !editor) {
-    return false
+    return false;
   }
 
-  const editorWrapper = editor.view.dom.parentElement
-  const editorDom = editor.view.dom
+  const editorWrapper = editor.view.dom.parentElement;
+  const editorDom = editor.view.dom;
 
   if (!editorWrapper) {
-    return false
+    return false;
   }
 
-  return (
-    editorWrapper === element ||
-    editorDom === element ||
-    editorWrapper.contains(element)
-  )
-}
+  return editorWrapper === element || editorDom === element || editorWrapper.contains(element);
+};

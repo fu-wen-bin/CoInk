@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const ArrowDownAZIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -28,7 +28,7 @@ export const ArrowDownAZIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-ArrowDownAZIcon.displayName = "ArrowDownAZIcon"
+ArrowDownAZIcon.displayName = 'ArrowDownAZIcon';

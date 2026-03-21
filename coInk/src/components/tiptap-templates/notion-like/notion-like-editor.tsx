@@ -1,113 +1,128 @@
-"use client"
+'use client';
 
-import { useContext, useEffect } from "react"
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
-import type { Doc as YDoc } from "yjs"
-import type { TiptapCollabProvider } from "@tiptap-pro/provider"
-import { createPortal } from "react-dom"
-
+import { useContext, useEffect } from 'react';
+import { EditorContent, EditorContext, useEditor, type Editor } from '@tiptap/react';
+import type { Doc as YDoc } from 'yjs';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
+import { createPortal } from 'react-dom';
 // --- Tiptap Core Extensions ---
-import { StarterKit } from "@tiptap/starter-kit"
-import { Mention } from "@tiptap/extension-mention"
-import { TaskList, TaskItem } from "@tiptap/extension-list"
-import { Color, TextStyle } from "@tiptap/extension-text-style"
-import { Placeholder, Selection } from "@tiptap/extensions"
-import { Collaboration, isChangeOrigin } from "@tiptap/extension-collaboration"
-import { CollaborationCaret } from "@tiptap/extension-collaboration-caret"
-import { Typography } from "@tiptap/extension-typography"
-import { Highlight } from "@tiptap/extension-highlight"
-import { Superscript } from "@tiptap/extension-superscript"
-import { Subscript } from "@tiptap/extension-subscript"
-import { TextAlign } from "@tiptap/extension-text-align"
-import { Mathematics } from "@tiptap/extension-mathematics"
-import { Ai } from "@tiptap-pro/extension-ai"
-import { UniqueID } from "@tiptap/extension-unique-id"
-import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji"
-import {
-  getHierarchicalIndexes,
-  TableOfContents,
-} from "@tiptap/extension-table-of-contents"
+import { StarterKit } from '@tiptap/starter-kit';
+import { Mention } from '@tiptap/extension-mention';
+import { TaskList, TaskItem } from '@tiptap/extension-list';
+import { Color, TextStyle } from '@tiptap/extension-text-style';
+import { Placeholder, Selection } from '@tiptap/extensions';
+import { Collaboration, isChangeOrigin } from '@tiptap/extension-collaboration';
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
+import { Typography } from '@tiptap/extension-typography';
+import { Highlight } from '@tiptap/extension-highlight';
+import { Superscript } from '@tiptap/extension-superscript';
+import { Subscript } from '@tiptap/extension-subscript';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Mathematics } from '@tiptap/extension-mathematics';
+import { UniqueID } from '@tiptap/extension-unique-id';
+import { Emoji, gitHubEmojis } from '@tiptap/extension-emoji';
+import { getHierarchicalIndexes, TableOfContents } from '@tiptap/extension-table-of-contents';
 
 // --- Hooks ---
-import { useUiEditorState } from "@/hooks/use-ui-editor-state"
-import { useScrollToHash } from "@/components/tiptap-ui/copy-anchor-link-button/use-scroll-to-hash"
-
+import { useUiEditorState } from '@/hooks/use-ui-editor-state';
+import { useScrollToHash } from '@/components/tiptap-ui/copy-anchor-link-button/use-scroll-to-hash';
 // --- Custom Extensions ---
-import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
-import { UiState } from "@/components/tiptap-extension/ui-state-extension"
-import { Image } from "@/components/tiptap-node/image-node/image-node-extension"
-import { NodeBackground } from "@/components/tiptap-extension/node-background-extension"
-import { NodeAlignment } from "@/components/tiptap-extension/node-alignment-extension"
-import { TocNode } from "@/components/tiptap-node/toc-node/extensions/toc-node-extension"
-
+import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
+import { UiState } from '@/components/tiptap-extension/ui-state-extension';
+import { Image } from '@/components/tiptap-node/image-node/image-node-extension';
+import { NodeBackground } from '@/components/tiptap-extension/node-background-extension';
+import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
+import { TocNode } from '@/components/tiptap-node/toc-node/extensions/toc-node-extension';
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
-
+import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension';
 // --- Table Node ---
-import { TableKit } from "@/components/tiptap-node/table-node/extensions/table-node-extension"
-import { TableHandleExtension } from "@/components/tiptap-node/table-node/extensions/table-handle"
-import { TableHandle } from "@/components/tiptap-node/table-node/ui/table-handle/table-handle"
-import { TableSelectionOverlay } from "@/components/tiptap-node/table-node/ui/table-selection-overlay"
-import { TableCellHandleMenu } from "@/components/tiptap-node/table-node/ui/table-cell-handle-menu"
-import { TableExtendRowColumnButtons } from "@/components/tiptap-node/table-node/ui/table-extend-row-column-button"
-import "@/components/tiptap-node/table-node/styles/prosemirror-table.scss"
-import "@/components/tiptap-node/table-node/styles/table-node.scss"
-
-import "@/components/tiptap-node/blockquote-node/blockquote-node.scss"
-import "@/components/tiptap-node/code-block-node/code-block-node.scss"
-import "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss"
-import "@/components/tiptap-node/list-node/list-node.scss"
-import "@/components/tiptap-node/image-node/image-node.scss"
-import "@/components/tiptap-node/heading-node/heading-node.scss"
-import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
-
+import { TableKit } from '@/components/tiptap-node/table-node/extensions/table-node-extension';
+import { TableHandleExtension } from '@/components/tiptap-node/table-node/extensions/table-handle';
+import { TableHandle } from '@/components/tiptap-node/table-node/ui/table-handle/table-handle';
+import { TableSelectionOverlay } from '@/components/tiptap-node/table-node/ui/table-selection-overlay';
+import { TableCellHandleMenu } from '@/components/tiptap-node/table-node/ui/table-cell-handle-menu';
+import { TableExtendRowColumnButtons } from '@/components/tiptap-node/table-node/ui/table-extend-row-column-button';
+import '@/components/tiptap-node/table-node/styles/prosemirror-table.scss';
+import '@/components/tiptap-node/table-node/styles/table-node.scss';
+import '@/components/tiptap-node/blockquote-node/blockquote-node.scss';
+import '@/components/tiptap-node/code-block-node/code-block-node.scss';
+import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
+import '@/components/tiptap-node/list-node/list-node.scss';
+import '@/components/tiptap-node/image-node/image-node.scss';
+import '@/components/tiptap-node/heading-node/heading-node.scss';
+import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
 // --- Tiptap UI ---
-import { EmojiDropdownMenu } from "@/components/tiptap-ui/emoji-dropdown-menu"
-import { MentionDropdownMenu } from "@/components/tiptap-ui/mention-dropdown-menu"
-import { SlashDropdownMenu } from "@/components/tiptap-ui/slash-dropdown-menu"
-import { DragContextMenu } from "@/components/tiptap-ui/drag-context-menu"
-import { AiMenu } from "@/components/tiptap-ui/ai-menu"
-
-// --- Contexts ---
-import { AppProvider } from "@/contexts/app-context"
-import { UserProvider, useUser } from "@/contexts/user-context"
-import { CollabProvider, useCollab } from "@/contexts/collab-context"
-import { AiProvider, useAi } from "@/contexts/ai-context"
-
+import { EmojiDropdownMenu } from '@/components/tiptap-ui/emoji-dropdown-menu';
+import { MentionDropdownMenu } from '@/components/tiptap-ui/mention-dropdown-menu';
+import { SlashDropdownMenu } from '@/components/tiptap-ui/slash-dropdown-menu';
+import { DragContextMenu } from '@/components/tiptap-ui/drag-context-menu';
+import { AiMenu } from '@/components/tiptap-ui/ai-menu';
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
-import { TIPTAP_AI_APP_ID } from "@/lib/tiptap-collab-utils"
-
-// --- Styles ---
-import "@/components/tiptap-templates/notion-like/notion-like-editor.scss"
-
-// --- Content ---
-import { NotionEditorHeader } from "@/components/tiptap-templates/notion-like/notion-like-editor-header"
-import { MobileToolbar } from "@/components/tiptap-templates/notion-like/notion-like-editor-mobile-toolbar"
-import { NotionToolbarFloating } from "@/components/tiptap-templates/notion-like/notion-like-editor-toolbar-floating"
-import { TocSidebar } from "@/components/tiptap-node/toc-node"
+import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
 import {
-  TocProvider,
-  useToc,
-} from "@/components/tiptap-node/toc-node/context/toc-context"
-import { ListNormalizationExtension } from "@/components/tiptap-extension/list-normalization-extension"
+  CharacterCount,
+  Chart,
+  ClearMarksOnEnter,
+  CodeBlock,
+  Column,
+  Columns,
+  Comment,
+  Countdown,
+  Details,
+  DetailsContent,
+  DetailsSummary,
+  FontFamily,
+  FontSize,
+  JsonPaste,
+  Link as CoInkLink,
+  MarkdownPaste,
+  MathLiveExtension,
+  SearchAndReplace,
+  TrailingNode,
+  Underline,
+  Youtube,
+} from '@/extensions';
+// --- Styles ---
+import '@/components/tiptap-templates/notion-like/notion-like-editor.scss';
+// --- Content ---
+import { NotionEditorHeader } from '@/components/tiptap-templates/notion-like/notion-like-editor-header';
+import { MobileToolbar } from '@/components/tiptap-templates/notion-like/notion-like-editor-mobile-toolbar';
+import { NotionToolbarFloating } from '@/components/tiptap-templates/notion-like/notion-like-editor-toolbar-floating';
+import { TocSidebar } from '@/components/tiptap-node/toc-node';
+import { TocProvider, useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
+import { ListNormalizationExtension } from '@/components/tiptap-extension/list-normalization-extension';
+export interface CollaborationUser {
+  id: string;
+  name: string;
+  color: string;
+}
 
 export interface NotionEditorProps {
-  room: string
-  placeholder?: string
+  provider: HocuspocusProvider;
+  ydoc: YDoc;
+  user: CollaborationUser;
+  placeholder?: string;
+  editable?: boolean;
+  showHeader?: boolean;
+  showTocSidebar?: boolean;
+  onEditorCreate?: (editor: Editor | null) => void;
 }
 
 export interface EditorProviderProps {
-  provider: TiptapCollabProvider
-  ydoc: YDoc
-  placeholder?: string
-  aiToken: string | null
+  provider: HocuspocusProvider;
+  ydoc: YDoc;
+  user: CollaborationUser;
+  placeholder?: string;
+  editable?: boolean;
+  showHeader?: boolean;
+  showTocSidebar?: boolean;
+  onEditorCreate?: (editor: Editor | null) => void;
 }
 
 /**
  * Loading spinner component shown while connecting to the notion server
  */
-export function LoadingSpinner({ text = "Connecting..." }: { text?: string }) {
+export function LoadingSpinner({ text = '连接中...' }: { text?: string }) {
   return (
     <div className="spinner-container">
       <div className="spinner-content">
@@ -118,44 +133,36 @@ export function LoadingSpinner({ text = "Connecting..." }: { text?: string }) {
         <div className="spinner-loading-text">{text}</div>
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * EditorContent component that renders the actual editor
  */
 export function EditorContentArea() {
-  const { editor } = useContext(EditorContext)!
-  const {
-    aiGenerationIsLoading,
-    aiGenerationIsSelection,
-    aiGenerationHasMessage,
-    isDragging,
-  } = useUiEditorState(editor)
+  const { editor } = useContext(EditorContext)!;
+  const { aiGenerationIsLoading, aiGenerationIsSelection, aiGenerationHasMessage, isDragging } =
+    useUiEditorState(editor);
 
   // Selection based effect to handle AI generation acceptance
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
-    if (
-      !aiGenerationIsLoading &&
-      aiGenerationIsSelection &&
-      aiGenerationHasMessage
-    ) {
-      editor.chain().focus().aiAccept().run()
-      editor.commands.resetUiState()
+    if (!aiGenerationIsLoading && aiGenerationIsSelection && aiGenerationHasMessage) {
+      const chain = editor.chain().focus() as unknown as {
+        aiAccept?: () => { run: () => boolean };
+      };
+      if (typeof chain.aiAccept === 'function') {
+        chain.aiAccept().run();
+      }
+      editor.commands.resetUiState();
     }
-  }, [
-    aiGenerationHasMessage,
-    aiGenerationIsLoading,
-    aiGenerationIsSelection,
-    editor,
-  ])
+  }, [aiGenerationHasMessage, aiGenerationIsLoading, aiGenerationIsSelection, editor]);
 
-  useScrollToHash()
+  useScrollToHash();
 
   if (!editor) {
-    return null
+    return null;
   }
 
   return (
@@ -164,7 +171,7 @@ export function EditorContentArea() {
       role="presentation"
       className="notion-like-editor-content"
       style={{
-        cursor: isDragging ? "grabbing" : "auto",
+        cursor: isDragging ? 'grabbing' : 'auto',
       }}
     >
       <DragContextMenu />
@@ -175,36 +182,46 @@ export function EditorContentArea() {
       <NotionToolbarFloating />
       {createPortal(<MobileToolbar />, document.body)}
     </EditorContent>
-  )
+  );
 }
 
 /**
  * Component that creates and provides the editor instance
  */
 export function EditorProvider(props: EditorProviderProps) {
-  const { provider, ydoc, placeholder = "Start writing...", aiToken } = props
+  const {
+    provider,
+    ydoc,
+    user,
+    placeholder = '开始输入...',
+    editable = true,
+    showHeader = true,
+    showTocSidebar = true,
+    onEditorCreate,
+  } = props;
 
-  const { user } = useUser()
-  const { setTocContent } = useToc()
+  const { setTocContent } = useToc();
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable,
     editorProps: {
       attributes: {
-        class: "notion-like-editor",
+        class: 'notion-like-editor',
       },
     },
     extensions: [
       StarterKit.configure({
         undoRedo: false,
         horizontalRule: false,
+        codeBlock: false,
+        link: false,
         dropcursor: {
           width: 2,
         },
-        link: { openOnClick: false },
       }),
       HorizontalRule,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Collaboration.configure({ document: ydoc }),
       CollaborationCaret.configure({
         provider,
@@ -212,13 +229,11 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       Placeholder.configure({
         placeholder,
-        emptyNodeClass: "is-empty with-slash",
+        emptyNodeClass: 'is-empty with-slash',
       }),
       Mention,
       Emoji.configure({
-        emojis: gitHubEmojis.filter(
-          (emoji) => !emoji.name.includes("regional")
-        ),
+        emojis: gitHubEmojis.filter((emoji) => !emoji.name.includes('regional')),
         forceFallbackImages: true,
       }),
       TableKit.configure({
@@ -229,20 +244,28 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       NodeBackground.configure({
         types: [
-          "paragraph",
-          "heading",
-          "blockquote",
-          "taskList",
-          "bulletList",
-          "orderedList",
-          "tableCell",
-          "tableHeader",
-          "tocNode",
+          'paragraph',
+          'heading',
+          'blockquote',
+          'taskList',
+          'bulletList',
+          'orderedList',
+          'tableCell',
+          'tableHeader',
+          'tocNode',
         ],
       }),
       NodeAlignment,
       TextStyle,
+      CoInkLink.configure({
+        openOnClick: false,
+      }),
+      Underline,
+      CodeBlock,
+      FontSize,
+      FontFamily,
       Mathematics,
+      MathLiveExtension,
       Superscript,
       Subscript,
       Color,
@@ -251,74 +274,96 @@ export function EditorProvider(props: EditorProviderProps) {
       Highlight.configure({ multicolor: true }),
       Selection,
       Image,
+      Details.configure({
+        persist: true,
+        HTMLAttributes: {
+          class: 'details',
+        },
+      }),
+      DetailsContent,
+      DetailsSummary,
+      Columns,
+      Column,
       TableOfContents.configure({
         getIndex: getHierarchicalIndexes,
         onUpdate(content) {
-          setTocContent(content)
+          setTocContent(content);
         },
       }),
       TableHandleExtension,
       ListNormalizationExtension,
       ImageUploadNode.configure({
-        accept: "image/*",
+        accept: 'image/*',
         maxSize: MAX_FILE_SIZE,
         limit: 3,
         upload: handleImageUpload,
-        onError: (error) => console.error("Upload failed:", error),
+        onError: (error) => console.error('上传失败:', error),
       }),
       UniqueID.configure({
         types: [
-          "table",
-          "paragraph",
-          "bulletList",
-          "orderedList",
-          "taskList",
-          "heading",
-          "blockquote",
-          "codeBlock",
-          "tocNode",
+          'table',
+          'paragraph',
+          'bulletList',
+          'orderedList',
+          'taskList',
+          'heading',
+          'blockquote',
+          'codeBlock',
+          'tocNode',
         ],
         filterTransaction: (transaction) => !isChangeOrigin(transaction),
       }),
       Typography,
+      CharacterCount.configure({ limit: 50000 }),
+      JsonPaste,
+      MarkdownPaste,
+      TrailingNode,
       UiState,
       TocNode.configure({
         topOffset: 48,
       }),
-      Ai.configure({
-        appId: TIPTAP_AI_APP_ID,
-        token: aiToken || undefined,
-        autocompletion: false,
-        showDecorations: true,
-        hideDecorationsOnStreamEnd: false,
-        onLoading: (context) => {
-          context.editor.commands.aiGenerationSetIsLoading(true)
-          context.editor.commands.aiGenerationHasMessage(false)
-        },
-        onChunk: (context) => {
-          context.editor.commands.aiGenerationSetIsLoading(true)
-          context.editor.commands.aiGenerationHasMessage(true)
-        },
-        onSuccess: (context) => {
-          const hasMessage = !!context.response
-          context.editor.commands.aiGenerationSetIsLoading(false)
-          context.editor.commands.aiGenerationHasMessage(hasMessage)
+      Youtube.configure({
+        controls: false,
+        nocookie: true,
+        inline: false,
+        HTMLAttributes: {
+          class: 'youtube-video-wrapper',
         },
       }),
+      ClearMarksOnEnter,
+      Chart,
+      Countdown,
+      Comment.configure({
+        HTMLAttributes: {
+          class: 'comment',
+        },
+        onCommentActivated: () => {},
+        onCommentClick: () => {},
+      }),
+      SearchAndReplace.configure({
+        searchResultClass: 'search-result',
+        currentSearchResultClass: 'current-search-result',
+        disableRegex: true,
+        caseSensitive: false,
+      }),
     ],
-  })
+  });
+
+  useEffect(() => {
+    onEditorCreate?.(editor ?? null);
+  }, [editor, onEditorCreate]);
 
   if (!editor) {
-    return <LoadingSpinner />
+    return <LoadingSpinner />;
   }
 
   return (
     <div className="notion-like-editor-wrapper">
       <EditorContext.Provider value={{ editor }}>
-        <NotionEditorHeader />
+        {showHeader && <NotionEditorHeader />}
         <div className="notion-like-editor-layout">
           <EditorContentArea />
-          <TocSidebar topOffset={48} />
+          {showTocSidebar && <TocSidebar topOffset={48} />}
         </div>
 
         <TableExtendRowColumnButtons />
@@ -328,56 +373,40 @@ export function EditorProvider(props: EditorProviderProps) {
           cellMenu={(props) => (
             <TableCellHandleMenu
               editor={props.editor}
-              onMouseDown={(e) => props.onResizeStart?.("br")(e)}
+              onMouseDown={(e) => props.onResizeStart?.('br')(e)}
             />
           )}
         />
       </EditorContext.Provider>
-
-      
     </div>
-  )
+  );
 }
 
 /**
- * Full editor with all necessary providers, ready to use with just a room ID
+ * Full editor with all necessary providers
  */
 export function NotionEditor({
-  room,
-  placeholder = "Start writing...",
+  provider,
+  ydoc,
+  user,
+  placeholder = '开始输入...',
+  editable = true,
+  showHeader = true,
+  showTocSidebar = true,
+  onEditorCreate,
 }: NotionEditorProps) {
   return (
-    <UserProvider>
-      <AppProvider>
-        <CollabProvider room={room}>
-          <AiProvider>
-            <TocProvider>
-              <NotionEditorContent placeholder={placeholder} />
-            </TocProvider>
-          </AiProvider>
-        </CollabProvider>
-      </AppProvider>
-    </UserProvider>
-  )
-}
-
-/**
- * Internal component that handles the editor loading state
- */
-export function NotionEditorContent({ placeholder }: { placeholder?: string }) {
-  const { provider, ydoc } = useCollab()
-  const { aiToken } = useAi()
-
-  if (!provider || !aiToken) {
-    return <LoadingSpinner />
-  }
-
-  return (
-    <EditorProvider
-      provider={provider}
-      ydoc={ydoc}
-      placeholder={placeholder}
-      aiToken={aiToken}
-    />
-  )
+    <TocProvider>
+      <EditorProvider
+        provider={provider}
+        ydoc={ydoc}
+        user={user}
+        placeholder={placeholder}
+        editable={editable}
+        showHeader={showHeader}
+        showTocSidebar={showTocSidebar}
+        onEditorCreate={onEditorCreate}
+      />
+    </TocProvider>
+  );
 }

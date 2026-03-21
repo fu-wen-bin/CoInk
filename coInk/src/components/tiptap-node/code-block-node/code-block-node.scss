@@ -32,7 +32,7 @@
     padding: 0.1em 0.2em;
   }
 
-  // Code blocks
+  // Code blocks（默认 pre 块）
   pre {
     background-color: var(--tt-codeblock-bg);
     color: var(--tt-codeblock-text);
@@ -50,5 +50,30 @@
       -webkit-text-fill-color: inherit;
       color: inherit;
     }
+  }
+
+  /* NodeView `.code-block` 内层 pre：不再叠加外层 margin，避免工具栏与代码区之间出现过大空隙 */
+  .code-block .code-block-content pre {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  /* 代码块工具栏：单行排布，语言选择与右侧操作按钮上下对齐 */
+  .code-block .code-block-header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .code-block .code-block-header .language-selector {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .code-block .code-block-header .code-block-controls {
+    flex-shrink: 0;
   }
 }

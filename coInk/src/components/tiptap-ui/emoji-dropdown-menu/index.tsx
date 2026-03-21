@@ -1,1 +1,1 @@
-export * from "./emoji-dropdown-menu"
+export * from './emoji-dropdown-menu';

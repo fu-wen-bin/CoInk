@@ -1,36 +1,29 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react"
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type {
   TableOfContentData,
   TableOfContentDataItem,
-} from "@tiptap/extension-table-of-contents"
-import { selectNodeAndHideFloating } from "@/hooks/use-floating-toolbar-visibility"
+} from '@tiptap/extension-table-of-contents';
+
+import { selectNodeAndHideFloating } from '@/hooks/use-floating-toolbar-visibility';
 
 type TocState = {
-  tocContent: TableOfContentData | null
-  setTocContent: (value: TableOfContentData | null) => void
+  tocContent: TableOfContentData | null;
+  setTocContent: (value: TableOfContentData | null) => void;
 
   navigateToHeading: (
     item: TableOfContentDataItem,
     options?: {
-      topOffset?: number
-      behavior?: ScrollBehavior
-    }
-  ) => void
+      topOffset?: number;
+      behavior?: ScrollBehavior;
+    },
+  ) => void;
 
-  normalizeHeadingDepths: <
-    T extends { level?: number; originalLevel?: number },
-  >(
-    headingList: T[]
-  ) => number[]
-}
+  normalizeHeadingDepths: <T extends { level?: number; originalLevel?: number }>(
+    headingList: T[],
+  ) => number[];
+};
 
-const TocContext = createContext<TocState | undefined>(undefined)
+const TocContext = createContext<TocState | undefined>(undefined);
 
 /**
  * Normalizes heading depths for a table of contents (TOC) structure.
@@ -48,62 +41,57 @@ const TocContext = createContext<TocState | undefined>(undefined)
  * @param items - Array of heading items with `level` or `originalLevel` properties
  * @returns Array of normalized depths corresponding to each heading item
  */
-export function normalizeHeadingDepths<
-  T extends { level?: number; originalLevel?: number },
->(items: T[]): number[] {
-  if (items.length === 0) return []
+export function normalizeHeadingDepths<T extends { level?: number; originalLevel?: number }>(
+  items: T[],
+): number[] {
+  if (items.length === 0) return [];
 
-  const raw = items.map((h) => h.originalLevel ?? h.level ?? 1)
+  const raw = items.map((h) => h.originalLevel ?? h.level ?? 1);
 
   // --- Determine root level ---
-  const positives = raw.filter((l) => l > 0)
-  const root = positives.includes(1) ? 1 : Math.min(...positives)
+  const positives = raw.filter((l) => l > 0);
+  const root = positives.includes(1) ? 1 : Math.min(...positives);
 
   // --- Rebase levels: root → 1 ---
-  const lvl = raw.map((l) => Math.max(1, l - (root - 1)))
+  const lvl = raw.map((l) => Math.max(1, l - (root - 1)));
 
-  const depths = new Array(items.length).fill(1)
-  depths[0] = 1
+  const depths = new Array(items.length).fill(1);
+  depths[0] = 1;
 
   for (let i = 1; i < lvl.length; i++) {
-    const current = lvl[i] ?? 1
+    const current = lvl[i] ?? 1;
 
     // Find the most recent heading with a smaller level (higher priority)
-    let parentIdx = -1
+    let parentIdx = -1;
     for (let j = i - 1; j >= 0; j--) {
-      const previous = lvl[j] ?? 1
+      const previous = lvl[j] ?? 1;
       if (previous < current) {
-        parentIdx = j
-        break
+        parentIdx = j;
+        break;
       }
     }
 
     // If we found a valid parent, nest under it
     // Otherwise, this is a root-level item
-    depths[i] = parentIdx !== -1 ? depths[parentIdx] + 1 : 1
+    depths[i] = parentIdx !== -1 ? depths[parentIdx] + 1 : 1;
   }
 
-  return depths
+  return depths;
 }
 
 /**
  * Check if an element is visible in the viewport
  */
 const isElementVisible = (element: HTMLElement, topOffset: number): boolean => {
-  const rect = element.getBoundingClientRect()
-  const viewportHeight =
-    window.innerHeight || document.documentElement.clientHeight
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
   // Element is visible if:
   // - Its top is below the topOffset
   // - Its bottom is above the viewport top
   // - Its top is above the viewport bottom
-  return (
-    rect.top >= topOffset &&
-    rect.bottom > topOffset &&
-    rect.top < viewportHeight
-  )
-}
+  return rect.top >= topOffset && rect.bottom > topOffset && rect.top < viewportHeight;
+};
 
 /**
  * Low-level navigate helper (not exported in context directly)
@@ -111,40 +99,37 @@ const isElementVisible = (element: HTMLElement, topOffset: number): boolean => {
 const doNavigateToHeading = (
   item: TableOfContentDataItem,
   topOffset: number,
-  behavior: ScrollBehavior = "smooth"
+  behavior: ScrollBehavior = 'smooth',
 ) => {
-  if (!item.dom || typeof window === "undefined") return
+  if (!item.dom || typeof window === 'undefined') return;
 
   // Only scroll if element is not already visible
   if (!isElementVisible(item.dom, topOffset)) {
-    const rect = item.dom.getBoundingClientRect()
-    const top = rect.top + window.scrollY - topOffset
+    const rect = item.dom.getBoundingClientRect();
+    const top = rect.top + window.scrollY - topOffset;
 
-    window.scrollTo({ top, behavior })
+    window.scrollTo({ top, behavior });
   }
 
-  if (item.editor && typeof item.pos === "number") {
-    selectNodeAndHideFloating(item.editor, item.pos)
+  if (item.editor && typeof item.pos === 'number') {
+    selectNodeAndHideFloating(item.editor, item.pos);
   }
 
   if (item.id) {
-    const url = new URL(window.location.href)
-    url.hash = item.id
-    window.history.replaceState(null, "", url.toString())
+    const url = new URL(window.location.href);
+    url.hash = item.id;
+    window.history.replaceState(null, '', url.toString());
   }
-}
+};
 
 export const TocProvider = ({ children }: { children: ReactNode }) => {
-  const [tocContent, setTocContent] = useState<TableOfContentData | null>(null)
+  const [tocContent, setTocContent] = useState<TableOfContentData | null>(null);
 
-  const navigateToHeading = useCallback<TocState["navigateToHeading"]>(
-    (item, options) => {
-      const topOffset = options?.topOffset ?? 0
-      const behavior = options?.behavior ?? "smooth"
-      doNavigateToHeading(item, topOffset, behavior)
-    },
-    []
-  )
+  const navigateToHeading = useCallback<TocState['navigateToHeading']>((item, options) => {
+    const topOffset = options?.topOffset ?? 0;
+    const behavior = options?.behavior ?? 'smooth';
+    doNavigateToHeading(item, topOffset, behavior);
+  }, []);
 
   return (
     <TocContext.Provider
@@ -157,13 +142,13 @@ export const TocProvider = ({ children }: { children: ReactNode }) => {
     >
       {children}
     </TocContext.Provider>
-  )
-}
+  );
+};
 
 export const useToc = () => {
-  const ctx = useContext(TocContext)
+  const ctx = useContext(TocContext);
   if (!ctx) {
-    throw new Error("useToc must be used inside <TocProvider>")
+    throw new Error('useToc must be used inside <TocProvider>');
   }
-  return ctx
-}
+  return ctx;
+};

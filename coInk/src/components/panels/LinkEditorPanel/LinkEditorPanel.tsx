@@ -55,18 +55,18 @@ export function LinkEditorPanel({
           <input
             type="url"
             className="flex-1 bg-transparent outline-none min-w-[12rem] text-black text-sm dark:text-white"
-            placeholder="Enter URL"
+            placeholder="输入链接"
             value={state.url}
             onChange={state.onChange}
           />
         </label>
         <Button variant="default" size="sm" type="submit" disabled={!state.isValidUrl}>
-          Set Link
+          设置链接
         </Button>
       </form>
       <div className="mt-3">
         <label className="flex items-center justify-start gap-2 text-sm font-semibold cursor-pointer select-none text-neutral-500 dark:text-neutral-400">
-          Open in new tab
+          在新标签页打开
           <Toggle active={state.openInNewTab} onChange={state.setOpenInNewTab} />
         </label>
       </div>

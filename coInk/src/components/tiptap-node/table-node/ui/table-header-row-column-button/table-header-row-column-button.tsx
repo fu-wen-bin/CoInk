@@ -1,25 +1,24 @@
-"use client"
+'use client';
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from 'react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseTableHeaderRowColumnConfig } from "@/components/tiptap-node/table-node/ui/table-header-row-column-button"
-import { useTableHeaderRowColumn } from "@/components/tiptap-node/table-node/ui/table-header-row-column-button"
+import type { UseTableHeaderRowColumnConfig } from '@/components/tiptap-node/table-node/ui/table-header-row-column-button';
+import { useTableHeaderRowColumn } from '@/components/tiptap-node/table-node/ui/table-header-row-column-button';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-import { Button } from "@/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
 
 export interface TableHeaderRowColumnButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseTableHeaderRowColumnConfig {
+  extends Omit<ButtonProps, 'type'>, UseTableHeaderRowColumnConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -44,9 +43,9 @@ export const TableHeaderRowColumnButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleToggle, label, canToggleHeader, Icon, isActive } =
       useTableHeaderRowColumn({
         editor,
@@ -54,19 +53,19 @@ export const TableHeaderRowColumnButton = forwardRef<
         orientation,
         hideWhenUnavailable,
         onToggled,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
-      [handleToggle, onClick]
-    )
+      [handleToggle, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -74,7 +73,7 @@ export const TableHeaderRowColumnButton = forwardRef<
         type="button"
         disabled={!canToggleHeader}
         data-style="ghost"
-        data-active-state={isActive ? "on" : "off"}
+        data-active-state={isActive ? 'on' : 'off'}
         data-disabled={!canToggleHeader}
         role="button"
         tabIndex={-1}
@@ -92,8 +91,8 @@ export const TableHeaderRowColumnButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TableHeaderRowColumnButton.displayName = "TableHeaderRowColumnButton"
+TableHeaderRowColumnButton.displayName = 'TableHeaderRowColumnButton';

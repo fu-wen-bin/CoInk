@@ -56,7 +56,7 @@ export function ColorPicker({ color, onChange, onClear }: ColorPickerProps) {
             onColorChange={onChange}
           />
         ))}
-        <Toolbar.Button tooltip="Reset color to default" onClick={onClear}>
+        <Toolbar.Button tooltip="重置为默认颜色" onClick={onClear}>
           <Icon name="Undo" />
         </Toolbar.Button>
       </div>

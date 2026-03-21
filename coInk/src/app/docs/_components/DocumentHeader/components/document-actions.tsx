@@ -1,19 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { FileType, MoreHorizontal, Share2 } from 'lucide-react';
+import { FileType, MoreHorizontal } from 'lucide-react';
 import juice from 'juice';
 import { toast } from 'sonner';
 
 import ShareDialog from '../../DocumentSidebar/folder/ShareDialog';
-import BlogDialog from '../../DocumentSidebar/folder/BlogDialog';
 import HistoryPanel from '../../HistoryPanel';
-import { useBlogPublish } from '../hooks/use-blog-publish';
 import type { DocumentActionsProps, ExportAction } from '../types';
 
 import type { FileItem } from '@/types/file-system';
 import { useCommentStore } from '@/stores/commentStore';
-import { useChatStore } from '@/stores/chatStore';
 import {
   cleanElementAttributes,
   extraCss,
@@ -38,11 +35,8 @@ export function DocumentActions({
 }: DocumentActionsProps) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
-  const [blogDialogOpen, setBlogDialogOpen] = useState(false);
 
   const { isPanelOpen, togglePanel, comments } = useCommentStore();
-  const { isOpen: isChatOpen, togglePanel: toggleChatPanel } = useChatStore();
-  const { handleBlogSubmit, isSubmitting } = useBlogPublish(editor, documentTitle);
 
   // 处理分享按钮点击
   const handleShare = () => {
@@ -113,23 +107,6 @@ export function DocumentActions({
       case 'docx':
         handleExportDOCX(documentTitle, editor);
         break;
-      case 'blog':
-        setBlogDialogOpen(true);
-        break;
-    }
-  };
-
-  const onBlogSubmit = async (data: {
-    title?: string;
-    summary?: string;
-    category?: string;
-    tags: string[];
-    coverImage?: string;
-  }) => {
-    const success = await handleBlogSubmit(data);
-
-    if (success) {
-      setBlogDialogOpen(false);
     }
   };
 
@@ -147,11 +124,6 @@ export function DocumentActions({
         customTrigger
       >
         <PopoverCategoryTitle>协作与分享</PopoverCategoryTitle>
-        <PopoverItem
-          label={isChatOpen ? '关闭 AI 助手' : '打开 AI 助手'}
-          icon="Sparkles"
-          onClick={toggleChatPanel}
-        />
         <PopoverItem
           label={
             <div className="flex w-full items-center justify-between">
@@ -184,12 +156,6 @@ export function DocumentActions({
           onClick={() => handleSelectAction('pdf')}
         />
         <PopoverItem label="导出Word" icon="FileText" onClick={() => handleSelectAction('docx')} />
-        <PopoverItem
-          label="发布到博客"
-          icon="Newspaper"
-          onClick={() => handleSelectAction('blog')}
-          disabled={isSubmitting}
-        />
       </PopoverMenu>
 
       {/* 分享对话框 */}
@@ -203,14 +169,6 @@ export function DocumentActions({
           }}
         />
       )}
-
-      {/* 博客发布对话框 */}
-      <BlogDialog
-        isOpen={blogDialogOpen}
-        onClose={() => setBlogDialogOpen(false)}
-        onSubmit={onBlogSubmit}
-        initialTitle={documentTitle}
-      />
     </>
   );
 }

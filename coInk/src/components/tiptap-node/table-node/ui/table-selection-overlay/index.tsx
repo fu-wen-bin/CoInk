@@ -1,1 +1,1 @@
-export * from "./table-selection-overlay"
+export * from './table-selection-overlay';

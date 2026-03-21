@@ -1,47 +1,44 @@
-"use client"
+'use client';
 
-import type { RefObject } from "react"
-import { useEffect, useRef } from "react"
-import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect"
+import type { RefObject } from 'react';
+import { useEffect, useRef } from 'react';
+
+import { useIsomorphicLayoutEffect } from '@/hooks/use-isomorphic-layout-effect';
 
 // MediaQueryList Event based useEventListener interface
 function useEventListener<K extends keyof MediaQueryListEventMap>(
   eventName: K,
   handler: (event: MediaQueryListEventMap[K]) => void,
   element: RefObject<MediaQueryList>,
-  options?: boolean | AddEventListenerOptions
-): void
+  options?: boolean | AddEventListenerOptions,
+): void;
 
 // Window Event based useEventListener interface
 function useEventListener<K extends keyof WindowEventMap>(
   eventName: K,
   handler: (event: WindowEventMap[K]) => void,
   element?: undefined,
-  options?: boolean | AddEventListenerOptions
-): void
+  options?: boolean | AddEventListenerOptions,
+): void;
 
 // Element Event based useEventListener interface
 function useEventListener<
   K extends keyof HTMLElementEventMap & keyof SVGElementEventMap,
-  T extends Element = K extends keyof HTMLElementEventMap
-    ? HTMLDivElement
-    : SVGElement,
+  T extends Element = K extends keyof HTMLElementEventMap ? HTMLDivElement : SVGElement,
 >(
   eventName: K,
-  handler:
-    | ((event: HTMLElementEventMap[K]) => void)
-    | ((event: SVGElementEventMap[K]) => void),
+  handler: ((event: HTMLElementEventMap[K]) => void) | ((event: SVGElementEventMap[K]) => void),
   element: RefObject<T>,
-  options?: boolean | AddEventListenerOptions
-): void
+  options?: boolean | AddEventListenerOptions,
+): void;
 
 // Document Event based useEventListener interface
 function useEventListener<K extends keyof DocumentEventMap>(
   eventName: K,
   handler: (event: DocumentEventMap[K]) => void,
   element: RefObject<Document>,
-  options?: boolean | AddEventListenerOptions
-): void
+  options?: boolean | AddEventListenerOptions,
+): void;
 
 /**
  * Custom hook that attaches event listeners to DOM elements, the window, or media query lists.
@@ -67,48 +64,42 @@ function useEventListener<
       | HTMLElementEventMap[KH]
       | SVGElementEventMap[KH]
       | MediaQueryListEventMap[KM]
-      | Event
+      | Event,
   ) => void,
   element?: RefObject<T>,
-  options?: boolean | AddEventListenerOptions
+  options?: boolean | AddEventListenerOptions,
 ) {
   // Create a ref that stores handler
-  const savedHandler = useRef(handler)
+  const savedHandler = useRef(handler);
 
   useIsomorphicLayoutEffect(() => {
-    savedHandler.current = handler
-  }, [handler])
+    savedHandler.current = handler;
+  }, [handler]);
 
   useEffect(() => {
     // Define the listening target
-    const targetElement: T | Window = element?.current ?? window
+    const targetElement: T | Window = element?.current ?? window;
 
-    if (!(targetElement && targetElement.addEventListener)) return
+    if (!(targetElement && targetElement.addEventListener)) return;
 
     // Create event listener that calls handler function stored in ref
     const listener: typeof handler = (event) => {
-      savedHandler.current(event)
-    }
+      savedHandler.current(event);
+    };
 
-    targetElement.addEventListener(eventName, listener, options)
+    targetElement.addEventListener(eventName, listener, options);
 
     // Remove event listener on cleanup
     return () => {
-      targetElement.removeEventListener(eventName, listener, options)
-    }
-  }, [eventName, element, options])
+      targetElement.removeEventListener(eventName, listener, options);
+    };
+  }, [eventName, element, options]);
 }
 
-export { useEventListener }
+export { useEventListener };
 
 /** Supported event types. */
-type EventType =
-  | "mousedown"
-  | "mouseup"
-  | "touchstart"
-  | "touchend"
-  | "focusin"
-  | "focusout"
+type EventType = 'mousedown' | 'mouseup' | 'touchstart' | 'touchend' | 'focusin' | 'focusout';
 
 /**
  * Custom hook that handles clicks outside a specified element.
@@ -122,30 +113,30 @@ type EventType =
 export function useOnClickOutside<T extends HTMLElement | null = HTMLElement>(
   ref: RefObject<T> | RefObject<T>[],
   handler: (event: MouseEvent | TouchEvent | FocusEvent) => void,
-  eventType: EventType = "mousedown",
-  eventListenerOptions: AddEventListenerOptions = {}
+  eventType: EventType = 'mousedown',
+  eventListenerOptions: AddEventListenerOptions = {},
 ): void {
   useEventListener(
     eventType,
     (event) => {
-      const target = event.target as Node
+      const target = event.target as Node;
 
       // Do nothing if the target is not connected element with document
       if (!target || !target.isConnected) {
-        return
+        return;
       }
 
       const isOutside = Array.isArray(ref)
         ? ref
             .filter((r) => Boolean(r.current))
             .every((r) => r.current && !r.current.contains(target))
-        : ref.current && !ref.current.contains(target)
+        : ref.current && !ref.current.contains(target);
 
       if (isOutside) {
-        handler(event)
+        handler(event);
       }
     },
     undefined,
-    eventListenerOptions
-  )
+    eventListenerOptions,
+  );
 }

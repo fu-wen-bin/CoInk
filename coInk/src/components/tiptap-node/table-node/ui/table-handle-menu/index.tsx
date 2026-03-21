@@ -1,1 +1,1 @@
-export * from "./table-handle-menu"
+export * from './table-handle-menu';

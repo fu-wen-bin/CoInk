@@ -1,1 +1,1 @@
-export * from "./ai-menu-actions"
+export * from './ai-menu-actions';

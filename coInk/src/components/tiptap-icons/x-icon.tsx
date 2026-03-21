@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const XIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -18,7 +18,7 @@ export const XIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-XIcon.displayName = "XIcon"
+XIcon.displayName = 'XIcon';

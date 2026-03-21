@@ -308,34 +308,30 @@ export default function ColumnComponent(props: ReactNodeViewProps<HTMLDivElement
               >
                 <Toolbar.Wrapper>
                   {/* 布局切换按钮组：默认隐藏，可按需开启 */}
-                  <Toolbar.Button
-                    tooltip="Sidebar left"
-                    active={isColumnLeft}
-                    onClick={onColumnLeft}
-                  >
+                  <Toolbar.Button tooltip="侧边栏在左" active={isColumnLeft} onClick={onColumnLeft}>
                     <Icon name="PanelLeft" />
                   </Toolbar.Button>
-                  <Toolbar.Button tooltip="Two columns" active={isColumnTwo} onClick={onColumnTwo}>
+                  <Toolbar.Button tooltip="双栏布局" active={isColumnTwo} onClick={onColumnTwo}>
                     <Icon name="Columns2" />
                   </Toolbar.Button>
                   <Toolbar.Button
-                    tooltip="Sidebar right"
+                    tooltip="侧边栏在右"
                     active={isColumnRight}
                     onClick={onColumnRight}
                   >
                     <Icon name="PanelRight" />
                   </Toolbar.Button>
                   {/* 增加一个插入按钮 */}
-                  <Toolbar.Button tooltip="Insert column" onClick={insertColumn}>
+                  <Toolbar.Button tooltip="插入列" onClick={insertColumn}>
                     <Icon name="Plus" />
                   </Toolbar.Button>
                   {/* 增加一个删除按钮  小于等于2的时候不允许删除*/}
                   {isDraggable() && (
-                    <Toolbar.Button tooltip="Delete column" onClick={deleteColumn}>
+                    <Toolbar.Button tooltip="删除列" onClick={deleteColumn}>
                       <Icon name="Trash" />
                     </Toolbar.Button>
                   )}
-                  <Toolbar.Button tooltip="Column color" onClick={toggleColorPicker}>
+                  <Toolbar.Button tooltip="列颜色" onClick={toggleColorPicker}>
                     <div
                       className="w-4 h-4 rounded border border-gray-300"
                       style={{ backgroundColor: currentColor }}

@@ -1,2 +1,2 @@
-export * from "./table-handle"
-export * from "./table-handle-plugin"
+export * from './table-handle';
+export * from './table-handle-plugin';

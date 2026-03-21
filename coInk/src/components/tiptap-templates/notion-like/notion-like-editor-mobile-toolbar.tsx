@@ -1,54 +1,51 @@
-"use client"
+'use client';
 
-import { cloneElement, useEffect, useMemo, useRef, useState } from "react"
-import { type Editor } from "@tiptap/react"
+import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import { type Editor } from '@tiptap/react';
 
 // --- Hooks ---
-import { useIsBreakpoint } from "@/hooks/use-is-breakpoint"
-import { useWindowSize } from "@/hooks/use-window-size"
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
+import { useWindowSize } from '@/hooks/use-window-size';
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverButton,
   ColorHighlightPopoverContent,
-} from "@/components/tiptap-ui/color-highlight-popover"
-import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
+} from '@/components/tiptap-ui/color-highlight-popover';
+import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button';
 import {
   canSetLink,
   LinkButton,
   LinkContent,
   LinkPopover,
-} from "@/components/tiptap-ui/link-popover"
-import { MarkButton } from "@/components/tiptap-ui/mark-button"
-import { TextAlignButton } from "@/components/tiptap-ui/text-align-button"
-import { SlashCommandTriggerButton } from "@/components/tiptap-ui/slash-command-trigger-button"
-import { ResetAllFormattingButton } from "@/components/tiptap-ui/reset-all-formatting-button"
-import { DeleteNodeButton } from "@/components/tiptap-ui/delete-node-button"
-import { ImproveDropdown } from "@/components/tiptap-ui/improve-dropdown"
-import { CopyAnchorLinkButton } from "@/components/tiptap-ui/copy-anchor-link-button"
-import { TurnIntoDropdownContent } from "@/components/tiptap-ui/turn-into-dropdown"
-import { useRecentColors } from "@/components/tiptap-ui/color-text-popover"
-import {
-  ColorTextButton,
-  TEXT_COLORS,
-} from "@/components/tiptap-ui/color-text-button"
+} from '@/components/tiptap-ui/link-popover';
+import { MarkButton } from '@/components/tiptap-ui/mark-button';
+import { TextAlignButton } from '@/components/tiptap-ui/text-align-button';
+import { SlashCommandTriggerButton } from '@/components/tiptap-ui/slash-command-trigger-button';
+import { ResetAllFormattingButton } from '@/components/tiptap-ui/reset-all-formatting-button';
+import { DeleteNodeButton } from '@/components/tiptap-ui/delete-node-button';
+import { ImproveDropdown } from '@/components/tiptap-ui/improve-dropdown';
+import { CopyAnchorLinkButton } from '@/components/tiptap-ui/copy-anchor-link-button';
+import { TurnIntoDropdownContent } from '@/components/tiptap-ui/turn-into-dropdown';
+import { useRecentColors } from '@/components/tiptap-ui/color-text-popover';
+import { ColorTextButton, TEXT_COLORS } from '@/components/tiptap-ui/color-text-button';
 import {
   canColorHighlight,
   ColorHighlightButton,
   HIGHLIGHT_COLORS,
-} from "@/components/tiptap-ui/color-highlight-button"
-import { AiAskButton } from "@/components/tiptap-ui/ai-ask-button"
-import { DuplicateButton } from "@/components/tiptap-ui/duplicate-button"
-import { CopyToClipboardButton } from "@/components/tiptap-ui/copy-to-clipboard-button"
+} from '@/components/tiptap-ui/color-highlight-button';
+import { AiAskButton } from '@/components/tiptap-ui/ai-ask-button';
+import { DuplicateButton } from '@/components/tiptap-ui/duplicate-button';
+import { CopyToClipboardButton } from '@/components/tiptap-ui/copy-to-clipboard-button';
 
 // --- Utils ---
-import { getNodeDisplayName } from "@/lib/tiptap-collab-utils"
+import { getNodeDisplayName } from '@/lib/tiptap-collab-utils';
 
 // --- Icons ---
-import { PaintBucketIcon } from "@/components/tiptap-icons/paint-bucket-icon"
-import { Repeat2Icon } from "@/components/tiptap-icons/repeat-2-icon"
+import { PaintBucketIcon } from '@/components/tiptap-icons/paint-bucket-icon';
+import { Repeat2Icon } from '@/components/tiptap-icons/repeat-2-icon';
 
 // --- UI Primitives ---
 import {
@@ -56,9 +53,9 @@ import {
   CardBody,
   CardGroupLabel,
   CardItemGroup,
-} from "@/components/tiptap-ui-primitive/card"
-import { Spacer } from "@/components/tiptap-ui-primitive/spacer"
-import { Separator } from "@/components/tiptap-ui-primitive/separator"
+} from '@/components/tiptap-ui-primitive/card';
+import { Spacer } from '@/components/tiptap-ui-primitive/spacer';
+import { Separator } from '@/components/tiptap-ui-primitive/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,55 +65,51 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/tiptap-ui-primitive/dropdown-menu"
-import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
-import { ChevronRightIcon } from "@/components/tiptap-icons/chevron-right-icon"
-import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon"
-import { LinkIcon } from "@/components/tiptap-icons/link-icon"
-import { MoreVerticalIcon } from "@/components/tiptap-icons/more-vertical-icon"
-import { Button, ButtonGroup } from "@/components/tiptap-ui-primitive/button"
-import {
-  Toolbar,
-  ToolbarGroup,
-  ToolbarSeparator,
-} from "@/components/tiptap-ui-primitive/toolbar"
-import { MoveNodeButton } from "@/components/tiptap-ui/move-node-button"
-import { useCursorVisibility } from "@/hooks/use-cursor-visibility"
-import { ImageNodeFloating } from "@/components/tiptap-node/image-node/image-node-floating"
+} from '@/components/tiptap-ui-primitive/dropdown-menu';
+import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon';
+import { ChevronRightIcon } from '@/components/tiptap-icons/chevron-right-icon';
+import { HighlighterIcon } from '@/components/tiptap-icons/highlighter-icon';
+import { LinkIcon } from '@/components/tiptap-icons/link-icon';
+import { MoreVerticalIcon } from '@/components/tiptap-icons/more-vertical-icon';
+import { Button, ButtonGroup } from '@/components/tiptap-ui-primitive/button';
+import { Toolbar, ToolbarGroup, ToolbarSeparator } from '@/components/tiptap-ui-primitive/toolbar';
+import { MoveNodeButton } from '@/components/tiptap-ui/move-node-button';
+import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
+import { ImageNodeFloating } from '@/components/tiptap-node/image-node/image-node-floating';
 
 // =============================================================================
 // Types & Constants
 // =============================================================================
 
 const TOOLBAR_VIEWS = {
-  MAIN: "main",
-  HIGHLIGHTER: "highlighter",
-  LINK: "link",
-} as const
+  MAIN: 'main',
+  HIGHLIGHTER: 'highlighter',
+  LINK: 'link',
+} as const;
 
-type ToolbarViewId = (typeof TOOLBAR_VIEWS)[keyof typeof TOOLBAR_VIEWS]
+type ToolbarViewId = (typeof TOOLBAR_VIEWS)[keyof typeof TOOLBAR_VIEWS];
 
 export type ToolbarViewType = {
-  id: string
-  title: string
-  icon: React.ReactNode
-  content: React.ReactNode
-  mobileButton?: (onClick: () => void) => React.ReactNode
-  desktopComponent?: React.ReactNode
-  shouldShow?: (editor: Editor | null) => boolean
-}
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+  content: React.ReactNode;
+  mobileButton?: (onClick: () => void) => React.ReactNode;
+  desktopComponent?: React.ReactNode;
+  shouldShow?: (editor: Editor | null) => boolean;
+};
 
 type ToolbarViewRegistry = Record<
   Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>,
   ToolbarViewType
->
+>;
 
 interface ToolbarState {
-  viewId: ToolbarViewId
-  setViewId: (id: ToolbarViewId) => void
-  isMainView: boolean
-  showMainView: () => void
-  showView: (id: ToolbarViewId) => void
+  viewId: ToolbarViewId;
+  setViewId: (id: ToolbarViewId) => void;
+  isMainView: boolean;
+  showMainView: () => void;
+  showView: (id: ToolbarViewId) => void;
 }
 
 // =============================================================================
@@ -124,13 +117,13 @@ interface ToolbarState {
 // =============================================================================
 
 function useToolbarState(isMobile: boolean): ToolbarState {
-  const [viewId, setViewId] = useState<ToolbarViewId>(TOOLBAR_VIEWS.MAIN)
+  const [viewId, setViewId] = useState<ToolbarViewId>(TOOLBAR_VIEWS.MAIN);
 
   useEffect(() => {
     if (!isMobile && viewId !== TOOLBAR_VIEWS.MAIN) {
-      setViewId(TOOLBAR_VIEWS.MAIN)
+      setViewId(TOOLBAR_VIEWS.MAIN);
     }
-  }, [isMobile, viewId])
+  }, [isMobile, viewId]);
 
   return {
     viewId,
@@ -138,14 +131,14 @@ function useToolbarState(isMobile: boolean): ToolbarState {
     isMainView: viewId === TOOLBAR_VIEWS.MAIN,
     showMainView: () => setViewId(TOOLBAR_VIEWS.MAIN),
     showView: (id: ToolbarViewId) => setViewId(id),
-  }
+  };
 }
 
 function hasTextSelection(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
+  if (!editor || !editor.isEditable) return false;
 
-  const { selection } = editor.state
-  return !selection.empty
+  const { selection } = editor.state;
+  return !selection.empty;
 }
 
 // =============================================================================
@@ -156,29 +149,27 @@ function createToolbarViewRegistry(): ToolbarViewRegistry {
   return {
     [TOOLBAR_VIEWS.HIGHLIGHTER]: {
       id: TOOLBAR_VIEWS.HIGHLIGHTER,
-      title: "Text Highlighter",
+      title: '文本高亮',
       icon: <HighlighterIcon className="tiptap-button-icon" />,
       content: <ColorHighlightPopoverContent />,
-      mobileButton: (onClick: () => void) => (
-        <ColorHighlightPopoverButton onClick={onClick} />
-      ),
+      mobileButton: (onClick: () => void) => <ColorHighlightPopoverButton onClick={onClick} />,
       desktopComponent: <ColorHighlightPopover />,
       shouldShow(editor) {
-        return canColorHighlight(editor)
+        return canColorHighlight(editor);
       },
     },
     [TOOLBAR_VIEWS.LINK]: {
       id: TOOLBAR_VIEWS.LINK,
-      title: "Link Editor",
+      title: '链接编辑',
       icon: <LinkIcon className="tiptap-button-icon" />,
       content: <LinkContent />,
       mobileButton: (onClick: () => void) => <LinkButton onClick={onClick} />,
       desktopComponent: <LinkPopover />,
       shouldShow(editor) {
-        return canSetLink(editor)
+        return canSetLink(editor);
       },
     },
-  }
+  };
 }
 
 // =============================================================================
@@ -197,7 +188,7 @@ function AlignmentGroup() {
 
       <ToolbarSeparator />
     </>
-  )
+  );
 }
 
 function ScriptGroup() {
@@ -210,7 +201,7 @@ function ScriptGroup() {
 
       <ToolbarSeparator />
     </>
-  )
+  );
 }
 
 function FormattingGroup() {
@@ -225,26 +216,23 @@ function FormattingGroup() {
 
       <ToolbarSeparator />
     </>
-  )
+  );
 }
 
 function ColorActionGroup() {
-  const { recentColors, isInitialized, addRecentColor } = useRecentColors()
+  const { recentColors, isInitialized, addRecentColor } = useRecentColors();
 
   const renderRecentColors = () => {
-    if (!isInitialized || recentColors.length === 0) return null
+    if (!isInitialized || recentColors.length === 0) return null;
 
     return (
       <>
         <CardItemGroup>
-          <CardGroupLabel>Recent colors</CardGroupLabel>
+          <CardGroupLabel>最近颜色</CardGroupLabel>
           <ButtonGroup>
             {recentColors.map((colorObj) => (
-              <DropdownMenuItem
-                key={`${colorObj.type}-${colorObj.value}`}
-                asChild
-              >
-                {colorObj.type === "text" ? (
+              <DropdownMenuItem key={`${colorObj.type}-${colorObj.value}`} asChild>
+                {colorObj.type === 'text' ? (
                   <ColorTextButton
                     textColor={colorObj.value}
                     label={colorObj.label}
@@ -252,7 +240,7 @@ function ColorActionGroup() {
                     tooltip={colorObj.label}
                     onApplied={({ color, label }) =>
                       addRecentColor({
-                        type: "text",
+                        type: 'text',
                         label,
                         value: color,
                       })
@@ -265,7 +253,7 @@ function ColorActionGroup() {
                     tooltip={colorObj.label}
                     onApplied={({ color, label }) =>
                       addRecentColor({
-                        type: "highlight",
+                        type: 'highlight',
                         label,
                         value: color,
                       })
@@ -278,15 +266,15 @@ function ColorActionGroup() {
         </CardItemGroup>
         <Separator orientation="horizontal" />
       </>
-    )
-  }
+    );
+  };
 
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger asChild>
         <Button data-style="ghost">
           <PaintBucketIcon className="tiptap-button-icon" />
-          <span className="tiptap-button-text">Color</span>
+          <span className="tiptap-button-text">颜色</span>
           <Spacer />
           <ChevronRightIcon className="tiptap-button-icon" />
         </Button>
@@ -299,7 +287,7 @@ function ColorActionGroup() {
               {renderRecentColors()}
 
               <CardItemGroup>
-                <CardGroupLabel>Text color</CardGroupLabel>
+                <CardGroupLabel>文字颜色</CardGroupLabel>
                 <ButtonGroup>
                   {TEXT_COLORS.map((textColor) => (
                     <DropdownMenuItem key={textColor.value} asChild>
@@ -309,7 +297,7 @@ function ColorActionGroup() {
                         text={textColor.label}
                         tooltip={textColor.label}
                         onApplied={({ color, label }) =>
-                          addRecentColor({ type: "text", label, value: color })
+                          addRecentColor({ type: 'text', label, value: color })
                         }
                       />
                     </DropdownMenuItem>
@@ -320,7 +308,7 @@ function ColorActionGroup() {
               <Separator orientation="horizontal" />
 
               <CardItemGroup>
-                <CardGroupLabel>Highlight color</CardGroupLabel>
+                <CardGroupLabel>高亮颜色</CardGroupLabel>
                 <ButtonGroup>
                   {HIGHLIGHT_COLORS.map((highlightColor) => (
                     <DropdownMenuItem key={highlightColor.value} asChild>
@@ -330,7 +318,7 @@ function ColorActionGroup() {
                         tooltip={highlightColor.label}
                         onApplied={({ color, label }) =>
                           addRecentColor({
-                            type: "highlight",
+                            type: 'highlight',
                             label,
                             value: color,
                           })
@@ -345,7 +333,7 @@ function ColorActionGroup() {
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
-  )
+  );
 }
 
 function TransformActionGroup() {
@@ -354,7 +342,7 @@ function TransformActionGroup() {
       <DropdownMenuSubTrigger asChild>
         <Button data-style="ghost">
           <Repeat2Icon className="tiptap-button-icon" />
-          <span className="tiptap-button-text">Turn into</span>
+          <span className="tiptap-button-text">转换为</span>
           <Spacer />
           <ChevronRightIcon className="tiptap-button-icon" />
         </Button>
@@ -364,7 +352,7 @@ function TransformActionGroup() {
         <TurnIntoDropdownContent />
       </DropdownMenuSubContent>
     </DropdownMenuSub>
-  )
+  );
 }
 
 // =============================================================================
@@ -372,11 +360,11 @@ function TransformActionGroup() {
 // =============================================================================
 
 interface DropdownMenuActionsProps {
-  editor: Editor | null
+  editor: Editor | null;
 }
 
 function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
-  const isMobile = useIsBreakpoint()
+  const isMobile = useIsBreakpoint();
 
   return (
     <Card>
@@ -388,7 +376,7 @@ function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
             <TransformActionGroup />
 
             <DropdownMenuItem asChild>
-              <ResetAllFormattingButton text="Reset formatting" />
+              <ResetAllFormattingButton text="清除格式" />
             </DropdownMenuItem>
           </ButtonGroup>
         </CardItemGroup>
@@ -397,19 +385,13 @@ function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
 
         <ButtonGroup>
           <DropdownMenuItem asChild>
-            <DuplicateButton text="Duplicate node" showShortcut={!isMobile} />
+            <DuplicateButton text="复制节点" showShortcut={!isMobile} />
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <CopyToClipboardButton
-              text="Copy to clipboard"
-              showShortcut={!isMobile}
-            />
+            <CopyToClipboardButton text="复制到剪贴板" showShortcut={!isMobile} />
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <CopyAnchorLinkButton
-              text="Copy anchor link"
-              showShortcut={!isMobile}
-            />
+            <CopyAnchorLinkButton text="复制锚点链接" showShortcut={!isMobile} />
           </DropdownMenuItem>
         </ButtonGroup>
 
@@ -417,7 +399,7 @@ function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
 
         <ButtonGroup>
           <DropdownMenuItem asChild>
-            <AiAskButton text="Ask AI" showShortcut={!isMobile} />
+            <AiAskButton text="询问 AI" showShortcut={!isMobile} />
           </DropdownMenuItem>
         </ButtonGroup>
 
@@ -425,12 +407,12 @@ function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
 
         <ButtonGroup>
           <DropdownMenuItem asChild>
-            <DeleteNodeButton text="Delete" showShortcut={!isMobile} />
+            <DeleteNodeButton text="删除" showShortcut={!isMobile} />
           </DropdownMenuItem>
         </ButtonGroup>
       </CardBody>
     </Card>
-  )
+  );
 }
 
 function MoreActionsDropdown({ editor }: DropdownMenuActionsProps) {
@@ -445,7 +427,7 @@ function MoreActionsDropdown({ editor }: DropdownMenuActionsProps) {
         <DropdownMenuActions editor={editor} />
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
 // =============================================================================
@@ -453,43 +435,38 @@ function MoreActionsDropdown({ editor }: DropdownMenuActionsProps) {
 // =============================================================================
 
 interface ToolbarViewButtonProps {
-  view: ToolbarViewType
-  isMobile: boolean
-  onViewChange: (viewId: ToolbarViewId) => void
+  view: ToolbarViewType;
+  isMobile: boolean;
+  onViewChange: (viewId: ToolbarViewId) => void;
 }
 
-function ToolbarViewButton({
-  view,
-  isMobile,
-  onViewChange,
-}: ToolbarViewButtonProps) {
-  const viewId = view.id as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>
+function ToolbarViewButton({ view, isMobile, onViewChange }: ToolbarViewButtonProps) {
+  const viewId = view.id as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>;
 
   if (isMobile) {
     return view.mobileButton ? (
-      cloneElement(
-        view.mobileButton(() => onViewChange(viewId)) as React.ReactElement,
-        { key: view.id }
-      )
+      cloneElement(view.mobileButton(() => onViewChange(viewId)) as React.ReactElement, {
+        key: view.id,
+      })
     ) : (
       <Button key={view.id} onClick={() => onViewChange(viewId)}>
         {view.icon}
       </Button>
-    )
+    );
   }
 
   return view.desktopComponent
     ? cloneElement(view.desktopComponent as React.ReactElement, {
         key: view.id,
       })
-    : null
+    : null;
 }
 
 interface ToolbarViewsGroupProps {
-  toolbarViews: ToolbarViewRegistry
-  isMobile: boolean
-  onViewChange: (viewId: ToolbarViewId) => void
-  editor: Editor | null
+  toolbarViews: ToolbarViewRegistry;
+  isMobile: boolean;
+  onViewChange: (viewId: ToolbarViewId) => void;
+  editor: Editor | null;
 }
 
 function ToolbarViewsGroup({
@@ -499,11 +476,11 @@ function ToolbarViewsGroup({
   editor,
 }: ToolbarViewsGroupProps) {
   const visibleViews = Object.values(toolbarViews).filter((view) => {
-    if (!view.shouldShow) return true
-    return view.shouldShow(editor)
-  })
+    if (!view.shouldShow) return true;
+    return view.shouldShow(editor);
+  });
 
-  if (visibleViews.length === 0) return null
+  if (visibleViews.length === 0) return null;
 
   return (
     <>
@@ -518,7 +495,7 @@ function ToolbarViewsGroup({
 
       <ToolbarSeparator />
     </>
-  )
+  );
 }
 
 // =============================================================================
@@ -526,10 +503,10 @@ function ToolbarViewsGroup({
 // =============================================================================
 
 interface MainToolbarContentProps {
-  editor: Editor | null
-  isMobile: boolean
-  toolbarViews: ToolbarViewRegistry
-  onViewChange: (viewId: ToolbarViewId) => void
+  editor: Editor | null;
+  isMobile: boolean;
+  toolbarViews: ToolbarViewRegistry;
+  onViewChange: (viewId: ToolbarViewId) => void;
 }
 
 function MainToolbarContent({
@@ -538,8 +515,8 @@ function MainToolbarContent({
   toolbarViews,
   onViewChange,
 }: MainToolbarContentProps) {
-  const hasSelection = hasTextSelection(editor)
-  const hasContent = (editor?.getText().length ?? 0) > 0
+  const hasSelection = hasTextSelection(editor);
+  const hasContent = (editor?.getText().length ?? 0) > 0;
 
   return (
     <>
@@ -574,7 +551,7 @@ function MainToolbarContent({
           <AlignmentGroup />
 
           <ToolbarGroup>
-            <ImageUploadButton text="Add" />
+            <ImageUploadButton text="添加" />
             <ToolbarSeparator />
           </ToolbarGroup>
         </>
@@ -585,7 +562,7 @@ function MainToolbarContent({
         <MoveNodeButton direction="up" />
       </ToolbarGroup>
     </>
-  )
+  );
 }
 
 // =============================================================================
@@ -593,14 +570,11 @@ function MainToolbarContent({
 // =============================================================================
 
 interface SpecializedToolbarContentProps {
-  view: ToolbarViewType
-  onBack: () => void
+  view: ToolbarViewType;
+  onBack: () => void;
 }
 
-function SpecializedToolbarContent({
-  view,
-  onBack,
-}: SpecializedToolbarContentProps) {
+function SpecializedToolbarContent({ view, onBack }: SpecializedToolbarContentProps) {
   return (
     <>
       <ToolbarGroup>
@@ -614,7 +588,7 @@ function SpecializedToolbarContent({
 
       {view.content}
     </>
-  )
+  );
 }
 
 // =============================================================================
@@ -622,30 +596,28 @@ function SpecializedToolbarContent({
 // =============================================================================
 
 export interface MobileToolbarProps {
-  editor?: Editor | null
+  editor?: Editor | null;
 }
 
 export function MobileToolbar({ editor: providedEditor }: MobileToolbarProps) {
-  const { editor } = useTiptapEditor(providedEditor)
-  const isMobile = useIsBreakpoint("max", 480)
-  const toolbarRef = useRef<HTMLDivElement>(null)
-  const toolbarState = useToolbarState(isMobile)
-  const toolbarViews = useMemo(() => createToolbarViewRegistry(), [])
+  const { editor } = useTiptapEditor(providedEditor);
+  const isMobile = useIsBreakpoint('max', 480);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarState = useToolbarState(isMobile);
+  const toolbarViews = useMemo(() => createToolbarViewRegistry(), []);
 
   const currentView = toolbarState.isMainView
     ? null
-    : toolbarViews[
-        toolbarState.viewId as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>
-      ]
+    : toolbarViews[toolbarState.viewId as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>];
 
-  const { height } = useWindowSize()
+  const { height } = useWindowSize();
   const rect = useCursorVisibility({
     editor,
     overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
-  })
+  });
 
   if (!isMobile || !editor || !editor.isEditable) {
-    return null
+    return null;
   }
 
   return (
@@ -668,12 +640,9 @@ export function MobileToolbar({ editor: providedEditor }: MobileToolbarProps) {
         />
       ) : (
         currentView && (
-          <SpecializedToolbarContent
-            view={currentView}
-            onBack={toolbarState.showMainView}
-          />
+          <SpecializedToolbarContent view={currentView} onBack={toolbarState.showMainView} />
         )
       )}
     </Toolbar>
-  )
+  );
 }

@@ -1,45 +1,45 @@
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { Editor, NodeViewProps } from "@tiptap/react"
-import { NodeViewWrapper, NodeViewContent } from "@tiptap/react"
-import { NodeSelection } from "@tiptap/pm/state"
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Editor, NodeViewProps } from '@tiptap/react';
+import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { NodeSelection } from '@tiptap/pm/state';
 
-import { isValidPosition } from "@/lib/tiptap-utils"
+import { isValidPosition } from '@/lib/tiptap-utils';
 
-import "./image-node-view.scss"
+import './image-node-view.scss';
 
 export interface ResizeParams {
-  handleUsed: "left" | "right"
-  initialWidth: number
-  initialClientX: number
+  handleUsed: 'left' | 'right';
+  initialWidth: number;
+  initialClientX: number;
 }
 
 export interface ResizableImageProps extends React.HTMLAttributes<HTMLDivElement> {
-  src: string
-  alt?: string
-  editor?: Editor
-  minWidth?: number
-  maxWidth?: number
-  align?: "left" | "center" | "right"
-  initialWidth?: number
-  showCaption?: boolean
-  hasContent?: boolean
-  onImageResize?: (width?: number) => void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onUpdateAttributes?: (attrs: Record<string, any>) => void
-  getPos: () => number | undefined
-  nodeSize?: number
+  src: string;
+  alt?: string;
+  editor?: Editor;
+  minWidth?: number;
+  maxWidth?: number;
+  align?: 'left' | 'center' | 'right';
+  initialWidth?: number;
+  showCaption?: boolean;
+  hasContent?: boolean;
+  onImageResize?: (width?: number) => void;
+
+  onUpdateAttributes?: (attrs: Record<string, any>) => void;
+  getPos: () => number | undefined;
+  nodeSize?: number;
 }
 
 export function ImageNodeView(props: NodeViewProps) {
-  const { editor, node, updateAttributes, getPos } = props
-  const hasContent = node.content.size > 0
+  const { editor, node, updateAttributes, getPos } = props;
+  const hasContent = node.content.size > 0;
 
   return (
     <ResizableImage
       src={node.attrs.src}
-      alt={node.attrs.alt || ""}
+      alt={node.attrs.alt || ''}
       editor={editor}
-      align={node.attrs["data-align"]}
+      align={node.attrs['data-align']}
       initialWidth={node.attrs.width}
       showCaption={node.attrs.showCaption}
       hasContent={hasContent}
@@ -48,16 +48,16 @@ export function ImageNodeView(props: NodeViewProps) {
       onUpdateAttributes={updateAttributes}
       getPos={getPos}
     />
-  )
+  );
 }
 
 export const ResizableImage: React.FC<ResizableImageProps> = ({
   src,
-  alt = "",
+  alt = '',
   editor,
   minWidth = 96,
   maxWidth = 800,
-  align = "left",
+  align = 'left',
   initialWidth,
   showCaption = false,
   hasContent = false,
@@ -66,228 +66,208 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
   onUpdateAttributes,
   getPos,
 }) => {
-  const [resizeParams, setResizeParams] = useState<ResizeParams | undefined>()
-  const [width, setWidth] = useState<number | undefined>(initialWidth)
-  const [showHandles, setShowHandles] = useState(false)
-  const isResizingRef = useRef(false)
-  const isMountedRef = useRef(true)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const leftResizeHandleRef = useRef<HTMLDivElement>(null)
-  const rightResizeHandleRef = useRef<HTMLDivElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
+  const [resizeParams, setResizeParams] = useState<ResizeParams | undefined>();
+  const [width, setWidth] = useState<number | undefined>(initialWidth);
+  const [showHandles, setShowHandles] = useState(false);
+  const isResizingRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const leftResizeHandleRef = useRef<HTMLDivElement>(null);
+  const rightResizeHandleRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Listen to editor selection changes to detect when focus leaves the caption
   useEffect(() => {
-    if (!editor || !showCaption) return
+    if (!editor || !showCaption) return;
 
     const handleSelectionUpdate = () => {
-      const pos = getPos()
-      if (!isValidPosition(pos) || !nodeSize) return
+      const pos = getPos();
+      if (!isValidPosition(pos) || !nodeSize) return;
 
-      const { from, to } = editor.state.selection
-      const nodeStart = pos
-      const nodeEnd = pos + nodeSize
+      const { from, to } = editor.state.selection;
+      const nodeStart = pos;
+      const nodeEnd = pos + nodeSize;
 
       // Check if selection is outside this image node
-      const isOutsideNode = to < nodeStart || from > nodeEnd
+      const isOutsideNode = to < nodeStart || from > nodeEnd;
 
       if (isOutsideNode && !hasContent && onUpdateAttributes) {
-        onUpdateAttributes({ showCaption: false })
+        onUpdateAttributes({ showCaption: false });
       }
-    }
+    };
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on('selectionUpdate', handleSelectionUpdate);
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, showCaption, hasContent, getPos, nodeSize, onUpdateAttributes])
+      editor.off('selectionUpdate', handleSelectionUpdate);
+    };
+  }, [editor, showCaption, hasContent, getPos, nodeSize, onUpdateAttributes]);
 
   // Had to manually set the node selection on image click because
   // We treat the image-node-extension.ts as content: "inline*"
   const handleImageClick = useCallback(
     (event: React.MouseEvent) => {
-      if (!editor || !getPos || resizeParams) return
+      if (!editor || !getPos || resizeParams) return;
 
-      event.preventDefault()
-      event.stopPropagation()
+      event.preventDefault();
+      event.stopPropagation();
 
-      const pos = getPos()
+      const pos = getPos();
       if (isValidPosition(pos)) {
-        editor.chain().focus().setNodeSelection(pos).run()
+        editor.chain().focus().setNodeSelection(pos).run();
       }
     },
-    [editor, getPos, resizeParams]
-  )
+    [editor, getPos, resizeParams],
+  );
 
   const windowMouseMoveHandler = useCallback(
     (event: MouseEvent | TouchEvent): void => {
-      if (!resizeParams || !editor || !isMountedRef.current) return
+      if (!resizeParams || !editor || !isMountedRef.current) return;
 
-      const clientX =
-        "touches" in event ? (event.touches[0]?.clientX ?? 0) : event.clientX
-      const isLeftHandle = resizeParams.handleUsed === "left"
-      const multiplier = align === "center" ? 2 : 1
+      const clientX = 'touches' in event ? (event.touches[0]?.clientX ?? 0) : event.clientX;
+      const isLeftHandle = resizeParams.handleUsed === 'left';
+      const multiplier = align === 'center' ? 2 : 1;
 
       const delta = isLeftHandle
         ? (resizeParams.initialClientX - clientX) * multiplier
-        : (clientX - resizeParams.initialClientX) * multiplier
+        : (clientX - resizeParams.initialClientX) * multiplier;
 
-      const newWidth = resizeParams.initialWidth + delta
-      const effectiveMaxWidth =
-        editor.view.dom?.firstElementChild?.clientWidth || maxWidth
-      const clampedWidth = Math.min(
-        Math.max(newWidth, minWidth),
-        effectiveMaxWidth
-      )
+      const newWidth = resizeParams.initialWidth + delta;
+      const effectiveMaxWidth = editor.view.dom?.firstElementChild?.clientWidth || maxWidth;
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), effectiveMaxWidth);
 
-      setWidth(clampedWidth)
+      setWidth(clampedWidth);
       if (wrapperRef.current) {
-        wrapperRef.current.style.width = `${clampedWidth}px`
+        wrapperRef.current.style.width = `${clampedWidth}px`;
       }
     },
-    [editor, align, maxWidth, minWidth, resizeParams]
-  )
+    [editor, align, maxWidth, minWidth, resizeParams],
+  );
 
   const windowMouseUpHandler = useCallback(
     (event: MouseEvent | TouchEvent): void => {
-      if (!editor || !isMountedRef.current) return
+      if (!editor || !isMountedRef.current) return;
 
       const target =
-        "touches" in event
+        'touches' in event
           ? document.elementFromPoint(
               event.changedTouches[0]?.clientX ?? 0,
-              event.changedTouches[0]?.clientY ?? 0
+              event.changedTouches[0]?.clientY ?? 0,
             )
-          : event.target
+          : event.target;
 
-      const isInsideWrapper =
-        target && wrapperRef.current?.contains(target as Node)
+      const isInsideWrapper = target && wrapperRef.current?.contains(target as Node);
 
-      if (
-        (!isInsideWrapper || !editor.isEditable) &&
-        showHandles &&
-        isMountedRef.current
-      ) {
-        setShowHandles(false)
+      if ((!isInsideWrapper || !editor.isEditable) && showHandles && isMountedRef.current) {
+        setShowHandles(false);
       }
 
-      if (!resizeParams) return
+      if (!resizeParams) return;
 
       const wasNodeSelection =
         editor.state.selection instanceof NodeSelection &&
-        editor.state.selection.node.type.name === "image"
+        editor.state.selection.node.type.name === 'image';
 
       if (isMountedRef.current) {
-        setResizeParams(undefined)
+        setResizeParams(undefined);
       }
-      onImageResize?.(width)
+      onImageResize?.(width);
 
       // Restore the node selection after resizing
       // This because we treat the image-node-extension.ts as content: "inline*"
-      const pos = getPos()
+      const pos = getPos();
 
       // Had to use isResizingRef flag because during resizing,
       // the selection gets lost and cannot be detected here
       // Its because image-node-extension.ts contain content: "inline*"
       if (isValidPosition(pos) && wasNodeSelection && isMountedRef.current) {
-        editor.chain().focus().setNodeSelection(pos).run()
+        editor.chain().focus().setNodeSelection(pos).run();
       }
 
-      isResizingRef.current = false
+      isResizingRef.current = false;
     },
-    [editor, getPos, onImageResize, resizeParams, showHandles, width]
-  )
+    [editor, getPos, onImageResize, resizeParams, showHandles, width],
+  );
 
   const startResize = useCallback(
-    (handleUsed: "left" | "right", clientX: number) => {
+    (handleUsed: 'left' | 'right', clientX: number) => {
       setResizeParams({
         handleUsed,
         initialWidth: wrapperRef.current?.clientWidth ?? minWidth,
         initialClientX: clientX,
-      })
-      isResizingRef.current = true
+      });
+      isResizingRef.current = true;
     },
-    [minWidth]
-  )
+    [minWidth],
+  );
 
-  const leftResizeHandleMouseDownHandler = (
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault()
-    event.stopPropagation()
-    startResize("left", event.clientX)
-  }
+  const leftResizeHandleMouseDownHandler = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startResize('left', event.clientX);
+  };
 
-  const leftResizeHandleTouchStartHandler = (
-    event: React.TouchEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault()
-    const touch = event.touches[0]
-    if (touch) startResize("left", touch.clientX)
-  }
+  const leftResizeHandleTouchStartHandler = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const touch = event.touches[0];
+    if (touch) startResize('left', touch.clientX);
+  };
 
-  const rightResizeHandleMouseDownHandler = (
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault()
-    event.stopPropagation()
-    startResize("right", event.clientX)
-  }
+  const rightResizeHandleMouseDownHandler = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startResize('right', event.clientX);
+  };
 
-  const rightResizeHandleTouchStartHandler = (
-    event: React.TouchEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault()
-    const touch = event.touches[0]
-    if (touch) startResize("right", touch.clientX)
-  }
+  const rightResizeHandleTouchStartHandler = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const touch = event.touches[0];
+    if (touch) startResize('right', touch.clientX);
+  };
 
   const wrapperMouseEnterHandler = () => {
-    if (editor?.isEditable && isMountedRef.current) setShowHandles(true)
-  }
+    if (editor?.isEditable && isMountedRef.current) setShowHandles(true);
+  };
 
-  const wrapperMouseLeaveHandler = (
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    if (!isMountedRef.current) return
+  const wrapperMouseLeaveHandler = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isMountedRef.current) return;
 
     if (
       event.relatedTarget === leftResizeHandleRef.current ||
       event.relatedTarget === rightResizeHandleRef.current ||
       resizeParams
     )
-      return
+      return;
 
-    if (editor?.isEditable) setShowHandles(false)
-  }
+    if (editor?.isEditable) setShowHandles(false);
+  };
 
   const wrapperTouchStartHandler = () => {
-    if (editor?.isEditable && isMountedRef.current) setShowHandles(true)
-  }
+    if (editor?.isEditable && isMountedRef.current) setShowHandles(true);
+  };
 
   useEffect(() => {
-    window.addEventListener("mousemove", windowMouseMoveHandler)
-    window.addEventListener("mouseup", windowMouseUpHandler)
-    window.addEventListener("touchmove", windowMouseMoveHandler, {
+    window.addEventListener('mousemove', windowMouseMoveHandler);
+    window.addEventListener('mouseup', windowMouseUpHandler);
+    window.addEventListener('touchmove', windowMouseMoveHandler, {
       passive: false,
-    })
-    window.addEventListener("touchend", windowMouseUpHandler)
+    });
+    window.addEventListener('touchend', windowMouseUpHandler);
 
     return () => {
-      window.removeEventListener("mousemove", windowMouseMoveHandler)
-      window.removeEventListener("mouseup", windowMouseUpHandler)
-      window.removeEventListener("touchmove", windowMouseMoveHandler)
-      window.removeEventListener("touchend", windowMouseUpHandler)
-    }
-  }, [windowMouseMoveHandler, windowMouseUpHandler])
+      window.removeEventListener('mousemove', windowMouseMoveHandler);
+      window.removeEventListener('mouseup', windowMouseUpHandler);
+      window.removeEventListener('touchmove', windowMouseMoveHandler);
+      window.removeEventListener('touchend', windowMouseUpHandler);
+    };
+  }, [windowMouseMoveHandler, windowMouseUpHandler]);
 
   useEffect(() => {
     return () => {
-      isMountedRef.current = false
-    }
-  }, [])
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  const shouldShowCaption = showCaption || hasContent
+  const shouldShowCaption = showCaption || hasContent;
 
   return (
     <NodeViewWrapper
@@ -301,7 +281,7 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
       <div
         ref={wrapperRef}
         className="tiptap-image-container"
-        style={{ width: width ? `${width}px` : "fit-content" }}
+        style={{ width: width ? `${width}px` : 'fit-content' }}
       >
         <div className="tiptap-image-content">
           <img
@@ -312,7 +292,7 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
             contentEditable={false}
             draggable={false}
             onClick={handleImageClick}
-            style={{ cursor: editor?.isEditable ? "pointer" : "default" }}
+            style={{ cursor: editor?.isEditable ? 'pointer' : 'default' }}
           />
 
           {showHandles && editor?.isEditable && (
@@ -337,10 +317,10 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
           <NodeViewContent
             as="div"
             className="tiptap-image-caption"
-            data-placeholder="Add a caption..."
+            data-placeholder="添加图片说明..."
           />
         )}
       </div>
     </NodeViewWrapper>
-  )
-}
+  );
+};

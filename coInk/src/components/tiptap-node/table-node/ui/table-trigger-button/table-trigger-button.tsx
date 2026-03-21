@@ -1,36 +1,31 @@
-"use client"
+'use client';
 
-import { forwardRef } from "react"
+import { forwardRef } from 'react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseTableTriggerButtonConfig } from "@/components/tiptap-node/table-node/ui/table-trigger-button"
-import { useTableTriggerButton } from "@/components/tiptap-node/table-node/ui/table-trigger-button"
+import type { UseTableTriggerButtonConfig } from '@/components/tiptap-node/table-node/ui/table-trigger-button';
+import { useTableTriggerButton } from '@/components/tiptap-node/table-node/ui/table-trigger-button';
 
 // --- Components ---
-import { TableGridSelector } from "@/components/tiptap-node/table-node/ui/table-trigger-button/table-grid-selector"
+import { TableGridSelector } from '@/components/tiptap-node/table-node/ui/table-trigger-button/table-grid-selector';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/tiptap-ui-primitive/popover"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/tiptap-ui-primitive/popover';
 
 // --- Styles ---
-import { Card, CardBody } from "@/components/tiptap-ui-primitive/card"
+import { Card, CardBody } from '@/components/tiptap-ui-primitive/card';
 
 export interface TableTriggerButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseTableTriggerButtonConfig {
+  extends Omit<ButtonProps, 'type'>, UseTableTriggerButtonConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -47,10 +42,7 @@ export interface TableTriggerButtonProps
  * />
  * ```
  */
-export const TableTriggerButton = forwardRef<
-  HTMLButtonElement,
-  TableTriggerButtonProps
->(
+export const TableTriggerButton = forwardRef<HTMLButtonElement, TableTriggerButtonProps>(
   (
     {
       editor: providedEditor,
@@ -62,9 +54,9 @@ export const TableTriggerButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
       canInsert,
@@ -82,10 +74,10 @@ export const TableTriggerButton = forwardRef<
       maxRows,
       maxCols,
       onInserted,
-    })
+    });
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -125,8 +117,8 @@ export const TableTriggerButton = forwardRef<
           </Card>
         </PopoverContent>
       </Popover>
-    )
-  }
-)
+    );
+  },
+);
 
-TableTriggerButton.displayName = "TableTriggerButton"
+TableTriggerButton.displayName = 'TableTriggerButton';

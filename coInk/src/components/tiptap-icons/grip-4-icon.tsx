@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const Grip4Icon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -18,7 +18,7 @@ export const Grip4Icon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-Grip4Icon.displayName = "Grip4Icon"
+Grip4Icon.displayName = 'Grip4Icon';

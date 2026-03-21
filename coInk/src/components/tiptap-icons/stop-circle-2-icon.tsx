@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const StopCircle2Icon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -20,7 +20,7 @@ export const StopCircle2Icon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-StopCircle2Icon.displayName = "StopCircle2Icon"
+StopCircle2Icon.displayName = 'StopCircle2Icon';

@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const SmileAiIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -32,7 +32,7 @@ export const SmileAiIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-SmileAiIcon.displayName = "SmileAiIcon"
+SmileAiIcon.displayName = 'SmileAiIcon';

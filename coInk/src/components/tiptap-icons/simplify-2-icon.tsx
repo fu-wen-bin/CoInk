@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const Simplify2Icon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -18,7 +18,7 @@ export const Simplify2Icon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-Simplify2Icon.displayName = "Simplify2Icon"
+Simplify2Icon.displayName = 'Simplify2Icon';

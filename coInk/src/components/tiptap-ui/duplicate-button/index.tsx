@@ -1,2 +1,2 @@
-export * from "./duplicate-button"
-export * from "./use-duplicate"
+export * from './duplicate-button';
+export * from './use-duplicate';

@@ -1,1 +1,1 @@
-export * from "./table-alignment-menu"
+export * from './table-alignment-menu';

@@ -13,7 +13,6 @@ import {
   Plus,
   MoreHorizontal,
   Bell,
-  List,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -24,7 +23,6 @@ import type { DocumentHeaderProps, CollaborationUser } from './types';
 import ShareDialog from '../DocumentSidebar/folder/ShareDialog';
 
 import { useEditorStore } from '@/stores/editorStore';
-import { useChatStore } from '@/stores/chatStore';
 import { useFileStore } from '@/stores/fileStore';
 import { cn } from '@/utils';
 import type { FileItem } from '@/types/file-system';
@@ -247,13 +245,10 @@ export default function DocumentHeader({
   doc,
   isSidebarOpen = true,
   toggleSidebar,
-  isTocOpen = false,
-  toggleToc,
 }: DocumentHeaderProps) {
   const pathname = usePathname();
   const isCollaborationMode = Boolean(provider) && Array.isArray(connectedUsers);
   const { editor, setIsHeaderHovered } = useEditorStore();
-  const { isOpen: isChatOpen, togglePanel } = useChatStore();
   const { documentGroups } = useFileStore();
 
   // 分享对话框状态
@@ -293,24 +288,7 @@ export default function DocumentHeader({
       onMouseEnter={() => setIsHeaderHovered(true)}
       onMouseLeave={() => setIsHeaderHovered(false)}
     >
-      {/* 目录切换按钮 */}
-      {toggleToc && (
-        <button
-          type="button"
-          onClick={toggleToc}
-          className={`p-2 rounded-lg transition-colors ${
-            isTocOpen
-              ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950/40'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
-          }`}
-          title="文档目录"
-          aria-label={isTocOpen ? '关闭目录' : '打开目录'}
-        >
-          <List className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* 左侧：侧边栏切换按钮、目录按钮、文档标题和更新时间 */}
+      {/* 左侧：侧边栏切换按钮、文档标题和更新时间 */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="flex items-center gap-1">
           {/* 侧边栏切换按钮 - 仅在侧边栏关闭且有文档ID时显示 */}

@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const AlignMiddleIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -49,7 +49,7 @@ export const AlignMiddleIcon = memo(({ className, ...props }: SvgProps) => {
         strokeLinejoin="round"
       />
     </svg>
-  )
-})
+  );
+});
 
-AlignMiddleIcon.displayName = "AlignMiddleIcon"
+AlignMiddleIcon.displayName = 'AlignMiddleIcon';

@@ -23,12 +23,12 @@ export const LinkPreviewPanel = ({ onClear, onEdit, url }: LinkPreviewPanelProps
         {url}
       </a>
       <Toolbar.Divider />
-      <Tooltip title="Edit link">
+      <Tooltip title="编辑链接">
         <Toolbar.Button onClick={onEdit}>
           <Icon name="Pen" />
         </Toolbar.Button>
       </Tooltip>
-      <Tooltip title="Remove link">
+      <Tooltip title="移除链接">
         <Toolbar.Button onClick={onClear}>
           <Icon name="Trash2" />
         </Toolbar.Button>

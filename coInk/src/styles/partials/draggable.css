@@ -53,29 +53,3 @@
 [data-drag-handle]:active {
   cursor: grabbing;
 }
-
-/* ContentItemMenu DragHandle styles */
-.drag-handle {
-  transition-property: top;
-  transition-duration: 200ms;
-  transition-timing-function: ease-out;
-}
-
-.drag-handle::before {
-  content: '';
-  position: absolute;
-  left: 100%;
-  top: 0;
-  width: 16px;
-  height: 100%;
-  pointer-events: auto;
-}
-
-.drag-handle .drag-handle-btn {
-  cursor: grab;
-}
-
-.drag-handle[data-dragging='true'],
-.drag-handle[data-dragging='true'] * {
-  cursor: grabbing !important;
-}

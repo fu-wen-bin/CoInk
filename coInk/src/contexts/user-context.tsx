@@ -1,139 +1,106 @@
-"use client"
+'use client';
 
-import { getAvatar } from "@/lib/tiptap-collab-utils"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useMemo } from 'react';
+
+import { getAvatar } from '@/lib/tiptap-collab-utils';
+import { getCursorColorByUserId } from '@/utils';
 
 export type User = {
-  id: string
-  name: string
-  color: string
-  avatar: string
-}
+  id: string;
+  name: string;
+  color: string;
+  avatar: string;
+};
 
 export type UserContextValue = {
-  user: User
-}
+  user: User;
+};
 
 export const UserContext = createContext<UserContextValue>({
-  user: { color: "", id: "", name: "", avatar: "" },
-})
+  user: { color: '', id: '', name: '', avatar: '' },
+});
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user] = useState<User>({
-    color: getColorFromLocalStorage(),
-    name: getUsernameFromLocalStorage(),
-    id: getUserIdFromLocalStorage(),
-    avatar: getAvatar(getUsernameFromLocalStorage()),
-  })
+  const user = useMemo<User>(() => resolveUserFromStorage(), []);
 
-  useEffect(() => {
-    window.localStorage.setItem("_tiptap_username", user.name)
-    window.localStorage.setItem("_tiptap_color", user.color)
-    window.localStorage.setItem("_tiptap_user_id", user.id)
-  }, [user])
-
-  return (
-    <UserContext.Provider value={{ user }}>{children}</UserContext.Provider>
-  )
+  return <UserContext.Provider value={{ user }}>{children}</UserContext.Provider>;
 }
 
-export const useUser = () => useContext(UserContext)
+export const useUser = () => useContext(UserContext);
 
-export const FIRST_NAMES = [
-  "John",
-  "Jane",
-  "Alice",
-  "Bob",
-  "Eve",
-  "Charlie",
-  "David",
-  "Frank",
-  "Grace",
-  "Helen",
-  "Rob Lowe",
-  "Rob",
-]
+type CachedUserProfile = {
+  userId?: string;
+  name?: string;
+  avatarUrl?: string;
+};
 
-export const LAST_NAMES = [
-  "Smith",
-  "Johnson",
-  "Williams",
-  "Jones",
-  "Brown",
-  "Davis",
-  "Miller",
-  "Wilson",
-  "Moore",
-  "Taylor",
-  "Anderson",
-  "Thomas",
-  "Lowe",
-]
-
-export const USER_COLORS = [
-  "#fb7185",
-  "#fdba74",
-  "#d9f99d",
-  "#a7f3d0",
-  "#a5f3fc",
-  "#a5b4fc",
-  "#f0abfc",
-  "#fda58d",
-  "#f2cc8f",
-  "#9ae6b4",
-]
+const STORAGE_KEYS = {
+  profile: 'cached_user_profile',
+  username: '_tiptap_username',
+  userId: '_tiptap_user_id',
+} as const;
 
 const uuid = (): string => {
-  const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+  const template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
   return template.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    const v = c === "x" ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
-const getRandomArrayItem = (array: string[]) => {
-  if (array.length === 0) {
-    throw new Error("Cannot get random item from empty array")
-  }
-  return array[Math.floor(Math.random() * array.length)]!
-}
-
-const generateRandomUsername = (): string => {
-  const names = [getRandomArrayItem(FIRST_NAMES)]
-
-  if (Math.random() > 0.85) {
-    names.push(getRandomArrayItem(FIRST_NAMES))
-  }
-  names.push(getRandomArrayItem(LAST_NAMES))
-
-  return names.join(" ")
-}
-
-const generateRandomColor = (): string => {
-  return getRandomArrayItem(USER_COLORS) ?? "#9ae6b4"
-}
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 const getFromLocalStorage = (
   key: string,
   fallback: () => string,
-  isServer: boolean = typeof window === "undefined"
+  isServer: boolean = typeof window === 'undefined',
 ): string => {
   if (isServer) {
-    return fallback()
+    return fallback();
   }
-  const value = window.localStorage.getItem(key)
-  return value !== null ? value : fallback()
-}
+  const value = window.localStorage.getItem(key);
+  return value !== null ? value : fallback();
+};
 
-const getUsernameFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_username", generateRandomUsername)
-}
+const getCachedProfile = (): CachedUserProfile | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-const getColorFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_color", generateRandomColor)
-}
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.profile);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as CachedUserProfile;
+  } catch {
+    return null;
+  }
+};
 
-const getUserIdFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_user_id", () => uuid())
-}
+const getUsernameFromStorage = (profile: CachedUserProfile | null): string => {
+  return profile?.name?.trim() || getFromLocalStorage(STORAGE_KEYS.username, () => 'CoInk User');
+};
+
+const getUserIdFromStorage = (profile: CachedUserProfile | null): string => {
+  return profile?.userId?.trim() || getFromLocalStorage(STORAGE_KEYS.userId, uuid);
+};
+
+const resolveUserFromStorage = (): User => {
+  const profile = getCachedProfile();
+  const id = getUserIdFromStorage(profile);
+  const name = getUsernameFromStorage(profile);
+  const avatar = profile?.avatarUrl?.trim() || getAvatar(name);
+  const color = getCursorColorByUserId(id || name);
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(STORAGE_KEYS.username, name);
+    window.localStorage.setItem(STORAGE_KEYS.userId, id);
+  }
+
+  return {
+    id,
+    name,
+    color,
+    avatar,
+  };
+};

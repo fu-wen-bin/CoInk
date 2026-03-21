@@ -1,83 +1,83 @@
-"use client"
+'use client';
 
-import { useCallback, useMemo } from "react"
-import type { Editor } from "@tiptap/react"
+import { useCallback, useMemo } from 'react';
+import type { Editor } from '@tiptap/react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Lib ---
-import { isExtensionAvailable } from "@/lib/tiptap-utils"
-import type { Orientation } from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import { isExtensionAvailable } from '@/lib/tiptap-utils';
+import type { Orientation } from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
 import {
   getTable,
   getRowOrColumnCells,
-} from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
+} from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
 
 // --- Icons ---
-import { AlignLeftIcon } from "@/components/tiptap-icons/align-left-icon"
-import { AlignCenterIcon } from "@/components/tiptap-icons/align-center-icon"
-import { AlignRightIcon } from "@/components/tiptap-icons/align-right-icon"
-import { AlignJustifyIcon } from "@/components/tiptap-icons/align-justify-icon"
-import { AlignBottomIcon } from "@/components/tiptap-icons/align-bottom-icon"
-import { AlignTopIcon } from "@/components/tiptap-icons/align-top-icon"
-import { AlignMiddleIcon } from "@/components/tiptap-icons/align-middle-icon"
+import { AlignLeftIcon } from '@/components/tiptap-icons/align-left-icon';
+import { AlignCenterIcon } from '@/components/tiptap-icons/align-center-icon';
+import { AlignRightIcon } from '@/components/tiptap-icons/align-right-icon';
+import { AlignJustifyIcon } from '@/components/tiptap-icons/align-justify-icon';
+import { AlignBottomIcon } from '@/components/tiptap-icons/align-bottom-icon';
+import { AlignTopIcon } from '@/components/tiptap-icons/align-top-icon';
+import { AlignMiddleIcon } from '@/components/tiptap-icons/align-middle-icon';
 
-export type TextAlignment = "left" | "center" | "right" | "justify"
-export type VerticalAlignment = "top" | "middle" | "bottom"
-export type AlignmentType = "text" | "vertical"
+export type TextAlignment = 'left' | 'center' | 'right' | 'justify';
+export type VerticalAlignment = 'top' | 'middle' | 'bottom';
+export type AlignmentType = 'text' | 'vertical';
 
 export interface UseTableAlignCellConfig {
   /**
    * The Tiptap editor instance. If omitted, the hook will use
    * the context/editor from `useTiptapEditor`.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * The type of alignment to apply.
    */
-  alignmentType: AlignmentType
+  alignmentType: AlignmentType;
   /**
    * The alignment value to set.
    */
-  alignment: TextAlignment | VerticalAlignment
+  alignment: TextAlignment | VerticalAlignment;
   /**
    * Optional index of the row or column to align.
    * If provided along with orientation, aligns all cells in that row/column.
    * If not provided, aligns the currently selected cell(s).
    */
-  index?: number
+  index?: number;
   /**
    * Optional orientation when using index.
    * Determines whether to align a row or column.
    */
-  orientation?: Orientation
+  orientation?: Orientation;
   /**
    * Hide the button when alignment isn't currently possible.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after successful alignment change.
    */
-  onAligned?: (alignment: TextAlignment | VerticalAlignment) => void
+  onAligned?: (alignment: TextAlignment | VerticalAlignment) => void;
 }
 
-const REQUIRED_EXTENSIONS = ["table"]
+const REQUIRED_EXTENSIONS = ['table'];
 
 export const tableAlignCellLabels = {
   text: {
-    left: "Align left",
-    center: "Align center",
-    right: "Align right",
-    justify: "Justify",
+    left: '左对齐',
+    center: '水平居中',
+    right: '右对齐',
+    justify: '两端对齐',
   } as Record<TextAlignment, string>,
   vertical: {
-    top: "Align top",
-    middle: "Align middle",
-    bottom: "Align bottom",
+    top: '顶部对齐',
+    middle: '垂直居中',
+    bottom: '底部对齐',
   } as Record<VerticalAlignment, string>,
-}
+};
 
 export const tableAlignCellIcons = {
   text: {
@@ -91,25 +91,21 @@ export const tableAlignCellIcons = {
     middle: AlignMiddleIcon,
     bottom: AlignBottomIcon,
   } as Record<VerticalAlignment, React.ComponentType<{ className?: string }>>,
-}
+};
 
 /**
  * Checks if table cell alignment can be performed
  * in the current editor state.
  */
 function canAlignCell(editor: Editor | null): boolean {
-  if (
-    !editor ||
-    !editor.isEditable ||
-    !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)
-  ) {
-    return false
+  if (!editor || !editor.isEditable || !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) {
+    return false;
   }
 
   try {
-    return editor.isActive("tableCell") || editor.isActive("tableHeader")
+    return editor.isActive('tableCell') || editor.isActive('tableHeader');
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -122,29 +118,25 @@ function canAlignRowColumn({
   index,
   orientation,
 }: {
-  editor: Editor | null
-  index?: number
-  orientation?: Orientation
+  editor: Editor | null;
+  index?: number;
+  orientation?: Orientation;
 }): boolean {
-  if (
-    !editor ||
-    !editor.isEditable ||
-    !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)
-  ) {
-    return false
+  if (!editor || !editor.isEditable || !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) {
+    return false;
   }
 
   try {
-    const table = getTable(editor)
-    if (!table) return false
+    const table = getTable(editor);
+    if (!table) return false;
 
-    const cellData = getRowOrColumnCells(editor, index, orientation)
+    const cellData = getRowOrColumnCells(editor, index, orientation);
 
-    if (cellData.cells.length === 0) return false
+    if (cellData.cells.length === 0) return false;
 
-    return true
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -153,34 +145,34 @@ function canAlignRowColumn({
  */
 function getCurrentAlignment(
   editor: Editor | null,
-  alignmentType: AlignmentType
+  alignmentType: AlignmentType,
 ): TextAlignment | VerticalAlignment | null {
-  if (!canAlignCell(editor) || !editor) return null
+  if (!canAlignCell(editor) || !editor) return null;
 
   try {
-    const { selection } = editor.state
-    const $anchor = selection.$anchor
+    const { selection } = editor.state;
+    const $anchor = selection.$anchor;
 
-    let cellNode = null
+    let cellNode = null;
     for (let depth = $anchor.depth; depth >= 0; depth--) {
-      const node = $anchor.node(depth)
-      if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
-        cellNode = node
-        break
+      const node = $anchor.node(depth);
+      if (node.type.name === 'tableCell' || node.type.name === 'tableHeader') {
+        cellNode = node;
+        break;
       }
     }
 
-    if (!cellNode) return null
+    if (!cellNode) return null;
 
-    const attrs = cellNode.attrs || {}
+    const attrs = cellNode.attrs || {};
 
-    if (alignmentType === "text") {
-      return (attrs.nodeTextAlign as TextAlignment) || "left"
+    if (alignmentType === 'text') {
+      return (attrs.nodeTextAlign as TextAlignment) || 'left';
     } else {
-      return (attrs.nodeVerticalAlign as VerticalAlignment) || "top"
+      return (attrs.nodeVerticalAlign as VerticalAlignment) || 'top';
     }
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -191,27 +183,27 @@ function getCurrentRowColumnAlignment(
   editor: Editor | null,
   alignmentType: AlignmentType,
   index?: number,
-  orientation?: Orientation
+  orientation?: Orientation,
 ): TextAlignment | VerticalAlignment | null {
-  if (!editor) return null
+  if (!editor) return null;
 
   try {
-    const cellData = getRowOrColumnCells(editor, index, orientation)
+    const cellData = getRowOrColumnCells(editor, index, orientation);
 
-    if (cellData.cells.length === 0) return null
+    if (cellData.cells.length === 0) return null;
 
-    const firstCell = cellData.cells[0]
-    if (!firstCell?.node) return null
+    const firstCell = cellData.cells[0];
+    if (!firstCell?.node) return null;
 
-    const attrs = firstCell.node.attrs || {}
+    const attrs = firstCell.node.attrs || {};
 
-    if (alignmentType === "text") {
-      return (attrs.nodeTextAlign as TextAlignment) || "left"
+    if (alignmentType === 'text') {
+      return (attrs.nodeTextAlign as TextAlignment) || 'left';
     } else {
-      return (attrs.nodeVerticalAlign as VerticalAlignment) || "top"
+      return (attrs.nodeVerticalAlign as VerticalAlignment) || 'top';
     }
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -221,19 +213,19 @@ function getCurrentRowColumnAlignment(
 function setTableCellAlignment(
   editor: Editor | null,
   alignmentType: AlignmentType,
-  alignment: TextAlignment | VerticalAlignment
+  alignment: TextAlignment | VerticalAlignment,
 ): boolean {
-  if (!canAlignCell(editor) || !editor) return false
+  if (!canAlignCell(editor) || !editor) return false;
 
   try {
-    if (alignmentType === "text") {
-      return editor.commands.setCellAttribute("nodeTextAlign", alignment)
+    if (alignmentType === 'text') {
+      return editor.commands.setCellAttribute('nodeTextAlign', alignment);
     } else {
-      return editor.commands.setCellAttribute("nodeVerticalAlign", alignment)
+      return editor.commands.setCellAttribute('nodeVerticalAlign', alignment);
     }
   } catch (error) {
-    console.error("Error setting table cell alignment:", error)
-    return false
+    console.error('Error setting table cell alignment:', error);
+    return false;
   }
 }
 
@@ -247,51 +239,48 @@ function setRowColumnAlignment({
   index,
   orientation,
 }: {
-  editor: Editor | null
-  alignmentType: AlignmentType
-  alignment: TextAlignment | VerticalAlignment
-  index?: number
-  orientation?: Orientation
+  editor: Editor | null;
+  alignmentType: AlignmentType;
+  alignment: TextAlignment | VerticalAlignment;
+  index?: number;
+  orientation?: Orientation;
 }): boolean {
   if (!canAlignRowColumn({ editor, index, orientation }) || !editor) {
-    return false
+    return false;
   }
 
   try {
-    const { state, view } = editor
-    const tr = state.tr
+    const { state, view } = editor;
+    const tr = state.tr;
 
-    const cellData = getRowOrColumnCells(editor, index, orientation)
+    const cellData = getRowOrColumnCells(editor, index, orientation);
 
     if (cellData.cells.length === 0) {
-      return false
+      return false;
     }
 
     // Track unique cells to avoid aligning the same merged cell multiple times
-    const uniqueCells = new Map<number, (typeof cellData.cells)[0]>()
+    const uniqueCells = new Map<number, (typeof cellData.cells)[0]>();
 
     cellData.cells.forEach((cellInfo) => {
       if (cellInfo.node && cellInfo.pos !== undefined) {
-        uniqueCells.set(cellInfo.pos, cellInfo)
+        uniqueCells.set(cellInfo.pos, cellInfo);
       }
-    })
+    });
 
     if (uniqueCells.size === 0) {
-      return false
+      return false;
     }
 
     // Convert to array and sort by position in reverse order
     // This ensures we replace cells from end to beginning to maintain correct positions
-    const cellsToProcess = Array.from(uniqueCells.values()).sort(
-      (a, b) => b.pos - a.pos
-    )
+    const cellsToProcess = Array.from(uniqueCells.values()).sort((a, b) => b.pos - a.pos);
 
-    const attributeName =
-      alignmentType === "text" ? "nodeTextAlign" : "nodeVerticalAlign"
+    const attributeName = alignmentType === 'text' ? 'nodeTextAlign' : 'nodeVerticalAlign';
 
     cellsToProcess.forEach((cellInfo) => {
       if (cellInfo.node && cellInfo.pos !== undefined) {
-        const cellType = cellInfo.node.type
+        const cellType = cellInfo.node.type;
 
         const newCellNode = cellType.create(
           {
@@ -299,23 +288,23 @@ function setRowColumnAlignment({
             [attributeName]: alignment,
           },
           cellInfo.node.content,
-          cellInfo.node.marks
-        )
+          cellInfo.node.marks,
+        );
 
-        const cellEnd = cellInfo.pos + cellInfo.node.nodeSize
-        tr.replaceWith(cellInfo.pos, cellEnd, newCellNode)
+        const cellEnd = cellInfo.pos + cellInfo.node.nodeSize;
+        tr.replaceWith(cellInfo.pos, cellEnd, newCellNode);
       }
-    })
+    });
 
     if (tr.docChanged) {
-      view.dispatch(tr)
-      return true
+      view.dispatch(tr);
+      return true;
     }
 
-    return false
+    return false;
   } catch (error) {
-    console.error(`Error aligning table ${orientation}:`, error)
-    return false
+    console.error(`Error aligning table ${orientation}:`, error);
+    return false;
   }
 }
 
@@ -329,29 +318,29 @@ function tableAlignCell({
   index,
   orientation,
 }: {
-  editor: Editor | null
-  alignmentType: AlignmentType
-  alignment: TextAlignment | VerticalAlignment
-  index?: number
-  orientation?: Orientation
+  editor: Editor | null;
+  alignmentType: AlignmentType;
+  alignment: TextAlignment | VerticalAlignment;
+  index?: number;
+  orientation?: Orientation;
 }): boolean {
-  if (!editor) return false
+  if (!editor) return false;
 
   try {
-    if (typeof index === "number" && orientation) {
+    if (typeof index === 'number' && orientation) {
       return setRowColumnAlignment({
         editor,
         alignmentType,
         alignment,
         index,
         orientation,
-      })
+      });
     } else {
-      return setTableCellAlignment(editor, alignmentType, alignment)
+      return setTableCellAlignment(editor, alignmentType, alignment);
     }
   } catch (error) {
-    console.error("Error aligning table cell:", error)
-    return false
+    console.error('Error aligning table cell:', error);
+    return false;
   }
 }
 
@@ -365,23 +354,23 @@ function shouldShowButton({
   index,
   orientation,
 }: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
-  index?: number
-  orientation?: Orientation
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
+  index?: number;
+  orientation?: Orientation;
 }): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false;
 
   if (hideWhenUnavailable) {
-    if (typeof index === "number" && orientation) {
-      return canAlignRowColumn({ editor, index, orientation })
+    if (typeof index === 'number' && orientation) {
+      return canAlignRowColumn({ editor, index, orientation });
     }
 
-    return canAlignCell(editor)
+    return canAlignCell(editor);
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -473,37 +462,32 @@ export function useTableAlignCell(config: UseTableAlignCellConfig) {
     orientation,
     hideWhenUnavailable = false,
     onAligned,
-  } = config
+  } = config;
 
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
   const isVisible = shouldShowButton({
     editor,
     hideWhenUnavailable,
     index,
     orientation,
-  })
+  });
 
   const canPerformAlign = () => {
-    if (typeof index === "number" && orientation) {
-      return canAlignRowColumn({ editor, index, orientation })
+    if (typeof index === 'number' && orientation) {
+      return canAlignRowColumn({ editor, index, orientation });
     }
-    return canAlignCell(editor)
-  }
+    return canAlignCell(editor);
+  };
 
   const currentAlignment = () => {
-    if (typeof index === "number" && orientation) {
-      return getCurrentRowColumnAlignment(
-        editor,
-        alignmentType,
-        index,
-        orientation
-      )
+    if (typeof index === 'number' && orientation) {
+      return getCurrentRowColumnAlignment(editor, alignmentType, index, orientation);
     }
-    return getCurrentAlignment(editor, alignmentType)
-  }
+    return getCurrentAlignment(editor, alignmentType);
+  };
 
-  const isActive = currentAlignment() === alignment
+  const isActive = currentAlignment() === alignment;
 
   const handleAlign = useCallback(() => {
     const success = tableAlignCell({
@@ -512,29 +496,29 @@ export function useTableAlignCell(config: UseTableAlignCellConfig) {
       alignment,
       index,
       orientation,
-    })
+    });
 
     if (success) {
-      onAligned?.(alignment)
+      onAligned?.(alignment);
     }
-    return success
-  }, [editor, alignmentType, alignment, index, orientation, onAligned])
+    return success;
+  }, [editor, alignmentType, alignment, index, orientation, onAligned]);
 
   const label = useMemo(() => {
-    if (alignmentType === "text") {
-      return tableAlignCellLabels.text[alignment as TextAlignment]
+    if (alignmentType === 'text') {
+      return tableAlignCellLabels.text[alignment as TextAlignment];
     } else {
-      return tableAlignCellLabels.vertical[alignment as VerticalAlignment]
+      return tableAlignCellLabels.vertical[alignment as VerticalAlignment];
     }
-  }, [alignmentType, alignment])
+  }, [alignmentType, alignment]);
 
   const Icon = useMemo(() => {
-    if (alignmentType === "text") {
-      return tableAlignCellIcons.text[alignment as TextAlignment]
+    if (alignmentType === 'text') {
+      return tableAlignCellIcons.text[alignment as TextAlignment];
     } else {
-      return tableAlignCellIcons.vertical[alignment as VerticalAlignment]
+      return tableAlignCellIcons.vertical[alignment as VerticalAlignment];
     }
-  }, [alignmentType, alignment])
+  }, [alignmentType, alignment]);
 
   return {
     isVisible,
@@ -544,5 +528,5 @@ export function useTableAlignCell(config: UseTableAlignCellConfig) {
     Icon,
     isActive,
     currentAlignment,
-  }
+  };
 }

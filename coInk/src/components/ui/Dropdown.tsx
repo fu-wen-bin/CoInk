@@ -22,7 +22,9 @@ export const DropdownButton = React.forwardRef<
 >(function DropdownButtonInner({ children, isActive, onClick, disabled, className }, ref) {
   const buttonClass = cn(
     'flex items-center gap-2 p-2 text-sm font-normal text-neutral-600 dark:text-neutral-300 text-left bg-transparent w-full rounded-md transition-all duration-150 ease-in-out',
-    !isActive && !disabled && 'hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400',
+    !isActive &&
+      !disabled &&
+      'hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400',
     isActive && !disabled && 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
     disabled && 'text-neutral-300 dark:text-neutral-600 cursor-not-allowed',
     className,

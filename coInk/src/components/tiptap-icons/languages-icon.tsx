@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const LanguagesIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -28,7 +28,7 @@ export const LanguagesIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-LanguagesIcon.displayName = "LanguagesIcon"
+LanguagesIcon.displayName = 'LanguagesIcon';

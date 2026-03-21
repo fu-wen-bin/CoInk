@@ -1,2 +1,2 @@
-export * from "./text-button"
-export * from "./use-text"
+export * from './text-button';
+export * from './use-text';

@@ -1,1 +1,1 @@
-export * from "./toc-sidebar"
+export * from './toc-sidebar';

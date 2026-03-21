@@ -8,7 +8,7 @@ export interface CollaborationUser {
   avatar: string;
 }
 
-export type ExportAction = 'copy' | 'pdf' | 'docx' | 'blog';
+export type ExportAction = 'copy' | 'pdf' | 'docx';
 
 export interface DocumentHeaderProps {
   provider?: unknown;
@@ -18,11 +18,9 @@ export interface DocumentHeaderProps {
   documentName?: string;
   documentTitle?: string;
   doc?: Y.Doc;
-  // 新增：侧边栏和目录控制
+  // 新增：侧边栏控制
   isSidebarOpen?: boolean;
   toggleSidebar?: () => void;
-  isTocOpen?: boolean;
-  toggleToc?: () => void;
   // 新增：连接状态
   connectionStatus?: string;
 }

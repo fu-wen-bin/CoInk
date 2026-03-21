@@ -1,41 +1,35 @@
-"use client"
+'use client';
 
-import { forwardRef, useCallback, useMemo, useRef, useState } from "react"
-import * as Ariakit from "@ariakit/react"
+import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
+import * as Ariakit from '@ariakit/react';
 
 // -- Hooks --
-import { useOnClickOutside } from "@/hooks/use-on-click-outside"
-import { useComposedRef } from "@/hooks/use-composed-ref"
+import { useOnClickOutside } from '@/hooks/use-on-click-outside';
+import { useComposedRef } from '@/hooks/use-composed-ref';
 
 // -- Utils --
-import { cn } from "@/lib/tiptap-utils"
+import { cn } from '@/lib/tiptap-utils';
 
 // -- UI Primitives --
-import {
-  ComboboxItem,
-  ComboboxProvider,
-} from "@/components/tiptap-ui-primitive/combobox"
-import { Label } from "@/components/tiptap-ui-primitive/label"
+import { ComboboxItem, ComboboxProvider } from '@/components/tiptap-ui-primitive/combobox';
+import { Label } from '@/components/tiptap-ui-primitive/label';
 
 // -- Local imports --
 import type {
   MenuProps,
   MenuContentProps,
   MenuItemProps,
-} from "@/components/tiptap-ui-primitive/menu"
+} from '@/components/tiptap-ui-primitive/menu';
 import {
   SearchableContext,
   MenuContext,
   useSearchableContext,
   useMenuContext,
-} from "@/components/tiptap-ui-primitive/menu"
-import {
-  useMenuPlacement,
-  useMenuItemClick,
-} from "@/components/tiptap-ui-primitive/menu"
+} from '@/components/tiptap-ui-primitive/menu';
+import { useMenuPlacement, useMenuItemClick } from '@/components/tiptap-ui-primitive/menu';
 
 // -- Styles --
-import "@/components/tiptap-ui-primitive/menu/menu.scss"
+import '@/components/tiptap-ui-primitive/menu/menu.scss';
 
 export function Menu({
   children,
@@ -46,27 +40,27 @@ export function Menu({
   onValuesChange,
   ...props
 }: MenuProps) {
-  const isRootMenu = !Ariakit.useMenuContext()
-  const [open, setOpen] = useState<boolean>(false)
-  const searchable = !!onValuesChange || isRootMenu
+  const isRootMenu = !Ariakit.useMenuContext();
+  const [open, setOpen] = useState<boolean>(false);
+  const searchable = !!onValuesChange || isRootMenu;
 
   const handleOpenChange = useCallback(
     (v: boolean) => {
       if (props.open === undefined) {
-        setOpen(v)
+        setOpen(v);
       }
-      onOpenChange?.(v)
+      onOpenChange?.(v);
     },
-    [props.open, onOpenChange]
-  )
+    [props.open, onOpenChange],
+  );
 
   const menuContextValue = useMemo(
     () => ({
       isRootMenu,
       open: props.open ?? open,
     }),
-    [isRootMenu, props.open, open]
-  )
+    [isRootMenu, props.open, open],
+  );
 
   const menuProvider = (
     <Ariakit.MenuProvider
@@ -78,22 +72,20 @@ export function Menu({
     >
       {trigger}
       <MenuContext.Provider value={menuContextValue}>
-        <SearchableContext.Provider value={searchable}>
-          {children}
-        </SearchableContext.Provider>
+        <SearchableContext.Provider value={searchable}>{children}</SearchableContext.Provider>
       </MenuContext.Provider>
     </Ariakit.MenuProvider>
-  )
+  );
 
   if (searchable) {
     return (
       <ComboboxProvider value={value} setValue={onValueChange}>
         {menuProvider}
       </ComboboxProvider>
-    )
+    );
   }
 
-  return menuProvider
+  return menuProvider;
 }
 
 export function MenuContent({
@@ -103,18 +95,18 @@ export function MenuContent({
   onClickOutside,
   ...props
 }: MenuContentProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const { open } = useMenuContext()
-  const side = useMenuPlacement()
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const { open } = useMenuContext();
+  const side = useMenuPlacement();
 
-  useOnClickOutside(menuRef, onClickOutside || (() => {}))
+  useOnClickOutside(menuRef, onClickOutside || (() => {}));
 
   return (
     <Ariakit.Menu
       ref={useComposedRef(menuRef, ref)}
-      className={cn("tiptap-menu-content", className)}
+      className={cn('tiptap-menu-content', className)}
       data-side={side}
-      data-state={open ? "open" : "closed"}
+      data-state={open ? 'open' : 'closed'}
       gutter={4}
       flip
       unmountOnHide
@@ -122,21 +114,17 @@ export function MenuContent({
     >
       {children}
     </Ariakit.Menu>
-  )
+  );
 }
 
 export const MenuButton = forwardRef<
   HTMLButtonElement,
   React.ComponentPropsWithoutRef<typeof Ariakit.MenuButton>
 >(({ className, ...props }, ref) => (
-  <Ariakit.MenuButton
-    ref={ref}
-    {...props}
-    className={cn("tiptap-menu-button", className)}
-  />
-))
+  <Ariakit.MenuButton ref={ref} {...props} className={cn('tiptap-menu-button', className)} />
+));
 
-MenuButton.displayName = "MenuButton"
+MenuButton.displayName = 'MenuButton';
 
 export const MenuButtonArrow = forwardRef<
   React.ComponentRef<typeof Ariakit.MenuButtonArrow>,
@@ -145,57 +133,45 @@ export const MenuButtonArrow = forwardRef<
   <Ariakit.MenuButtonArrow
     ref={ref}
     {...props}
-    className={cn("tiptap-menu-button-arrow", className)}
+    className={cn('tiptap-menu-button-arrow', className)}
   />
-))
+));
 
-MenuButtonArrow.displayName = "MenuButtonArrow"
+MenuButtonArrow.displayName = 'MenuButtonArrow';
 
 export const MenuGroup = forwardRef<
   React.ComponentRef<typeof Ariakit.MenuGroup>,
   React.ComponentPropsWithoutRef<typeof Ariakit.MenuGroup>
 >(({ className, ...props }, ref) => (
-  <Ariakit.MenuGroup
-    ref={ref}
-    {...props}
-    className={cn("tiptap-menu-group", className)}
-  />
-))
+  <Ariakit.MenuGroup ref={ref} {...props} className={cn('tiptap-menu-group', className)} />
+));
 
-MenuGroup.displayName = "MenuGroup"
+MenuGroup.displayName = 'MenuGroup';
 
 export const MenuGroupLabel = forwardRef<
   React.ComponentRef<typeof Ariakit.MenuGroupLabel>,
   React.ComponentPropsWithoutRef<typeof Ariakit.MenuGroupLabel>
->((props, ref) => <Label ref={ref} {...props} />)
+>((props, ref) => <Label ref={ref} {...props} />);
 
-MenuGroupLabel.displayName = "MenuGroupLabel"
+MenuGroupLabel.displayName = 'MenuGroupLabel';
 
 export const MenuItemCheck = forwardRef<
   React.ComponentRef<typeof Ariakit.MenuItemCheck>,
   React.ComponentPropsWithoutRef<typeof Ariakit.MenuItemCheck>
 >(({ className, ...props }, ref) => (
-  <Ariakit.MenuItemCheck
-    ref={ref}
-    {...props}
-    className={cn("tiptap-menu-item-check", className)}
-  />
-))
+  <Ariakit.MenuItemCheck ref={ref} {...props} className={cn('tiptap-menu-item-check', className)} />
+));
 
-MenuItemCheck.displayName = "MenuItemCheck"
+MenuItemCheck.displayName = 'MenuItemCheck';
 
 export const MenuItemRadio = forwardRef<
   React.ComponentRef<typeof Ariakit.MenuItemRadio>,
   React.ComponentPropsWithoutRef<typeof Ariakit.MenuItemRadio>
 >(({ className, ...props }, ref) => (
-  <Ariakit.MenuItemRadio
-    ref={ref}
-    {...props}
-    className={cn("tiptap-menu-item-radio", className)}
-  />
-))
+  <Ariakit.MenuItemRadio ref={ref} {...props} className={cn('tiptap-menu-item-radio', className)} />
+));
 
-MenuItemRadio.displayName = "MenuItemRadio"
+MenuItemRadio.displayName = 'MenuItemRadio';
 
 export const MenuItem = function MenuItem({
   name,
@@ -204,32 +180,25 @@ export const MenuItem = function MenuItem({
   className,
   ...props
 }: MenuItemProps) {
-  const menu = Ariakit.useMenuContext()
-  const searchable = useSearchableContext()
+  const menu = Ariakit.useMenuContext();
+  const searchable = useSearchableContext();
 
-  const hideOnClick = useMenuItemClick(menu, preventClose)
+  const hideOnClick = useMenuItemClick(menu, preventClose);
 
   const itemProps: MenuItemProps = {
     blurOnHoverEnd: false,
     focusOnHover: true,
-    className: cn("tiptap-menu-item", className),
+    className: cn('tiptap-menu-item', className),
     ...props,
-  }
+  };
 
   if (!searchable) {
     if (name && value) {
-      return (
-        <MenuItemRadio
-          {...itemProps}
-          hideOnClick={true}
-          name={name}
-          value={value}
-        />
-      )
+      return <MenuItemRadio {...itemProps} hideOnClick={true} name={name} value={value} />;
     }
 
-    return <Ariakit.MenuItem {...itemProps} />
+    return <Ariakit.MenuItem {...itemProps} />;
   }
 
-  return <ComboboxItem {...itemProps} hideOnClick={hideOnClick} />
-}
+  return <ComboboxItem {...itemProps} hideOnClick={hideOnClick} />;
+};

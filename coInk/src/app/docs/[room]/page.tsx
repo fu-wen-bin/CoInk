@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef, Activity } from 'react';
+import { useCallback, useEffect, useState, useRef, Activity } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { EditorContent, useEditor } from '@tiptap/react';
+import type { Editor } from '@tiptap/react';
 import * as Y from 'yjs';
-import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Eye } from 'lucide-react';
@@ -23,36 +21,13 @@ const CommentPanel = dynamic(
   },
 );
 
-// 动态导入 ChatPanelContainer，禁用 SSR
-const ChatPanelContainer = dynamic(
-  () =>
-    import('@/app/docs/_components/ChatPanel/ChatPanelContainer').then((mod) => ({
-      default: mod.ChatPanelContainer,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50/30 items-center justify-center gap-2">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-        <span className="text-xs text-gray-400">加载中...</span>
-      </div>
-    ),
-  },
-);
-
-import { ExtensionKit } from '@/extensions/extension-kit';
 import { getCursorColorByUserId, getAuthToken } from '@/utils';
 import { getSelectionLineRange } from '@/utils/editor';
 import DocumentHeader from '@/app/docs/_components/DocumentHeader';
-import { TocPanel } from '@/app/docs/_components/TocPanel';
 import { SearchPanel } from '@/app/docs/_components/SearchPanel';
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
-import { ContentItemMenu } from '@/components/menus/ContentItemMenu';
-import { LinkMenu } from '@/components/menus';
-import { TextMenu } from '@/components/menus/TextMenu';
-import { TableRowMenu, TableColumnMenu, TableMenu, TableCellMenu } from '@/extensions/Table/menus';
-import { ImageBlockMenu } from '@/components/menus';
+import { NotionEditor } from '@/components/tiptap-templates/notion-like/notion-like-editor';
 import { documentsApi } from '@/services/documents';
 import NoPermission from '@/app/docs/_components/NoPermission';
 import type { PermissionLevel } from '@/services/documents/types';
@@ -60,7 +35,6 @@ import { useCommentStore } from '@/stores/commentStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
 import { storage, STORAGE_KEYS } from '@/utils/storage/local-storage';
-import { useChatStore } from '@/stores/chatStore';
 import { useSidebar } from '@/stores/sidebarStore';
 
 // 类型定义
@@ -86,22 +60,16 @@ export default function DocumentPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const documentId = params?.room as string;
-  const menuContainerRef = useRef<HTMLDivElement>(null);
   const groupRef = useRef<GroupImperativeHandle>(null);
 
   // 获取URL参数中的只读模式设置
   const forceReadOnly = searchParams?.get('readonly') === 'true';
 
   const { documentGroups } = useFileStore();
-  const { isOpen: isChatOpen, width: chatWidth, isResizing: isChatResizing } = useChatStore();
   const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
 
   // 防止水合不匹配的强制客户端渲染
   const [isMounted, setIsMounted] = useState(false);
-
-  // 目录显示状态
-  const [isTocOpen, setIsTocOpen] = useState(false);
-  const toggleToc = () => setIsTocOpen((prev) => !prev);
 
   // 权限相关状态
   const [permissionData, setPermissionData] = useState<DocumentPermissionData | null>(null);
@@ -115,7 +83,7 @@ export default function DocumentPage() {
   const [connectedUsers, setConnectedUsers] = useState<CollaborationUser[]>([]);
   const [isIndexedDBReady, setIsIndexedDBReady] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
-  const { openPanel, setActiveCommentId, closePanel, isPanelOpen } = useCommentStore();
+  const { closePanel, isPanelOpen } = useCommentStore();
   const { setEditor, clearEditor } = useEditorStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -166,6 +134,12 @@ export default function DocumentPage() {
   // 获取权限并初始化
   useEffect(() => {
     if (!documentId || typeof window === 'undefined') return;
+
+    // 切换文档时先重置协作初始化门槛，避免 IndexedDB 未就绪时提前创建编辑器/连接
+    setIsIndexedDBReady(false);
+    setProvider(null);
+    setConnectedUsers([]);
+    setConnectionStatus('disconnected');
 
     async function init() {
       setIsLoadingPermission(true);
@@ -273,7 +247,7 @@ export default function DocumentPage() {
 
   // 协作提供者
   useEffect(() => {
-    if (!documentId || !doc || !permissionData) return;
+    if (!documentId || !doc || !permissionData || !isIndexedDBReady) return;
 
     const websocketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 
@@ -322,7 +296,7 @@ export default function DocumentPage() {
     return () => {
       hocuspocusProvider.destroy();
     };
-  }, [documentId, doc, permissionData]);
+  }, [documentId, doc, permissionData, isIndexedDBReady]);
 
   // 设置用户awareness信息
   useEffect(() => {
@@ -389,72 +363,19 @@ export default function DocumentPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isSearchOpen]);
 
-  // 创建编辑器 - 只有在 IndexedDB 准备好之后才创建
-  const editor = useEditor(
-    {
-      extensions: [
-        ...ExtensionKit({
-          provider,
-        }),
-        ...(doc && isIndexedDBReady
-          ? [Collaboration.configure({ document: doc, field: 'content' })]
-          : []),
-        ...(provider && currentUser && doc && isIndexedDBReady
-          ? [CollaborationCaret.configure({ provider, user: currentUser })]
-          : []),
-      ],
-      editable: !isReadOnly,
-      editorProps: {
-        attributes: {
-          autocomplete: 'off',
-          autocorrect: 'off',
-          autocapitalize: 'off',
-          class: 'min-h-full',
-          spellcheck: 'false',
-        },
-        handleKeyDown: (view, event) => {
-          if (event.key === 'Tab') {
-            if (event.shiftKey) {
-              const { state } = view;
-              const { from } = state.selection;
-              const $from = state.doc.resolve(from);
-              const startOfLine = $from.start($from.depth);
-              const textBeforeCursor = state.doc.textBetween(startOfLine, from);
+  const [editor, setEditorInstance] = useState<Editor | null>(null);
 
-              if (textBeforeCursor.endsWith('  ')) {
-                const deleteFrom = Math.max(startOfLine, from - 2);
-                view.dispatch(state.tr.deleteRange(deleteFrom, from));
+  const handleEditorCreate = useCallback(
+    (nextEditor: Editor | null) => {
+      setEditorInstance(nextEditor);
 
-                return true;
-              } else if (textBeforeCursor.endsWith(' ')) {
-                view.dispatch(state.tr.deleteRange(from - 1, from));
-
-                return true;
-              }
-            } else {
-              view.dispatch(view.state.tr.insertText('  '));
-
-              return true;
-            }
-          }
-
-          return false;
-        },
-      },
-      immediatelyRender: false,
-      shouldRerenderOnTransaction: false,
-      onCreate: ({ editor }) => {
-        // 编辑器创建后，将实例存储到store中
-        if (editor && documentId) {
-          setEditor(editor, documentId);
-        }
-      },
-      onDestroy: () => {
-        // 编辑器销毁时，清除store中的实例
+      if (nextEditor && documentId) {
+        setEditor(nextEditor, documentId);
+      } else {
         clearEditor();
-      },
+      }
     },
-    [doc, provider, currentUser, isReadOnly, isIndexedDBReady, documentId, setEditor, clearEditor],
+    [documentId, setEditor, clearEditor],
   );
 
   // 点击编辑器内容时关闭评论面板（除非点击评论标记）
@@ -632,12 +553,13 @@ export default function DocumentPage() {
   }
 
   // 编辑器初始化中
-  if (!isMounted || !doc || !isIndexedDBReady || !editor) {
+  if (!isMounted || !doc || !currentUser || !isIndexedDBReady || !provider) {
     const getSubtitle = () => {
       if (!isMounted) return '等待挂载...';
       if (!doc) return '创建文档...';
+      if (!currentUser) return '加载用户信息...';
       if (!isIndexedDBReady) return '加载数据...';
-      if (!editor) return '初始化编辑器...';
+      if (!provider) return '连接协作服务...';
 
       return '';
     };
@@ -646,11 +568,7 @@ export default function DocumentPage() {
   }
 
   return (
-    <div
-      className="h-screen flex flex-col bg-white dark:bg-gray-900"
-      ref={menuContainerRef}
-      suppressHydrationWarning
-    >
+    <div className="h-screen flex flex-col bg-white dark:bg-gray-900" suppressHydrationWarning>
       {/* 只读模式提示条 - 使用 Activity 优化显示/隐藏性能 */}
       <Activity mode={isReadOnly ? 'visible' : 'hidden'}>
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-center gap-2 text-amber-800 dark:text-amber-200">
@@ -674,8 +592,6 @@ export default function DocumentPage() {
         doc={doc}
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
-        isTocOpen={isTocOpen}
-        toggleToc={toggleToc}
         connectionStatus={connectionStatus}
       />
 
@@ -685,23 +601,21 @@ export default function DocumentPage() {
           {/* 编辑器面板 */}
           <Panel id="editor" defaultSize="65" minSize="30">
             <div className="h-full relative overflow-hidden">
-              <TocPanel editor={editor} isOpen={isTocOpen} />
-
-              {/* AI 助手 - 右侧可调节宽度 */}
-              <ChatPanelContainer documentId={documentId} />
-
               <div
                 ref={editorContainRef}
                 className="w-full h-full overflow-y-auto overflow-x-hidden relative"
-                style={{
-                  paddingLeft: isTocOpen ? '220px' : '0px',
-                  paddingRight: isChatOpen ? `${chatWidth}px` : '0px',
-                  transition: isChatResizing
-                    ? 'none'
-                    : 'padding-left 300ms ease-in-out, padding-right 300ms ease-in-out',
-                }}
               >
-                <EditorContent editor={editor} className="prose-container h-full pl-14" />
+                {doc && currentUser && provider && (
+                  <NotionEditor
+                    provider={provider}
+                    ydoc={doc}
+                    user={currentUser}
+                    editable={!isReadOnly}
+                    showHeader={false}
+                    showTocSidebar
+                    onEditorCreate={handleEditorCreate}
+                  />
+                )}
               </div>
             </div>
           </Panel>
@@ -717,20 +631,6 @@ export default function DocumentPage() {
       {/* 搜索面板 */}
       {editor && editor.view && (
         <SearchPanel editor={editor} isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      )}
-
-      {/* 编辑器菜单 - 使用 Activity 在只读模式下隐藏而非卸载，提升模式切换性能 */}
-      {editor && (
-        <Activity mode={isReadOnly ? 'hidden' : 'visible'}>
-          <ContentItemMenu editor={editor} />
-          <LinkMenu editor={editor} appendTo={menuContainerRef} />
-          <TextMenu editor={editor} />
-          <TableRowMenu editor={editor} appendTo={menuContainerRef} />
-          <TableColumnMenu editor={editor} appendTo={menuContainerRef} />
-          <TableMenu editor={editor} appendTo={menuContainerRef} />
-          <TableCellMenu editor={editor} appendTo={menuContainerRef} />
-          <ImageBlockMenu editor={editor} />
-        </Activity>
       )}
     </div>
   );

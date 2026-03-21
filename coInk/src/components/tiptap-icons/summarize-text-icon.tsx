@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const SummarizeTextIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -30,7 +30,7 @@ export const SummarizeTextIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-SummarizeTextIcon.displayName = "SummarizeTextIcon"
+SummarizeTextIcon.displayName = 'SummarizeTextIcon';

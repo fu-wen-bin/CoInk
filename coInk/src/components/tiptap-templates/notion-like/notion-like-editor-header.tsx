@@ -1,19 +1,19 @@
-"use client"
+'use client';
 
-import { ThemeToggle } from "@/components/tiptap-templates/notion-like/notion-like-editor-theme-toggle"
+import { ThemeToggle } from '@/components/tiptap-templates/notion-like/notion-like-editor-theme-toggle';
 
 // --- Tiptap UI ---
-import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
+import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button';
 
 // --- UI Primitives ---
-import { Spacer } from "@/components/tiptap-ui-primitive/spacer"
-import { Separator } from "@/components/tiptap-ui-primitive/separator"
-import { ButtonGroup } from "@/components/tiptap-ui-primitive/button"
+import { Spacer } from '@/components/tiptap-ui-primitive/spacer';
+import { Separator } from '@/components/tiptap-ui-primitive/separator';
+import { ButtonGroup } from '@/components/tiptap-ui-primitive/button';
 
 // --- Styles ---
-import "@/components/tiptap-templates/notion-like/notion-like-editor-header.scss"
+import '@/components/tiptap-templates/notion-like/notion-like-editor-header.scss';
 
-import { CollaborationUsers } from "@/components/tiptap-templates/notion-like/notion-like-editor-collaboration-users"
+import { CollaborationUsers } from '@/components/tiptap-templates/notion-like/notion-like-editor-collaboration-users';
 
 export function NotionEditorHeader() {
   return (
@@ -34,5 +34,5 @@ export function NotionEditorHeader() {
         <CollaborationUsers />
       </div>
     </header>
-  )
+  );
 }

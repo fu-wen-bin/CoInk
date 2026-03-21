@@ -1,26 +1,25 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseTocShowTitleConfig } from "@/components/tiptap-node/toc-node/ui/toc-show-title-button/toc-show-title"
-import { useTocShowTitle } from "@/components/tiptap-node/toc-node/ui/toc-show-title-button/toc-show-title"
+import type { UseTocShowTitleConfig } from '@/components/tiptap-node/toc-node/ui/toc-show-title-button/toc-show-title';
+import { useTocShowTitle } from '@/components/tiptap-node/toc-node/ui/toc-show-title-button/toc-show-title';
 
 // --- UI Primitives ---
 
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-
-import { Button } from "@/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
 
 export interface TocShowTitleButtonProps
-  extends Omit<ButtonProps, "type" | "onToggle">, UseTocShowTitleConfig {
+  extends Omit<ButtonProps, 'type' | 'onToggle'>, UseTocShowTitleConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -29,10 +28,7 @@ export interface TocShowTitleButtonProps
  *
  * For custom button implementations, use the `useTocShowTitle` hook instead.
  */
-export const TocShowTitleButton = React.forwardRef<
-  HTMLButtonElement,
-  TocShowTitleButtonProps
->(
+export const TocShowTitleButton = React.forwardRef<HTMLButtonElement, TocShowTitleButtonProps>(
   (
     {
       editor: providedEditor,
@@ -43,35 +39,34 @@ export const TocShowTitleButton = React.forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
 
-    const { isVisible, isActive, canToggle, handleToggle, label, Icon } =
-      useTocShowTitle({
-        editor,
-        hideWhenUnavailable,
-        onToggle,
-      })
+    const { isVisible, isActive, canToggle, handleToggle, label, Icon } = useTocShowTitle({
+      editor,
+      hideWhenUnavailable,
+      onToggle,
+    });
 
     const handleClick = React.useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
-      [handleToggle, onClick]
-    )
+      [handleToggle, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
       <Button
         type="button"
         data-style="ghost"
-        data-active-state={isActive ? "on" : "off"}
+        data-active-state={isActive ? 'on' : 'off'}
         role="button"
         tabIndex={-1}
         disabled={!canToggle}
@@ -90,8 +85,8 @@ export const TocShowTitleButton = React.forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TocShowTitleButton.displayName = "TocShowTitleButton"
+TocShowTitleButton.displayName = 'TocShowTitleButton';

@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const RotateCcwIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -18,7 +18,7 @@ export const RotateCcwIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-RotateCcwIcon.displayName = "RotateCcwIcon"
+RotateCcwIcon.displayName = 'RotateCcwIcon';

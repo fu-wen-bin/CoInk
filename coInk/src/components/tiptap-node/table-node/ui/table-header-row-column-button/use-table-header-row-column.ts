@@ -1,73 +1,70 @@
-"use client"
+'use client';
 
-import { useCallback } from "react"
-import type { Editor } from "@tiptap/react"
-import { CellSelection, toggleHeader } from "@tiptap/pm/tables"
-import type { Transaction } from "@tiptap/pm/state"
+import { useCallback } from 'react';
+import type { Editor } from '@tiptap/react';
+import { CellSelection, toggleHeader } from '@tiptap/pm/tables';
+import type { Transaction } from '@tiptap/pm/state';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Lib ---
-import {
-  isExtensionAvailable,
-  isValidPosition,
-} from "@/lib/tiptap-utils"
-import type { Orientation } from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import { isExtensionAvailable, isValidPosition } from '@/lib/tiptap-utils';
+import type { Orientation } from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
 import {
   getIndexCoordinates,
   getRowOrColumnCells,
   getTableSelectionType,
   selectCellsByCoords,
-} from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
+} from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
 
 // --- Icons ---
-import { TableHeaderRowIcon } from "@/components/tiptap-icons/table-header-row-icon"
-import { TableHeaderColumnIcon } from "@/components/tiptap-icons/table-header-column-icon"
+import { TableHeaderRowIcon } from '@/components/tiptap-icons/table-header-row-icon';
+import { TableHeaderColumnIcon } from '@/components/tiptap-icons/table-header-column-icon';
 
 export interface UseTableHeaderRowColumnConfig {
   /**
    * The Tiptap editor instance. If omitted, the hook will use
    * the context/editor from `useTiptapEditor`.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * The index of the row or column. Header functionality only applies to index 0.
    * If omitted, will use the current selection.
    */
-  index?: number
+  index?: number;
   /**
    * Whether you're toggling header for a row or a column.
    * If omitted, will use the current selection.
    */
-  orientation?: Orientation
+  orientation?: Orientation;
   /**
    * The position of the table in the document.
    * Used when there's no cell selection so we can target a specific table.
    */
-  tablePos?: number
+  tablePos?: number;
   /**
    * Hide the button when header toggle isn't currently possible.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after a successful header toggle.
    */
-  onToggled?: () => void
+  onToggled?: () => void;
 }
 
-const REQUIRED_EXTENSIONS = ["table"]
+const REQUIRED_EXTENSIONS = ['table'];
 
 export const tableHeaderRowColumnLabels: Record<Orientation, string> = {
-  row: "Header row",
-  column: "Header column",
-}
+  row: '表头行',
+  column: '表头列',
+};
 
 export const tableHeaderRowColumnIcons = {
   row: TableHeaderRowIcon,
   column: TableHeaderColumnIcon,
-}
+};
 
 /**
  * Checks if a table header row/column toggle can be performed
@@ -79,28 +76,19 @@ function canToggleHeader({
   orientation,
   tablePos,
 }: {
-  editor: Editor | null
-  index?: number
-  orientation?: Orientation
-  tablePos?: number
+  editor: Editor | null;
+  index?: number;
+  orientation?: Orientation;
+  tablePos?: number;
 }): boolean {
-  if (
-    !editor ||
-    !editor.isEditable ||
-    !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)
-  ) {
-    return false
+  if (!editor || !editor.isEditable || !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) {
+    return false;
   }
 
-  const selectionType = getTableSelectionType(
-    editor,
-    index,
-    orientation,
-    tablePos
-  )
-  if (!selectionType) return false
+  const selectionType = getTableSelectionType(editor, index, orientation, tablePos);
+  if (!selectionType) return false;
 
-  return selectionType.index === 0
+  return selectionType.index === 0;
 }
 
 /**
@@ -113,52 +101,45 @@ function toggleTableHeader({
   orientation,
   tablePos,
 }: {
-  editor: Editor | null
-  index?: number
-  orientation?: Orientation
-  tablePos?: number
+  editor: Editor | null;
+  index?: number;
+  orientation?: Orientation;
+  tablePos?: number;
 }): boolean {
-  if (!editor) return false
-  if (!canToggleHeader({ editor, index, orientation, tablePos })) return false
+  if (!editor) return false;
+  if (!canToggleHeader({ editor, index, orientation, tablePos })) return false;
 
   try {
-    const selectionType = getTableSelectionType(
-      editor,
-      index,
-      orientation,
-      tablePos
-    )
-    if (!selectionType) return false
+    const selectionType = getTableSelectionType(editor, index, orientation, tablePos);
+    if (!selectionType) return false;
 
-    const isRow = selectionType.orientation === "row"
+    const isRow = selectionType.orientation === 'row';
 
     if (editor.state.selection instanceof CellSelection) {
-      return isRow
-        ? editor.commands.toggleHeaderRow()
-        : editor.commands.toggleHeaderColumn()
+      return isRow ? editor.commands.toggleHeaderRow() : editor.commands.toggleHeaderColumn();
     }
 
-    if (!isValidPosition(tablePos)) return false
+    if (!isValidPosition(tablePos)) return false;
 
     const cellCoords = getIndexCoordinates({
       editor,
       index: selectionType.index,
       orientation: selectionType.orientation,
       tablePos,
-    })
-    if (!cellCoords) return false
+    });
+    if (!cellCoords) return false;
 
     const stateWithCellSel = selectCellsByCoords(editor, tablePos, cellCoords, {
-      mode: "state",
-    })
-    if (!stateWithCellSel) return false
+      mode: 'state',
+    });
+    if (!stateWithCellSel) return false;
 
-    const dispatch = (tr: Transaction) => editor.view.dispatch(tr)
+    const dispatch = (tr: Transaction) => editor.view.dispatch(tr);
     return isRow
-      ? toggleHeader("row")(stateWithCellSel, dispatch)
-      : toggleHeader("column")(stateWithCellSel, dispatch)
+      ? toggleHeader('row')(stateWithCellSel, dispatch)
+      : toggleHeader('column')(stateWithCellSel, dispatch);
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -173,21 +154,21 @@ function shouldShowButton({
   hideWhenUnavailable,
   tablePos,
 }: {
-  editor: Editor | null
-  index?: number
-  orientation?: Orientation
-  hideWhenUnavailable: boolean
-  tablePos?: number
+  editor: Editor | null;
+  index?: number;
+  orientation?: Orientation;
+  hideWhenUnavailable: boolean;
+  tablePos?: number;
 }): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false;
 
   if (hideWhenUnavailable) {
-    return canToggleHeader({ editor, index, orientation, tablePos })
+    return canToggleHeader({ editor, index, orientation, tablePos });
   }
 
-  const selectionType = getTableSelectionType(editor, index, orientation)
-  return Boolean(selectionType)
+  const selectionType = getTableSelectionType(editor, index, orientation);
+  return Boolean(selectionType);
 }
 
 /**
@@ -203,11 +184,11 @@ export function useTableHeaderRowColumn(config: UseTableHeaderRowColumnConfig) {
     tablePos,
     hideWhenUnavailable = false,
     onToggled,
-  } = config
+  } = config;
 
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
-  const selectionType = getTableSelectionType(editor, index, orientation)
+  const selectionType = getTableSelectionType(editor, index, orientation);
 
   const isVisible = shouldShowButton({
     editor,
@@ -215,42 +196,35 @@ export function useTableHeaderRowColumn(config: UseTableHeaderRowColumnConfig) {
     orientation,
     hideWhenUnavailable,
     tablePos,
-  })
+  });
 
   const canPerformToggle = canToggleHeader({
     editor,
     index,
     orientation,
     tablePos,
-  })
+  });
 
-  let isActive = false
+  let isActive = false;
   if (editor?.state.selection instanceof CellSelection) {
-    isActive = editor?.isActive("tableHeader") || false
+    isActive = editor?.isActive('tableHeader') || false;
   } else {
-    const rowsOrCols = getRowOrColumnCells(
-      editor,
-      index,
-      selectionType?.orientation,
-      tablePos
-    )
+    const rowsOrCols = getRowOrColumnCells(editor, index, selectionType?.orientation, tablePos);
 
     if (rowsOrCols) {
-      const secondIndex = rowsOrCols.cells.length > 1 ? 1 : 0
-      isActive =
-        rowsOrCols.cells[secondIndex]?.node?.type.name === "tableHeader" ||
-        false
+      const secondIndex = rowsOrCols.cells.length > 1 ? 1 : 0;
+      isActive = rowsOrCols.cells[secondIndex]?.node?.type.name === 'tableHeader' || false;
     }
   }
 
   const handleToggle = useCallback(() => {
-    const success = toggleTableHeader({ editor, index, orientation, tablePos })
-    if (success) onToggled?.()
-    return success
-  }, [editor, index, orientation, tablePos, onToggled])
+    const success = toggleTableHeader({ editor, index, orientation, tablePos });
+    if (success) onToggled?.();
+    return success;
+  }, [editor, index, orientation, tablePos, onToggled]);
 
-  const label = tableHeaderRowColumnLabels[selectionType?.orientation || "row"]
-  const Icon = tableHeaderRowColumnIcons[selectionType?.orientation || "row"]
+  const label = tableHeaderRowColumnLabels[selectionType?.orientation || 'row'];
+  const Icon = tableHeaderRowColumnIcons[selectionType?.orientation || 'row'];
 
   return {
     isVisible,
@@ -259,5 +233,5 @@ export function useTableHeaderRowColumn(config: UseTableHeaderRowColumnConfig) {
     label,
     Icon,
     isActive,
-  }
+  };
 }

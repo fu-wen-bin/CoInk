@@ -1,2 +1,2 @@
-export * from "./emoji-menu"
-export * from "./emoji-menu-utils"
+export * from './emoji-menu';
+export * from './emoji-menu-utils';

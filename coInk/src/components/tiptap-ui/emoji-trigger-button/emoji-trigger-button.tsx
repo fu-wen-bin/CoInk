@@ -1,45 +1,43 @@
-"use client"
+'use client';
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from 'react';
 
 // --- Lib ---
-import { parseShortcutKeys } from "@/lib/tiptap-utils"
+import { parseShortcutKeys } from '@/lib/tiptap-utils';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseEmojiTriggerConfig } from "@/components/tiptap-ui/emoji-trigger-button"
+import type { UseEmojiTriggerConfig } from '@/components/tiptap-ui/emoji-trigger-button';
 import {
   EMOJI_TRIGGER_SHORTCUT_KEY,
   useEmojiTrigger,
-} from "@/components/tiptap-ui/emoji-trigger-button"
+} from '@/components/tiptap-ui/emoji-trigger-button';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import { Badge } from "@/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import { Badge } from '@/components/tiptap-ui-primitive/badge';
 
-export interface EmojiTriggerButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseEmojiTriggerConfig {
+export interface EmojiTriggerButtonProps extends Omit<ButtonProps, 'type'>, UseEmojiTriggerConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
 }
 
 export function EmojiTriggerShortcutBadge({
   shortcutKeys = EMOJI_TRIGGER_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -47,17 +45,14 @@ export function EmojiTriggerShortcutBadge({
  *
  * For custom button implementations, use the `useEmojiTrigger` hook instead.
  */
-export const EmojiTriggerButton = forwardRef<
-  HTMLButtonElement,
-  EmojiTriggerButtonProps
->(
+export const EmojiTriggerButton = forwardRef<HTMLButtonElement, EmojiTriggerButtonProps>(
   (
     {
       editor: providedEditor,
       node,
       nodePos,
       text,
-      trigger = ":",
+      trigger = ':',
       hideWhenUnavailable = false,
       onTriggerApplied,
       showShortcut = false,
@@ -65,36 +60,30 @@ export const EmojiTriggerButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
-    const {
-      isVisible,
-      canAddTrigger,
-      handleAddTrigger,
-      label,
-      shortcutKeys,
-      Icon,
-    } = useEmojiTrigger({
-      editor,
-      node,
-      nodePos,
-      trigger,
-      hideWhenUnavailable,
-      onTriggerApplied,
-    })
+    const { editor } = useTiptapEditor(providedEditor);
+    const { isVisible, canAddTrigger, handleAddTrigger, label, shortcutKeys, Icon } =
+      useEmojiTrigger({
+        editor,
+        node,
+        nodePos,
+        trigger,
+        hideWhenUnavailable,
+        onTriggerApplied,
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleAddTrigger()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleAddTrigger();
       },
-      [handleAddTrigger, onClick]
-    )
+      [handleAddTrigger, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -106,7 +95,7 @@ export const EmojiTriggerButton = forwardRef<
         disabled={!canAddTrigger}
         data-disabled={!canAddTrigger}
         aria-label={label}
-        tooltip="Add emoji"
+        tooltip="添加表情"
         onClick={handleClick}
         {...buttonProps}
         ref={ref}
@@ -115,14 +104,12 @@ export const EmojiTriggerButton = forwardRef<
           <>
             <Icon className="tiptap-button-icon" />
             {text && <span className="tiptap-button-text">{text}</span>}
-            {showShortcut && (
-              <EmojiTriggerShortcutBadge shortcutKeys={shortcutKeys} />
-            )}
+            {showShortcut && <EmojiTriggerShortcutBadge shortcutKeys={shortcutKeys} />}
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-EmojiTriggerButton.displayName = "EmojiTriggerButton"
+EmojiTriggerButton.displayName = 'EmojiTriggerButton';

@@ -1,45 +1,40 @@
-"use client"
+'use client';
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from 'react';
 
 // --- Lib ---
-import { parseShortcutKeys } from "@/lib/tiptap-utils"
+import { parseShortcutKeys } from '@/lib/tiptap-utils';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Tiptap UI ---
-import type { UseDeleteNodeConfig } from "@/components/tiptap-ui/delete-node-button"
-import {
-  DELETE_NODE_SHORTCUT_KEY,
-  useDeleteNode,
-} from "@/components/tiptap-ui/delete-node-button"
+import type { UseDeleteNodeConfig } from '@/components/tiptap-ui/delete-node-button';
+import { DELETE_NODE_SHORTCUT_KEY, useDeleteNode } from '@/components/tiptap-ui/delete-node-button';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import { Badge } from "@/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import { Badge } from '@/components/tiptap-ui-primitive/badge';
 
-export interface DeleteNodeButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseDeleteNodeConfig {
+export interface DeleteNodeButtonProps extends Omit<ButtonProps, 'type'>, UseDeleteNodeConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
 }
 
 export function DeleteNodeShortcutBadge({
   shortcutKeys = DELETE_NODE_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -47,10 +42,7 @@ export function DeleteNodeShortcutBadge({
  *
  * For custom button implementations, use the `useDeleteNode` hook instead.
  */
-export const DeleteNodeButton = forwardRef<
-  HTMLButtonElement,
-  DeleteNodeButtonProps
->(
+export const DeleteNodeButton = forwardRef<HTMLButtonElement, DeleteNodeButtonProps>(
   (
     {
       editor: providedEditor,
@@ -62,27 +54,26 @@ export const DeleteNodeButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
-    const { isVisible, handleDeleteNode, label, shortcutKeys, Icon } =
-      useDeleteNode({
-        editor,
-        hideWhenUnavailable,
-        onDeleted,
-      })
+    const { editor } = useTiptapEditor(providedEditor);
+    const { isVisible, handleDeleteNode, label, shortcutKeys, Icon } = useDeleteNode({
+      editor,
+      hideWhenUnavailable,
+      onDeleted,
+    });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleDeleteNode()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleDeleteNode();
       },
-      [handleDeleteNode, onClick]
-    )
+      [handleDeleteNode, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -92,7 +83,7 @@ export const DeleteNodeButton = forwardRef<
         role="button"
         tabIndex={-1}
         aria-label={label}
-        tooltip="Delete"
+        tooltip="删除"
         onClick={handleClick}
         {...buttonProps}
         ref={ref}
@@ -101,14 +92,12 @@ export const DeleteNodeButton = forwardRef<
           <>
             <Icon className="tiptap-button-icon" />
             {text && <span className="tiptap-button-text">{text}</span>}
-            {showShortcut && (
-              <DeleteNodeShortcutBadge shortcutKeys={shortcutKeys} />
-            )}
+            {showShortcut && <DeleteNodeShortcutBadge shortcutKeys={shortcutKeys} />}
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-DeleteNodeButton.displayName = "DeleteNodeButton"
+DeleteNodeButton.displayName = 'DeleteNodeButton';

@@ -1,108 +1,96 @@
-"use client"
+'use client';
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-  createContext,
-  useContext,
-} from "react"
-import type { Editor } from "@tiptap/react"
-import { TableMap } from "@tiptap/pm/tables"
-import type { Node } from "@tiptap/pm/model"
+import { useCallback, useMemo, useState, createContext, useContext } from 'react';
+import type { Editor } from '@tiptap/react';
+import { TableMap } from '@tiptap/pm/tables';
+import type { Node } from '@tiptap/pm/model';
 
 // --- Hooks ---
-import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
-import { cn, isValidPosition, SR_ONLY } from "@/lib/tiptap-utils"
-import type { Orientation } from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
-import { selectCellsByCoords } from "@/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
+import { cn, isValidPosition, SR_ONLY } from '@/lib/tiptap-utils';
+import type { Orientation } from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
+import { selectCellsByCoords } from '@/components/tiptap-node/table-node/lib/tiptap-table-utils';
 
 // --- Icons ---
-import { MoreVerticalIcon } from "@/components/tiptap-icons/more-vertical-icon"
+import { MoreVerticalIcon } from '@/components/tiptap-icons/more-vertical-icon';
 
 // --- UI Primitives ---
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import { Combobox, ComboboxList } from "@/components/tiptap-ui-primitive/combobox"
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import { Combobox, ComboboxList } from '@/components/tiptap-ui-primitive/combobox';
 import {
   Menu,
   MenuButton,
   MenuContent,
   MenuGroup,
   MenuItem,
-} from "@/components/tiptap-ui-primitive/menu"
-import { Separator } from "@/components/tiptap-ui-primitive/separator"
+} from '@/components/tiptap-ui-primitive/menu';
+import { Separator } from '@/components/tiptap-ui-primitive/separator';
 
 // --- Tiptap UI ---
-import { useTableDuplicateRowColumn } from "@/components/tiptap-node/table-node/ui/table-duplicate-row-column-button"
-import { useTableMoveRowColumn } from "@/components/tiptap-node/table-node/ui/table-move-row-column-button"
-import { useTableClearRowColumnContent } from "@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button"
-import { useTableHeaderRowColumn } from "@/components/tiptap-node/table-node/ui/table-header-row-column-button"
-import { useTableAddRowColumn } from "@/components/tiptap-node/table-node/ui/table-add-row-column-button"
-import { useTableDeleteRowColumn } from "@/components/tiptap-node/table-node/ui/table-delete-row-column-button"
-import { useTableSortRowColumn } from "@/components/tiptap-node/table-node/ui/table-sort-row-column-button"
-import { ColorMenu } from "@/components/tiptap-ui/color-menu"
-import { TableAlignMenu } from "@/components/tiptap-node/table-node/ui/table-alignment-menu"
+import { useTableDuplicateRowColumn } from '@/components/tiptap-node/table-node/ui/table-duplicate-row-column-button';
+import { useTableMoveRowColumn } from '@/components/tiptap-node/table-node/ui/table-move-row-column-button';
+import { useTableClearRowColumnContent } from '@/components/tiptap-node/table-node/ui/table-clear-row-column-content-button';
+import { useTableHeaderRowColumn } from '@/components/tiptap-node/table-node/ui/table-header-row-column-button';
+import { useTableAddRowColumn } from '@/components/tiptap-node/table-node/ui/table-add-row-column-button';
+import { useTableDeleteRowColumn } from '@/components/tiptap-node/table-node/ui/table-delete-row-column-button';
+import { useTableSortRowColumn } from '@/components/tiptap-node/table-node/ui/table-sort-row-column-button';
+import { ColorMenu } from '@/components/tiptap-ui/color-menu';
+import { TableAlignMenu } from '@/components/tiptap-node/table-node/ui/table-alignment-menu';
+import { dragEnd } from '@/components/tiptap-node/table-node/extensions/table-handle';
 
-import { dragEnd } from "@/components/tiptap-node/table-node/extensions/table-handle"
-
-import "./table-handle-menu.scss"
+import './table-handle-menu.scss';
 
 /* -------------------------------------------------------------------------------------------------
  * Types & Interfaces
  * ----------------------------------------------------------------------------------------------- */
 
 interface BaseProps {
-  editor?: Editor | null
-  orientation: Orientation
-  index?: number
-  tableNode?: Node
-  tablePos?: number
+  editor?: Editor | null;
+  orientation: Orientation;
+  index?: number;
+  tableNode?: Node;
+  tablePos?: number;
 }
 
 interface TableHandleMenuProps extends BaseProps {
-  onToggleOtherHandle?: (visible: boolean) => void
-  onOpenChange?: (open: boolean) => void
-  dragStart?: (e: React.DragEvent) => void
+  onToggleOtherHandle?: (visible: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
+  dragStart?: (e: React.DragEvent) => void;
 }
 
-type TableHandleContextValue = BaseProps
+type TableHandleContextValue = BaseProps;
 
 interface TableActionItemProps {
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  isActive?: boolean
-  shortcutBadge?: React.ReactNode
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  isActive?: boolean;
+  shortcutBadge?: React.ReactNode;
 }
 
-const MENU_PLACEMENT_MAP: Record<
-  Orientation,
-  React.ComponentProps<typeof Menu>["placement"]
-> = {
-  row: "top-start",
-  column: "bottom-start",
-}
+const MENU_PLACEMENT_MAP: Record<Orientation, React.ComponentProps<typeof Menu>['placement']> = {
+  row: 'top-start',
+  column: 'bottom-start',
+};
 
 const ARIA_LABELS: Record<Orientation, string> = {
-  row: "Row actions",
-  column: "Column actions",
-}
+  row: '行操作',
+  column: '列操作',
+};
 
 /* -------------------------------------------------------------------------------------------------
  * Context
  * ----------------------------------------------------------------------------------------------- */
 
-const TableHandleContext = createContext<TableHandleContextValue | null>(null)
+const TableHandleContext = createContext<TableHandleContextValue | null>(null);
 
 function useTableHandleContext() {
-  const context = useContext(TableHandleContext)
+  const context = useContext(TableHandleContext);
   if (!context) {
-    throw new Error(
-      "useTableHandleContext must be used within TableHandleProvider"
-    )
+    throw new Error('useTableHandleContext 必须在 TableHandleProvider 内使用');
   }
-  return context
+  return context;
 }
 
 /* -------------------------------------------------------------------------------------------------
@@ -114,72 +102,59 @@ function useTableHandleContext() {
  */
 function useTableHandleMenu(
   onToggleOtherHandle?: (visible: boolean) => void,
-  onOpenChange?: (open: boolean) => void
+  onOpenChange?: (open: boolean) => void,
 ) {
-  const { editor, orientation, index, tableNode, tablePos } =
-    useTableHandleContext()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
+  const { editor, orientation, index, tableNode, tablePos } = useTableHandleContext();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const menuPlacement = useMemo(
-    () => MENU_PLACEMENT_MAP[orientation],
-    [orientation]
-  )
+  const menuPlacement = useMemo(() => MENU_PLACEMENT_MAP[orientation], [orientation]);
 
   const selectRowOrColumn = useCallback(() => {
-    if (
-      !editor ||
-      !tableNode ||
-      !isValidPosition(tablePos) ||
-      !isValidPosition(index)
-    )
-      return
+    if (!editor || !tableNode || !isValidPosition(tablePos) || !isValidPosition(index)) return;
 
     try {
-      const { width, height } = TableMap.get(tableNode)
-      const start =
-        orientation === "row" ? { row: index, col: 0 } : { row: 0, col: index }
+      const { width, height } = TableMap.get(tableNode);
+      const start = orientation === 'row' ? { row: index, col: 0 } : { row: 0, col: index };
       const end =
-        orientation === "row"
-          ? { row: index, col: width - 1 }
-          : { row: height - 1, col: index }
+        orientation === 'row' ? { row: index, col: width - 1 } : { row: height - 1, col: index };
 
       selectCellsByCoords(editor, tablePos, [start, end], {
-        mode: "dispatch",
+        mode: 'dispatch',
         dispatch: editor.view.dispatch.bind(editor.view),
-      })
+      });
     } catch (error) {
-      console.warn("Failed to select row/column:", error)
+      console.warn('选中行/列失败:', error);
     }
-  }, [editor, tableNode, tablePos, orientation, index])
+  }, [editor, tableNode, tablePos, orientation, index]);
 
   const handleMenuToggle = useCallback(
     (isOpen: boolean) => {
-      if (!editor) return
+      if (!editor) return;
 
-      setIsMenuOpen(isOpen)
-      onOpenChange?.(isOpen)
+      setIsMenuOpen(isOpen);
+      onOpenChange?.(isOpen);
 
       if (isOpen) {
-        editor.commands.freezeHandles()
-        selectRowOrColumn()
-        onToggleOtherHandle?.(false)
+        editor.commands.freezeHandles();
+        selectRowOrColumn();
+        onToggleOtherHandle?.(false);
       } else {
-        editor.commands.unfreezeHandles()
-        onToggleOtherHandle?.(true)
+        editor.commands.unfreezeHandles();
+        onToggleOtherHandle?.(true);
       }
     },
-    [editor, onOpenChange, onToggleOtherHandle, selectRowOrColumn]
-  )
+    [editor, onOpenChange, onToggleOtherHandle, selectRowOrColumn],
+  );
 
   const resetMenu = useCallback(() => {
-    if (!editor) return
+    if (!editor) return;
 
-    setIsMenuOpen(false)
-    onOpenChange?.(false)
-    editor.commands.unfreezeHandles()
-    onToggleOtherHandle?.(true)
-  }, [editor, onOpenChange, onToggleOtherHandle])
+    setIsMenuOpen(false);
+    onOpenChange?.(false);
+    editor.commands.unfreezeHandles();
+    onToggleOtherHandle?.(true);
+  }, [editor, onOpenChange, onToggleOtherHandle]);
 
   return {
     isMenuOpen,
@@ -188,27 +163,27 @@ function useTableHandleMenu(
     menuPlacement,
     handleMenuToggle,
     resetMenu,
-  }
+  };
 }
 
 /**
  * Hook to get filtered action items based on orientation
  */
 function useTableActionItems() {
-  const { editor, index, orientation, tablePos } = useTableHandleContext()
+  const { editor, index, orientation, tablePos } = useTableHandleContext();
 
   const deleteAction = useTableDeleteRowColumn({
     editor,
     index,
     orientation,
     tablePos,
-  })
+  });
   const duplicateAction = useTableDuplicateRowColumn({
     editor,
     index,
     orientation,
     tablePos,
-  })
+  });
 
   // Sort actions
   const sortAscAction = useTableSortRowColumn({
@@ -216,18 +191,18 @@ function useTableActionItems() {
     tablePos,
     index,
     orientation,
-    direction: "asc",
+    direction: 'asc',
     hideWhenUnavailable: true,
-  })
+  });
 
   const sortDescAction = useTableSortRowColumn({
     editor,
     tablePos,
     index,
     orientation,
-    direction: "desc",
+    direction: 'desc',
     hideWhenUnavailable: true,
-  })
+  });
 
   const clearContentAction = useTableClearRowColumnContent({
     editor,
@@ -236,7 +211,7 @@ function useTableActionItems() {
     tablePos,
     resetAttrs: true,
     hideWhenUnavailable: true,
-  })
+  });
 
   const headerAction = useTableHeaderRowColumn({
     editor,
@@ -244,79 +219,79 @@ function useTableActionItems() {
     orientation,
     tablePos,
     hideWhenUnavailable: true,
-  })
+  });
 
   const moveUpAction = useTableMoveRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "row",
-    direction: "up",
+    orientation: 'row',
+    direction: 'up',
     hideWhenUnavailable: true,
-  })
+  });
 
   const moveDownAction = useTableMoveRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "row",
-    direction: "down",
+    orientation: 'row',
+    direction: 'down',
     hideWhenUnavailable: true,
-  })
+  });
 
   const moveLeftAction = useTableMoveRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "column",
-    direction: "left",
+    orientation: 'column',
+    direction: 'left',
     hideWhenUnavailable: true,
-  })
+  });
 
   const moveRightAction = useTableMoveRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "column",
-    direction: "right",
+    orientation: 'column',
+    direction: 'right',
     hideWhenUnavailable: true,
-  })
+  });
 
   const addAbove = useTableAddRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "row",
-    side: "above",
+    orientation: 'row',
+    side: 'above',
     hideWhenUnavailable: true,
-  })
+  });
 
   const addBelow = useTableAddRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "row",
-    side: "below",
+    orientation: 'row',
+    side: 'below',
     hideWhenUnavailable: true,
-  })
+  });
 
   const addLeft = useTableAddRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "column",
-    side: "left",
+    orientation: 'column',
+    side: 'left',
     hideWhenUnavailable: true,
-  })
+  });
 
   const addRight = useTableAddRowColumn({
     editor,
     index,
     tablePos,
-    orientation: "column",
-    side: "right",
+    orientation: 'column',
+    side: 'right',
     hideWhenUnavailable: true,
-  })
+  });
 
   const moveActions = useMemo(
     () => ({
@@ -325,8 +300,8 @@ function useTableActionItems() {
       moveLeft: moveLeftAction,
       moveRight: moveRightAction,
     }),
-    [moveUpAction, moveDownAction, moveLeftAction, moveRightAction]
-  )
+    [moveUpAction, moveDownAction, moveLeftAction, moveRightAction],
+  );
 
   const addActions = useMemo(
     () => ({
@@ -335,19 +310,19 @@ function useTableActionItems() {
       addLeft,
       addRight,
     }),
-    [addAbove, addBelow, addLeft, addRight]
-  )
+    [addAbove, addBelow, addLeft, addRight],
+  );
 
   const sortActions = useMemo(
     () => ({
       sortAsc: sortAscAction,
       sortDesc: sortDescAction,
     }),
-    [sortAscAction, sortDescAction]
-  )
+    [sortAscAction, sortDescAction],
+  );
 
   const getSortItems = useCallback(() => {
-    const items: TableActionItemProps[] = []
+    const items: TableActionItemProps[] = [];
 
     if (sortActions.sortAsc.isVisible) {
       items.push({
@@ -355,7 +330,7 @@ function useTableActionItems() {
         label: sortActions.sortAsc.label,
         disabled: !sortActions.sortAsc.canSortRowColumn,
         onClick: sortActions.sortAsc.handleSort,
-      })
+      });
     }
 
     if (sortActions.sortDesc.isVisible) {
@@ -364,23 +339,23 @@ function useTableActionItems() {
         label: sortActions.sortDesc.label,
         disabled: !sortActions.sortDesc.canSortRowColumn,
         onClick: sortActions.sortDesc.handleSort,
-      })
+      });
     }
 
-    return items
-  }, [sortActions])
+    return items;
+  }, [sortActions]);
 
   const getActionItems = useCallback(() => {
-    const items: TableActionItemProps[] = []
+    const items: TableActionItemProps[] = [];
 
-    if (orientation === "row") {
+    if (orientation === 'row') {
       if (addActions.addAbove.isVisible) {
         items.push({
           icon: addActions.addAbove.Icon,
           label: addActions.addAbove.label,
           disabled: !addActions.addAbove.canAddRowColumn,
           onClick: addActions.addAbove.handleAdd,
-        })
+        });
       }
       if (addActions.addBelow.isVisible) {
         items.push({
@@ -388,7 +363,7 @@ function useTableActionItems() {
           label: addActions.addBelow.label,
           disabled: !addActions.addBelow.canAddRowColumn,
           onClick: addActions.addBelow.handleAdd,
-        })
+        });
       }
     } else {
       if (addActions.addLeft.isVisible) {
@@ -397,7 +372,7 @@ function useTableActionItems() {
           label: addActions.addLeft.label,
           disabled: !addActions.addLeft.canAddRowColumn,
           onClick: addActions.addLeft.handleAdd,
-        })
+        });
       }
       if (addActions.addRight.isVisible) {
         items.push({
@@ -405,24 +380,24 @@ function useTableActionItems() {
           label: addActions.addRight.label,
           disabled: !addActions.addRight.canAddRowColumn,
           onClick: addActions.addRight.handleAdd,
-        })
+        });
       }
     }
 
-    return items
-  }, [orientation, addActions])
+    return items;
+  }, [orientation, addActions]);
 
   const getMoveItems = useCallback(() => {
-    const items: TableActionItemProps[] = []
+    const items: TableActionItemProps[] = [];
 
-    if (orientation === "row") {
+    if (orientation === 'row') {
       if (moveActions.moveUp.isVisible) {
         items.push({
           icon: moveActions.moveUp.Icon,
           label: moveActions.moveUp.label,
           disabled: !moveActions.moveUp.canMoveRowColumn,
           onClick: moveActions.moveUp.handleMove,
-        })
+        });
       }
       if (moveActions.moveDown.isVisible) {
         items.push({
@@ -430,7 +405,7 @@ function useTableActionItems() {
           label: moveActions.moveDown.label,
           disabled: !moveActions.moveDown.canMoveRowColumn,
           onClick: moveActions.moveDown.handleMove,
-        })
+        });
       }
     } else {
       if (moveActions.moveLeft.isVisible) {
@@ -439,7 +414,7 @@ function useTableActionItems() {
           label: moveActions.moveLeft.label,
           disabled: !moveActions.moveLeft.canMoveRowColumn,
           onClick: moveActions.moveLeft.handleMove,
-        })
+        });
       }
       if (moveActions.moveRight.isVisible) {
         items.push({
@@ -447,12 +422,12 @@ function useTableActionItems() {
           label: moveActions.moveRight.label,
           disabled: !moveActions.moveRight.canMoveRowColumn,
           onClick: moveActions.moveRight.handleMove,
-        })
+        });
       }
     }
 
-    return items
-  }, [orientation, moveActions])
+    return items;
+  }, [orientation, moveActions]);
 
   return {
     deleteAction,
@@ -462,7 +437,7 @@ function useTableActionItems() {
     addItems: getActionItems(),
     moveItems: getMoveItems(),
     sortItems: getSortItems(),
-  }
+  };
 }
 
 /* -------------------------------------------------------------------------------------------------
@@ -481,9 +456,7 @@ const TableActionItem = ({
   shortcutBadge,
 }: TableActionItemProps) => (
   <MenuItem
-    render={
-      <Button data-style="ghost" data-active-state={isActive ? "on" : "off"} />
-    }
+    render={<Button data-style="ghost" data-active-state={isActive ? 'on' : 'off'} />}
     onClick={onClick}
     disabled={disabled}
   >
@@ -491,13 +464,13 @@ const TableActionItem = ({
     <span className="tiptap-button-text">{label}</span>
     {shortcutBadge}
   </MenuItem>
-)
+);
 
 /**
  * Action group component containing add and delete actions
  */
 const TableActionGroup = () => {
-  const { index, orientation } = useTableHandleContext()
+  const { index, orientation } = useTableHandleContext();
   const {
     deleteAction,
     duplicateAction,
@@ -506,25 +479,17 @@ const TableActionGroup = () => {
     addItems,
     moveItems,
     sortItems,
-  } = useTableActionItems()
+  } = useTableActionItems();
 
   const hasActions =
-    deleteAction.isVisible ||
-    duplicateAction.isVisible ||
-    clearContentAction.isVisible
-  const hasAddItems = addItems.length > 0
-  const hasMoveItems = moveItems.length > 0
-  const hasSortItems = sortItems.length > 0
-  const hasHeaderAction = headerAction.isVisible && index === 0
+    deleteAction.isVisible || duplicateAction.isVisible || clearContentAction.isVisible;
+  const hasAddItems = addItems.length > 0;
+  const hasMoveItems = moveItems.length > 0;
+  const hasSortItems = sortItems.length > 0;
+  const hasHeaderAction = headerAction.isVisible && index === 0;
 
-  if (
-    !hasActions &&
-    !hasAddItems &&
-    !hasMoveItems &&
-    !hasSortItems &&
-    !hasHeaderAction
-  ) {
-    return null
+  if (!hasActions && !hasAddItems && !hasMoveItems && !hasSortItems && !hasHeaderAction) {
+    return null;
   }
 
   return (
@@ -620,29 +585,24 @@ const TableActionGroup = () => {
         </MenuGroup>
       )}
     </>
-  )
-}
+  );
+};
 
 /**
  * Menu content component
  */
 const TableActionMenu = () => {
-  const { resetMenu } = useTableHandleMenu()
+  const { resetMenu } = useTableHandleMenu();
 
   return (
-    <MenuContent
-      autoFocusOnShow
-      autoFocusOnHide={false}
-      modal
-      onClose={resetMenu}
-    >
+    <MenuContent autoFocusOnShow autoFocusOnHide={false} modal onClose={resetMenu}>
       <Combobox style={SR_ONLY} />
-      <ComboboxList style={{ minWidth: "15rem" }}>
+      <ComboboxList style={{ minWidth: '15rem' }}>
         <TableActionGroup />
       </ComboboxList>
     </MenuContent>
-  )
-}
+  );
+};
 
 /**
  * Main table handle menu component
@@ -657,7 +617,7 @@ export const TableHandleMenu = ({
   onOpenChange,
   dragStart,
 }: TableHandleMenuProps) => {
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
   const contextValue = useMemo<TableHandleContextValue>(
     () => ({
@@ -667,8 +627,8 @@ export const TableHandleMenu = ({
       tableNode,
       tablePos,
     }),
-    [editor, orientation, index, tableNode, tablePos]
-  )
+    [editor, orientation, index, tableNode, tablePos],
+  );
 
   return (
     <TableHandleContext.Provider value={contextValue}>
@@ -678,8 +638,8 @@ export const TableHandleMenu = ({
         dragStart={dragStart}
       />
     </TableHandleContext.Provider>
-  )
-}
+  );
+};
 
 /**
  * Internal menu content component
@@ -688,33 +648,25 @@ const TableHandleMenuContent = ({
   onToggleOtherHandle,
   onOpenChange,
   dragStart,
-}: Pick<
-  TableHandleMenuProps,
-  "onToggleOtherHandle" | "onOpenChange" | "dragStart"
->) => {
-  const { orientation } = useTableHandleContext()
-  const {
-    isMenuOpen,
-    isDragging,
-    setIsDragging,
-    menuPlacement,
-    handleMenuToggle,
-  } = useTableHandleMenu(onToggleOtherHandle, onOpenChange)
+}: Pick<TableHandleMenuProps, 'onToggleOtherHandle' | 'onOpenChange' | 'dragStart'>) => {
+  const { orientation } = useTableHandleContext();
+  const { isMenuOpen, isDragging, setIsDragging, menuPlacement, handleMenuToggle } =
+    useTableHandleMenu(onToggleOtherHandle, onOpenChange);
 
-  const ariaLabel = ARIA_LABELS[orientation]
+  const ariaLabel = ARIA_LABELS[orientation];
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
-      setIsDragging(true)
-      dragStart?.(e)
+      setIsDragging(true);
+      dragStart?.(e);
     },
-    [dragStart, setIsDragging]
-  )
+    [dragStart, setIsDragging],
+  );
 
   const handleDragEnd = useCallback(() => {
-    setIsDragging(false)
-    dragEnd()
-  }, [setIsDragging])
+    setIsDragging(false);
+    dragEnd();
+  }, [setIsDragging]);
 
   return (
     <Menu
@@ -724,10 +676,10 @@ const TableHandleMenuContent = ({
       trigger={
         <MenuButton
           className={cn(
-            "tiptap-table-handle-menu",
-            isMenuOpen && "menu-opened",
-            isDragging && "is-dragging",
-            orientation
+            'tiptap-table-handle-menu',
+            isMenuOpen && 'menu-opened',
+            isDragging && 'is-dragging',
+            orientation,
           )}
           draggable={true}
           aria-label={ariaLabel}
@@ -742,7 +694,7 @@ const TableHandleMenuContent = ({
     >
       <TableActionMenu />
     </Menu>
-  )
-}
+  );
+};
 
-export { TableActionMenu }
+export { TableActionMenu };

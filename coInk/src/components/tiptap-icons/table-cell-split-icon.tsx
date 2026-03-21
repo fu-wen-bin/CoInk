@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from 'react';
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<'svg'>;
 
 export const TableCellSplitIcon = memo(({ className, ...props }: SvgProps) => {
   return (
@@ -38,7 +38,7 @@ export const TableCellSplitIcon = memo(({ className, ...props }: SvgProps) => {
         fill="currentColor"
       />
     </svg>
-  )
-})
+  );
+});
 
-TableCellSplitIcon.displayName = "TableCellSplitIcon"
+TableCellSplitIcon.displayName = 'TableCellSplitIcon';

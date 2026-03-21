@@ -3,10 +3,8 @@
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef } from 'react';
 import type { ReactNodeViewProps } from '@tiptap/react';
-import { ChevronsUpDown, Code2, Check } from 'lucide-react';
+import { ChevronsUpDown, Code2, Check, Copy, WrapText, ChevronDown, ChevronUp } from 'lucide-react';
 import { js as jsBeautify, html as htmlBeautify, css as cssBeautify } from 'js-beautify';
-
-import CodeBlockTheme from './CodeBlockTheme';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -239,8 +237,8 @@ function CodeBlockComponent(props: CodeBlockComponentProps) {
       className={`code-block ${isCollapsed ? 'collapsed' : ''} ${isWordWrap ? 'word-wrap' : ''} theme-${node.attrs.theme}`}
       style={{ maxHeight: maxHeight ? `${maxHeight}px` : undefined }}
     >
-      <div className="code-block-header">
-        <div className="language-selector">
+      <div className="code-block-header min-w-0">
+        <div className="language-selector min-w-0">
           <Popover open={languageOpen} onOpenChange={setLanguageOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -283,57 +281,50 @@ function CodeBlockComponent(props: CodeBlockComponentProps) {
             </PopoverContent>
           </Popover>
         </div>
-        <CodeBlockTheme {...props} />
 
-        <div className="code-block-controls">
+        <div className="code-block-controls flex shrink-0 items-center gap-1.5">
           <button
+            type="button"
             className={`control-btn ${isFormatting ? 'active' : ''}`}
             onClick={handleFormat}
             disabled={isFormatting}
             title={isFormatting ? '格式化中...' : '格式化代码'}
           >
-            <Code2 width="16" height="16" />
+            <Code2 className="h-4 w-4" strokeWidth={2} />
           </button>
 
           <button
+            type="button"
             className={`control-btn ${isWordWrap ? 'active' : ''}`}
             onClick={toggleWordWrap}
             title={isWordWrap ? '关闭自动换行' : '开启自动换行'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z" fill="currentColor" />
-            </svg>
+            <WrapText className="h-4 w-4" strokeWidth={2} />
           </button>
 
           <button
+            type="button"
             className={`control-btn ${isCollapsed ? 'active' : ''}`}
             onClick={toggleCollapse}
             title={isCollapsed ? '展开代码' : '折叠代码'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d={isCollapsed ? 'M7 14l5-5 5 5z' : 'M7 10l5 5 5-5z'} fill="currentColor" />
-            </svg>
+            {isCollapsed ? (
+              <ChevronDown className="h-4 w-4" strokeWidth={2} />
+            ) : (
+              <ChevronUp className="h-4 w-4" strokeWidth={2} />
+            )}
           </button>
 
           <button
+            type="button"
             className={`control-btn ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
             title={copied ? '已复制!' : '复制代码'}
           >
             {copied ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
-                  fill="currentColor"
-                />
-              </svg>
+              <Check className="h-4 w-4" strokeWidth={2} />
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
-                  fill="currentColor"
-                />
-              </svg>
+              <Copy className="h-4 w-4" strokeWidth={2} />
             )}
           </button>
         </div>

@@ -31,9 +31,9 @@ import '@/components/tiptap-node/heading-node/heading-node.scss';
 import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu';
+import { HeadingButton } from '@/components/tiptap-ui/heading-button';
 import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button';
-import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu';
+import { ListButton } from '@/components/tiptap-ui/list-button';
 import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button';
 import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button';
 import {
@@ -88,8 +88,12 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <HeadingDropdownMenu levels={[1, 2, 3, 4, 5, 6]} portal={isMobile} />
-        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
+        <HeadingButton level={1} />
+        <HeadingButton level={2} />
+        <HeadingButton level={3} />
+        <ListButton type="bulletList" />
+        <ListButton type="orderedList" />
+        <ListButton type="taskList" />
         <BlockquoteButton />
         <CodeBlockButton />
       </ToolbarGroup>
@@ -129,7 +133,7 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ImageUploadButton text="Add" />
+        <ImageUploadButton text="添加" />
       </ToolbarGroup>
 
       <Spacer />
@@ -181,7 +185,7 @@ export function SimpleEditor() {
         autocomplete: 'off',
         autocorrect: 'off',
         autocapitalize: 'off',
-        'aria-label': 'Main content area, start typing to enter text.',
+        'aria-label': '主内容区域，开始输入即可编辑。',
         class: 'simple-editor',
       },
     },
@@ -208,7 +212,7 @@ export function SimpleEditor() {
         maxSize: MAX_FILE_SIZE,
         limit: 3,
         upload: handleImageUpload,
-        onError: (error) => console.error('Upload failed:', error),
+        onError: (error) => console.error('上传失败:', error),
       }),
     ],
     content,

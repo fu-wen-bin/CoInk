@@ -1,1 +1,1 @@
-export * from "./table-cell-handle-menu"
+export * from './table-cell-handle-menu';

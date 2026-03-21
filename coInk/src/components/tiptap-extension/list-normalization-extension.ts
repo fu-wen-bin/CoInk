@@ -1,7 +1,7 @@
-import type { Editor } from "@tiptap/core"
-import { Extension } from "@tiptap/core"
-import { canJoin } from "@tiptap/pm/transform"
-import { TextSelection } from "@tiptap/pm/state"
+import type { Editor } from '@tiptap/core';
+import { Extension } from '@tiptap/core';
+import { canJoin } from '@tiptap/pm/transform';
+import { TextSelection } from '@tiptap/pm/state';
 
 /**
  * ListNormalization Extension
@@ -32,81 +32,78 @@ import { TextSelection } from "@tiptap/pm/state"
  * in visual "stuck" vertical spacing that users cannot remove, which feels broken.
  */
 export const ListNormalizationExtension = Extension.create({
-  name: "listNormalization",
+  name: 'listNormalization',
 
   addKeyboardShortcuts() {
-    const listTypes = ["bulletList", "orderedList", "taskList"]
+    const listTypes = ['bulletList', 'orderedList', 'taskList'];
 
     const handleBackspace = ({ editor }: { editor: Editor }) => {
-      const { state, view } = editor
-      const { selection } = state
-      const { $from, empty } = selection
+      const { state, view } = editor;
+      const { selection } = state;
+      const { $from, empty } = selection;
 
-      if (!empty) return false
-      if ($from.parentOffset !== 0) return false
+      if (!empty) return false;
+      if ($from.parentOffset !== 0) return false;
 
-      const currentNode = $from.parent
+      const currentNode = $from.parent;
 
-      if (
-        currentNode.type.name !== "paragraph" ||
-        currentNode.content.size > 0
-      ) {
-        return false
+      if (currentNode.type.name !== 'paragraph' || currentNode.content.size > 0) {
+        return false;
       }
 
-      const parentDepth = $from.depth - 1
-      if (parentDepth < 0) return false
+      const parentDepth = $from.depth - 1;
+      if (parentDepth < 0) return false;
 
-      const parent = $from.node(parentDepth)
-      const indexInParent = $from.index(parentDepth)
+      const parent = $from.node(parentDepth);
+      const indexInParent = $from.index(parentDepth);
 
       if (indexInParent === 0 || indexInParent >= parent.childCount - 1) {
-        return false
+        return false;
       }
 
-      const nodeBefore = parent.child(indexInParent - 1)
-      const nodeAfter = parent.child(indexInParent + 1)
+      const nodeBefore = parent.child(indexInParent - 1);
+      const nodeAfter = parent.child(indexInParent + 1);
 
-      const isBeforeList = listTypes.includes(nodeBefore.type.name)
-      const isAfterList = listTypes.includes(nodeAfter.type.name)
+      const isBeforeList = listTypes.includes(nodeBefore.type.name);
+      const isAfterList = listTypes.includes(nodeAfter.type.name);
 
       if (!isBeforeList || !isAfterList) {
-        return false
+        return false;
       }
 
       if (nodeBefore.type.name !== nodeAfter.type.name) {
-        return false
+        return false;
       }
 
-      const startOfPara = $from.before(parentDepth + 1)
-      const endOfPara = $from.after(parentDepth + 1)
+      const startOfPara = $from.before(parentDepth + 1);
+      const endOfPara = $from.after(parentDepth + 1);
 
-      const $insideFirstList = state.doc.resolve(startOfPara - 1)
-      const targetSelection = TextSelection.findFrom($insideFirstList, -1, true)
+      const $insideFirstList = state.doc.resolve(startOfPara - 1);
+      const targetSelection = TextSelection.findFrom($insideFirstList, -1, true);
 
       if (!targetSelection) {
-        return false
+        return false;
       }
 
-      const cursorTargetPos = targetSelection.from
+      const cursorTargetPos = targetSelection.from;
 
-      const tr = state.tr
+      const tr = state.tr;
 
-      tr.delete(startOfPara, endOfPara)
+      tr.delete(startOfPara, endOfPara);
 
       if (canJoin(tr.doc, startOfPara)) {
-        tr.join(startOfPara)
+        tr.join(startOfPara);
       }
 
-      const mappedPos = tr.mapping.map(cursorTargetPos)
-      tr.setSelection(TextSelection.create(tr.doc, mappedPos))
+      const mappedPos = tr.mapping.map(cursorTargetPos);
+      tr.setSelection(TextSelection.create(tr.doc, mappedPos));
 
-      view.dispatch(tr)
-      return true
-    }
+      view.dispatch(tr);
+      return true;
+    };
 
     return {
       Backspace: handleBackspace,
-    }
+    };
   },
-})
+});

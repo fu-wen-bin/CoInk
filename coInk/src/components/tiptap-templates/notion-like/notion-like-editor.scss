@@ -63,7 +63,7 @@ body,
 }
 
 .notion-like-editor-layout {
-  --content-width: minmax(auto, 708px);
+  --content-width: minmax(0, 708px);
   --margin-width: minmax(96px, 1fr);
 
   display: grid;
@@ -73,6 +73,7 @@ body,
     [content-end] var(--margin-right-width, var(--margin-width))
     [full-end];
   width: 100%;
+  min-width: 0;
   position: relative;
 }
 
@@ -92,6 +93,7 @@ body,
 .notion-like-editor-content {
   grid-column: content-start / content-end;
   width: 100%;
+  min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -108,12 +110,34 @@ body,
 
 .notion-like-editor-content .tiptap.ProseMirror.notion-like-editor {
   flex: 1;
-  padding: 3rem 3rem 30vh;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 3rem 3rem 30vh !important;
+  box-sizing: border-box;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
 }
 
 @media screen and (max-width: 480px) {
   .notion-like-editor-content .tiptap.ProseMirror.notion-like-editor {
-    padding: 1.5rem 1.5rem 30vh;
+    padding: 1.5rem 1.5rem 30vh !important;
+  }
+}
+
+/*
+  Disable legacy CoInk global ProseMirror constraints in Notion-like editor area
+  (padding/max-width/margin from styles/index.css).
+*/
+.notion-like-editor-wrapper {
+  width: 100%;
+  min-width: 0;
+
+  .ProseMirror {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 }
 

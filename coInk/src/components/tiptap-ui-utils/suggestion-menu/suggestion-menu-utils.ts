@@ -1,5 +1,6 @@
-import type { Node } from "@tiptap/pm/model"
-import type { SuggestionItem } from "@/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-types"
+import type { Node } from '@tiptap/pm/model';
+
+import type { SuggestionItem } from '@/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-types';
 
 /**
  * Calculates the start position of a suggestion command in the text.
@@ -12,22 +13,22 @@ import type { SuggestionItem } from "@/components/tiptap-ui-utils/suggestion-men
 export function calculateStartPosition(
   cursorPosition: number,
   previousNode: Node | null,
-  triggerChar?: string
+  triggerChar?: string,
 ): number {
   if (!previousNode?.text || !triggerChar) {
-    return cursorPosition
+    return cursorPosition;
   }
 
-  const commandText = previousNode.text
-  const triggerCharIndex = commandText.lastIndexOf(triggerChar)
+  const commandText = previousNode.text;
+  const triggerCharIndex = commandText.lastIndexOf(triggerChar);
 
   if (triggerCharIndex === -1) {
-    return cursorPosition
+    return cursorPosition;
   }
 
-  const textLength = commandText.substring(triggerCharIndex).length
+  const textLength = commandText.substring(triggerCharIndex).length;
 
-  return cursorPosition - textLength
+  return cursorPosition - textLength;
 }
 
 /**
@@ -38,50 +39,38 @@ export function calculateStartPosition(
  * @returns Filtered and sorted list of suggestions
  */
 export function filterSuggestionItems(items: SuggestionItem[], query: string) {
-  const normalizedQuery = query.trim().toLowerCase()
+  const normalizedQuery = query.trim().toLowerCase();
 
   if (!normalizedQuery) {
-    return items
+    return items;
   }
 
   return items
     .filter((item) => {
       if (item.title.toLowerCase().includes(normalizedQuery)) {
-        return true
+        return true;
       }
 
       if (item.subtext?.toLowerCase().includes(normalizedQuery)) {
-        return true
+        return true;
       }
 
-      if (
-        item.keywords?.some((keyword) =>
-          keyword.toLowerCase().includes(normalizedQuery)
-        )
-      ) {
-        return true
+      if (item.keywords?.some((keyword) => keyword.toLowerCase().includes(normalizedQuery))) {
+        return true;
       }
 
-      return false
+      return false;
     })
     .sort((a, b) => {
       // Prioritize exact matches and "starts with" matches
-      const aTitle = a.title.toLowerCase()
-      const bTitle = b.title.toLowerCase()
+      const aTitle = a.title.toLowerCase();
+      const bTitle = b.title.toLowerCase();
 
-      if (aTitle === normalizedQuery && bTitle !== normalizedQuery) return -1
-      if (bTitle === normalizedQuery && aTitle !== normalizedQuery) return 1
-      if (
-        aTitle.startsWith(normalizedQuery) &&
-        !bTitle.startsWith(normalizedQuery)
-      )
-        return -1
-      if (
-        bTitle.startsWith(normalizedQuery) &&
-        !aTitle.startsWith(normalizedQuery)
-      )
-        return 1
+      if (aTitle === normalizedQuery && bTitle !== normalizedQuery) return -1;
+      if (bTitle === normalizedQuery && aTitle !== normalizedQuery) return 1;
+      if (aTitle.startsWith(normalizedQuery) && !bTitle.startsWith(normalizedQuery)) return -1;
+      if (bTitle.startsWith(normalizedQuery) && !aTitle.startsWith(normalizedQuery)) return 1;
 
-      return 0
-    })
+      return 0;
+    });
 }

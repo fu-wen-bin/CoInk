@@ -3,13 +3,13 @@ import { Group } from './types';
 export const GROUPS: Group[] = [
   {
     name: 'format',
-    title: 'Style',
+    title: '样式',
     commands: [
       {
         name: 'heading1',
-        label: 'Heading 1',
+        label: '一级标题',
         iconName: 'Heading1',
-        description: 'High priority section title',
+        description: '最高优先级章节标题',
         aliases: ['h1'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 1 }).run();
@@ -17,9 +17,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'heading2',
-        label: 'Heading 2',
+        label: '二级标题',
         iconName: 'Heading2',
-        description: 'Medium priority section title',
+        description: '中等优先级章节标题',
         aliases: ['h2'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 2 }).run();
@@ -27,9 +27,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'heading3',
-        label: 'Heading 3',
+        label: '三级标题',
         iconName: 'Heading3',
-        description: 'Low priority section title',
+        description: '较低优先级章节标题',
         aliases: ['h3'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 3 }).run();
@@ -37,9 +37,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'heading4',
-        label: 'Heading 4',
+        label: '四级标题',
         iconName: 'Heading4',
-        description: 'Subsection title',
+        description: '子章节标题',
         aliases: ['h4'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 4 }).run();
@@ -47,9 +47,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'heading5',
-        label: 'Heading 5',
+        label: '五级标题',
         iconName: 'Heading5',
-        description: 'Minor section title',
+        description: '次级章节标题',
         aliases: ['h5'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 5 }).run();
@@ -57,9 +57,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'heading6',
-        label: 'Heading 6',
+        label: '六级标题',
         iconName: 'Heading6',
-        description: 'Smallest section title',
+        description: '最小级别标题',
         aliases: ['h6'],
         action: (editor) => {
           editor.chain().focus().setHeading({ level: 6 }).run();
@@ -67,9 +67,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'bulletList',
-        label: 'Bullet List',
+        label: '无序列表',
         iconName: 'List',
-        description: 'Unordered list of items',
+        description: '无序条目列表',
         aliases: ['ul'],
         action: (editor) => {
           editor.chain().focus().toggleBulletList().run();
@@ -77,9 +77,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'numberedList',
-        label: 'Numbered List',
+        label: '有序列表',
         iconName: 'ListOrdered',
-        description: 'Ordered list of items',
+        description: '有序条目列表',
         aliases: ['ol'],
         action: (editor) => {
           editor.chain().focus().toggleOrderedList().run();
@@ -87,9 +87,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'taskList',
-        label: 'Task List',
+        label: '任务列表',
         iconName: 'ListTodo',
-        description: 'Task list with todo items',
+        description: '带待办项的任务列表',
         aliases: ['todo'],
         action: (editor) => {
           editor.chain().focus().toggleTaskList().run();
@@ -97,9 +97,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'toggleList',
-        label: 'Toggle List',
+        label: '折叠列表',
         iconName: 'ListCollapse',
-        description: 'Toggles can show and hide content',
+        description: '可展开/折叠显示内容',
         aliases: ['toggle'],
         action: (editor) => {
           editor.chain().focus().setDetails().run();
@@ -107,18 +107,18 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'blockquote',
-        label: 'Blockquote',
+        label: '引用',
         iconName: 'Quote',
-        description: 'Element for quoting',
+        description: '用于引用内容',
         action: (editor) => {
           editor.chain().focus().toggleBlockquote().run();
         },
       },
       {
         name: 'codeBlock',
-        label: 'Code Block',
+        label: '代码块',
         iconName: 'SquareCode',
-        description: 'Code block with syntax highlighting',
+        description: '带语法高亮的代码块',
         shouldBeHidden: (editor) => editor.isActive('columns'),
         action: (editor) => {
           editor.chain().focus().toggleCodeBlock().run();
@@ -128,13 +128,13 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'insert',
-    title: 'Insert',
+    title: '插入',
     commands: [
       {
         name: 'table',
-        label: 'Table',
+        label: '表格',
         iconName: 'Table',
-        description: 'Insert a table',
+        description: '插入一个表格',
         shouldBeHidden: (editor) => editor.isActive('columns'),
         action: (editor) => {
           editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run();
@@ -152,9 +152,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'image',
-        label: 'Image',
+        label: '图片',
         iconName: 'Image',
-        description: 'Insert an image',
+        description: '插入一张图片',
         aliases: ['img'],
         action: (editor) => {
           editor.chain().focus().setImageUpload().run();
@@ -162,9 +162,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'columns',
-        label: 'Columns',
+        label: '分栏',
         iconName: 'Columns2',
-        description: 'Add two column content',
+        description: '添加双栏内容',
         aliases: ['cols'],
         shouldBeHidden: (editor) => editor.isActive('columns'),
         action: (editor) => {
@@ -179,9 +179,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'horizontalRule',
-        label: 'Horizontal Rule',
+        label: '分割线',
         iconName: 'Minus',
-        description: 'Insert a horizontal divider',
+        description: '插入水平分隔线',
         aliases: ['hr'],
         action: (editor) => {
           editor.chain().focus().setHorizontalRule().run();
@@ -189,10 +189,10 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'toc',
-        label: 'Table of Contents',
+        label: '目录',
         iconName: 'Book',
         aliases: ['outline'],
-        description: 'Insert a table of contents',
+        description: '插入文档目录',
         shouldBeHidden: (editor) => editor.isActive('columns'),
         action: (editor) => {
           editor.chain().focus().insertTableOfContents().run();
@@ -200,9 +200,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'youtube',
-        label: 'YouTube Video',
+        label: 'YouTube 视频',
         iconName: 'Youtube',
-        description: 'Insert a YouTube video',
+        description: '插入 YouTube 视频',
         aliases: ['video', 'yt'],
         action: (editor) => {
           // 触发 YouTube 弹窗事件
@@ -212,9 +212,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'bilibili',
-        label: 'Bilibili Video',
+        label: 'Bilibili 视频',
         iconName: 'Tv',
-        description: 'Insert a Bilibili video',
+        description: '插入 Bilibili 视频',
         aliases: ['bili'],
         action: (editor) => {
           const event = new CustomEvent('openBilibiliDialog', { detail: { editor } });
@@ -223,9 +223,9 @@ export const GROUPS: Group[] = [
       },
       {
         name: 'chart',
-        label: 'Chart',
+        label: '图表',
         iconName: 'ChartColumnBig',
-        description: 'Insert a chart',
+        description: '插入一个图表',
         aliases: ['chart', 'graph'],
         action: (editor) => {
           editor
@@ -236,25 +236,25 @@ export const GROUPS: Group[] = [
               colorKey: 'red',
               data: [
                 {
-                  month: 'January',
+                  month: '一月',
                   desktop: 186,
                   mobile: 80,
                   tablet: 45,
                 },
                 {
-                  month: 'February',
+                  month: '二月',
                   desktop: 305,
                   mobile: 200,
                   tablet: 95,
                 },
                 {
-                  month: 'March',
+                  month: '三月',
                   desktop: 237,
                   mobile: 120,
                   tablet: 78,
                 },
                 {
-                  month: 'April',
+                  month: '四月',
                   desktop: 73,
                   mobile: 190,
                   tablet: 62,
@@ -262,16 +262,16 @@ export const GROUPS: Group[] = [
               ],
               xAxisKey: 'month',
               yAxisKeys: ['desktop'],
-              title: 'Sample Chart',
+              title: '示例图表',
             })
             .run();
         },
       },
       {
         name: 'countdown',
-        label: 'Countdown',
+        label: '倒计时',
         iconName: 'Timer',
-        description: 'Insert a countdown timer',
+        description: '插入倒计时',
         aliases: ['countdown'],
         action: (editor) => {
           editor.chain().focus().setCountdown({ targetDate: '' }).run();

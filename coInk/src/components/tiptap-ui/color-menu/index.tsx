@@ -1,1 +1,1 @@
-export * from "./color-menu"
+export * from './color-menu';

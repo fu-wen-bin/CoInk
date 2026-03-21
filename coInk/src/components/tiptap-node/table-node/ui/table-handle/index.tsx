@@ -1,2 +1,2 @@
-export * from "./table-handle"
-export * from "./use-table-handle-positioning"
+export * from './table-handle';
+export * from './use-table-handle-positioning';

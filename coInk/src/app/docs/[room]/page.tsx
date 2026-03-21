@@ -701,7 +701,7 @@ export default function DocumentPage() {
                     : 'padding-left 300ms ease-in-out, padding-right 300ms ease-in-out',
                 }}
               >
-                <EditorContent editor={editor} className="prose-container h-full px-20" />
+                <EditorContent editor={editor} className="prose-container h-full pl-14" />
               </div>
             </div>
           </Panel>

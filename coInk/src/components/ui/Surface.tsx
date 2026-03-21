@@ -20,10 +20,10 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(
     };
 
     const surfaceClass = cn(
-      className,
-      'bg-white rounded-xl max-w-full box-border',
+      'bg-white dark:bg-gray-800 rounded-xl max-w-full box-border',
       withShadow ? shadowClasses[elevation] : '',
-      withBorder ? 'border border-neutral-100' : '',
+      withBorder ? 'border border-neutral-100 dark:border-gray-700' : '',
+      className,
     );
 
     return (

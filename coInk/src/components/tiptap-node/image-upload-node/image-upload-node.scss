@@ -30,8 +30,9 @@
   --tiptap-image-upload-icon-color: var(--black);
 }
 
+/* 垂直间距交给 paragraph-node 的 `> * + .tiptap-image-upload`，避免 2rem 上下与块距叠成「绿箭头」过大 */
 .tiptap-image-upload {
-  margin: 2rem 0;
+  margin: 0;
 
   input[type="file"] {
     display: none;

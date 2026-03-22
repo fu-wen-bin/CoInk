@@ -27,27 +27,35 @@
   }
 
   /* =========================
-     Sidebar layout & grid
+     悬浮在编辑区右侧（原轨道位置），不参与页宽三列网格，避免随 75%/85%/95% 被挤压
      ========================= */
-  width: 100%;
+  width: max-content;
+  max-width: min(16rem, 32vw);
   grid-row: 1 / -1;
-  grid-column: content-end / full-end;
+  grid-column: full-start / full-end;
+  justify-self: end;
   padding-inline-start: 0;
-  position: relative;
-  z-index: 80;
+  position: absolute;
+  right: 0.75rem;
+  left: auto;
+  top: 0;
+  bottom: 0;
+  /* 低于 Header/下拉 z-50，避免挡住菜单 */
+  z-index: 10;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   opacity: 1;
   visibility: visible;
   pointer-events: none;
   transition: opacity 0.2s ease;
 
-  /* Sticky wrapper */
+  /* Sticky：贴在右侧，处于上半屏纵向中间（上半区中心约 25vh，减去目录半高） */
   &-wrapper {
     display: flex;
     flex-direction: row;
     position: sticky;
-    top: 130px;
+    top: max(1rem, calc(25vh - 5rem));
     margin-left: auto;
     opacity: 1;
     pointer-events: auto;
@@ -130,6 +138,7 @@
     position: absolute;
     top: -0.625rem;
     right: 0;
+    left: auto;
     padding-inline: 0.625rem;
     pointer-events: none;
     transform: translateX(10px);

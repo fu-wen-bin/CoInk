@@ -54,28 +54,31 @@ function DocumentSidebar() {
   return (
     <div
       ref={sidebarRef}
-      className={`flex h-full relative bg-white dark:bg-[#1a1a1a] border-r border-gray-200 dark:border-gray-800 overflow-hidden ${
-        isResizing ? '' : 'transition-all duration-300'
-      }`}
+      className={`relative flex h-full flex-shrink-0 overflow-hidden bg-white dark:bg-[#1a1a1a] ${
+        isOpen ? 'border-r border-gray-200 dark:border-gray-800' : 'border-r-0'
+      } ${isResizing ? '' : 'transition-[width] duration-300 ease-out motion-reduce:transition-none'}`}
       style={{ width: isOpen ? `${sidebarWidth}px` : '0px' }}
+      aria-hidden={!isOpen}
     >
-      {/* 右侧内容区域 */}
-      {isOpen && (
-        <>
-          <div className="flex-1 h-full overflow-hidden flex flex-col animate-in slide-in-from-left duration-200">
-            <SidebarContent />
-          </div>
+      {/* 内层固定宽度：外层宽度 0→N 时产生横向「推出/收起」效果，避免 isOpen 为 false 时整树卸载导致无法过渡 */}
+      <div
+        className="flex h-full flex-shrink-0 flex-col overflow-hidden"
+        style={{ width: sidebarWidth }}
+        inert={!isOpen ? true : undefined}
+      >
+        <SidebarContent />
+      </div>
 
-          {/* 右侧拖拽调整条 */}
-          <div
-            className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 transition-colors z-50"
-            style={{ right: '-4px', width: '8px' }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setIsResizing(true);
-            }}
-          />
-        </>
+      {isOpen && (
+        <div
+          className="absolute top-0 bottom-0 z-50 cursor-col-resize transition-colors hover:bg-blue-500 active:bg-blue-600"
+          style={{ right: '-4px', width: '8px' }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          aria-hidden
+        />
       )}
     </div>
   );

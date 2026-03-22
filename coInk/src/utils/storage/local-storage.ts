@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   EDITOR_THEME: 'editor_theme',
   EDITOR_FONT_SIZE: 'editor_font_size',
   EDITOR_LAYOUT: 'editor_layout',
+  EDITOR_PAGE_WIDTH: 'editor_page_width',
 
   // App settings
   APP_LANGUAGE: 'app_language',
@@ -69,6 +70,7 @@ export interface StorageValueMap {
   [STORAGE_KEYS.EDITOR_THEME]: 'light' | 'dark' | 'auto';
   [STORAGE_KEYS.EDITOR_FONT_SIZE]: number;
   [STORAGE_KEYS.EDITOR_LAYOUT]: 'default' | 'focus' | 'typewriter';
+  [STORAGE_KEYS.EDITOR_PAGE_WIDTH]: 'default' | 'wide' | 'full';
   [STORAGE_KEYS.APP_LANGUAGE]: 'zh-CN' | 'en-US';
   [STORAGE_KEYS.APP_THEME]: 'light' | 'dark' | 'system';
   [STORAGE_KEYS.SIDEBAR_COLLAPSED]: boolean;

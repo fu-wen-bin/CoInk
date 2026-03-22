@@ -20,20 +20,12 @@
      LISTS
      ===================== */
 .tiptap.ProseMirror {
-  // Common list styles
+  /* 列表外边距由 paragraph-node 的 `> * + ol/ul` 控制，避免与相邻块双计 1.5em */
   ol,
   ul {
-    margin-top: 1.5em;
-    margin-bottom: 1.5em;
+    margin-top: 0;
+    margin-bottom: 0;
     padding-left: 1.5em;
-
-    &:first-child {
-      margin-top: 0;
-    }
-
-    &:last-child {
-      margin-bottom: 0;
-    }
 
     ol,
     ul {

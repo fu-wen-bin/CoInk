@@ -14,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { TemplatesModule } from './templates/templates.module';
 import { UploadModule } from './upload/upload.module';
 import { UserModule } from './user/user.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserModule } from './user/user.module';
     NotificationsModule,
     UploadModule,
     CollaborationModule,
+    AiModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

@@ -1,19 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
-import {
-  MessageSquare,
-  PanelLeft,
-  ChevronDown,
-  LogOut,
-  User,
-  Share2,
-  Search,
-  Plus,
-  MoreHorizontal,
-  Bell,
-} from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { PanelLeft, ChevronDown, LogOut, User, Share2, Search, Plus, Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -24,28 +13,29 @@ import ShareDialog from '../DocumentSidebar/folder/ShareDialog';
 
 import { useEditorStore } from '@/stores/editorStore';
 import { useFileStore } from '@/stores/fileStore';
-import { cn } from '@/utils';
+import { cn, formatDocumentLastModified } from '@/utils';
 import type { FileItem } from '@/types/file-system';
+import { documentsApi } from '@/services/documents';
 
-// 格式化相对时间
-function formatRelativeTime(dateString: string | undefined): string {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    return formatDistanceToNow(date, { addSuffix: true, locale: zhCN });
-  } catch {
-    return '';
+function findFileInTree(items: FileItem[], fileId: string): FileItem | null {
+  for (const item of items) {
+    if (item.id === fileId) return item;
+    if (item.children?.length) {
+      const nested = findFileInTree(item.children, fileId);
+      if (nested) return nested;
+    }
   }
+  return null;
 }
 
-// 查找文件在分组中的位置
+/** 在侧边栏分组中递归查找文件（含嵌套文件夹） */
 function findFileInGroups(
   groups: { files: FileItem[] }[],
   fileId: string | undefined,
 ): FileItem | null {
   if (!fileId) return null;
   for (const group of groups) {
-    const found = group.files.find((f) => f.id === fileId);
+    const found = findFileInTree(group.files, fileId);
     if (found) return found;
   }
   return null;
@@ -54,6 +44,7 @@ function findFileInGroups(
 // 当前用户下拉菜单组件
 function CurrentUserMenu({ currentUser }: { currentUser?: CollaborationUser | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
   if (!currentUser) return null;
 
@@ -101,7 +92,8 @@ function CurrentUserMenu({ currentUser }: { currentUser?: CollaborationUser | nu
             <button
               type="button"
               onClick={() => {
-                window.location.href = '/profile';
+                setIsOpen(false);
+                router.push('/dashboard');
               }}
               className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
@@ -125,12 +117,11 @@ function CurrentUserMenu({ currentUser }: { currentUser?: CollaborationUser | nu
 
 // 通知铃铛组件
 function NotificationBell() {
-  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<
+  const [notifications] = useState<
     { id: number; title: string; content?: string; isRead: boolean; createdAt: string }[]
   >([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount] = useState(0);
 
   // 模拟获取通知数据 - 实际项目中应该从 API 获取
   // const { data: notificationsData } = useNotificationsQuery({ page: 1, limit: 10 });
@@ -248,31 +239,55 @@ export default function DocumentHeader({
 }: DocumentHeaderProps) {
   const pathname = usePathname();
   const isCollaborationMode = Boolean(provider) && Array.isArray(connectedUsers);
-  const { editor, setIsHeaderHovered } = useEditorStore();
+  const { editor, setIsHeaderHovered, setHistoryPanelOpen } = useEditorStore();
   const { documentGroups } = useFileStore();
 
-  // 分享对话框状态
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  /** 侧边栏未包含当前文档时，用 GET /documents/:id 的 updatedAt 作为「最近修改」来源 */
+  const [fetchedUpdatedAt, setFetchedUpdatedAt] = useState<string | null>(null);
+  /** 每分钟刷新一次相对时间文案（刚刚 / N 分钟前） */
+  const [lastModifiedTick, setLastModifiedTick] = useState(0);
 
-  // 获取实际显示的标题
+  useEffect(() => {
+    const id = window.setInterval(() => setLastModifiedTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const displayTitle = documentTitle || documentName || '未命名文档';
 
-  // 获取当前文档信息（包含更新时间）
   const currentFile = useMemo(() => {
     return findFileInGroups(documentGroups, documentId);
   }, [documentGroups, documentId]);
 
-  // 格式化更新时间
-  const updatedTimeText = useMemo(() => {
-    return formatRelativeTime(currentFile?.updated_at);
-  }, [currentFile?.updated_at]);
+  useEffect(() => {
+    if (!documentId) {
+      setFetchedUpdatedAt(null);
+      return;
+    }
+    if (currentFile?.updated_at) {
+      setFetchedUpdatedAt(null);
+      return;
+    }
+    let cancelled = false;
+    documentsApi.getById(documentId).then(({ data, error }) => {
+      if (cancelled || error || !data?.data) return;
+      setFetchedUpdatedAt(data.data.updatedAt);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId, currentFile?.updated_at]);
 
-  // 处理分享按钮点击
+  const updatedAtSource = currentFile?.updated_at ?? fetchedUpdatedAt ?? undefined;
+
+  const lastModifiedDisplay = useMemo(() => {
+    return updatedAtSource ? formatDocumentLastModified(updatedAtSource) : '';
+  }, [updatedAtSource, lastModifiedTick]);
+
   const handleShare = () => {
     setShareDialogOpen(true);
   };
 
-  // 分享对话框的文件数据
   const shareFileItem: FileItem | null = documentId
     ? {
         id: documentId,
@@ -304,13 +319,24 @@ export default function DocumentHeader({
           )}
         </div>
 
-        {/* 文档标题和更新时间 */}
-        <div className="flex flex-col min-w-0">
-          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+        {/* 文档标题和最近修改（点击打开文档历史，时间来自后端 updatedAt） */}
+        <div className="flex min-w-0 flex-col">
+          <h1 className="truncate text-base font-semibold leading-tight text-gray-900 dark:text-gray-100">
             {displayTitle}
           </h1>
-          {updatedTimeText && (
-            <span className="text-xs text-gray-400 dark:text-gray-500">{updatedTimeText}</span>
+          {documentId && lastModifiedDisplay && (
+            <button
+              type="button"
+              disabled={!doc}
+              onClick={() => doc && setHistoryPanelOpen(true)}
+              className={cn(
+                'mt-0.5 block max-w-full truncate text-left text-xs text-gray-400 dark:text-gray-500',
+                doc && 'cursor-pointer hover:text-gray-600 dark:hover:text-gray-400',
+                !doc && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              最近修改：{lastModifiedDisplay}
+            </button>
           )}
         </div>
       </div>
@@ -354,8 +380,6 @@ export default function DocumentHeader({
             documentId={documentId}
             documentTitle={displayTitle}
             doc={doc}
-            connectedUsers={connectedUsers}
-            currentUser={currentUser}
           />
         )}
 
@@ -387,7 +411,6 @@ export default function DocumentHeader({
         <CurrentUserMenu currentUser={currentUser} />
       </div>
 
-      {/* 分享对话框 */}
       {shareFileItem && (
         <ShareDialog
           file={shareFileItem}

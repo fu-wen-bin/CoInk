@@ -80,18 +80,45 @@ export function normalizeHeadingDepths<T extends { level?: number; originalLevel
 }
 
 /**
- * Check if an element is visible in the viewport
+ * 从节点向上查找第一个可纵向滚动的祖先；若无则退回 window（文档根滚动）。
+ * 文档页编辑器在 overflow-y-auto 容器内，必须用该容器滚动，window.scrollTo 无效。
  */
-const isElementVisible = (element: HTMLElement, topOffset: number): boolean => {
-  const rect = element.getBoundingClientRect();
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+export function getScrollableParent(element: HTMLElement | null): HTMLElement | Window {
+  if (typeof window === 'undefined' || !element) return window;
 
-  // Element is visible if:
-  // - Its top is below the topOffset
-  // - Its bottom is above the viewport top
-  // - Its top is above the viewport bottom
-  return rect.top >= topOffset && rect.bottom > topOffset && rect.top < viewportHeight;
-};
+  let current: HTMLElement | null = element.parentElement;
+  while (current) {
+    const { overflowY } = window.getComputedStyle(current);
+    const scrollable =
+      (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+      current.scrollHeight > current.clientHeight + 2;
+    if (scrollable) return current;
+    current = current.parentElement;
+  }
+
+  return window;
+}
+
+function scrollElementToOffset(
+  element: HTMLElement,
+  topOffset: number,
+  behavior: ScrollBehavior,
+) {
+  const root = getScrollableParent(element);
+
+  if (root === window) {
+    const rect = element.getBoundingClientRect();
+    const top = rect.top + window.scrollY - topOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior });
+    return;
+  }
+
+  const scrollEl = root as HTMLElement;
+  const elRect = element.getBoundingClientRect();
+  const rootRect = scrollEl.getBoundingClientRect();
+  const nextTop = elRect.top - rootRect.top + scrollEl.scrollTop - topOffset;
+  scrollEl.scrollTo({ top: Math.max(0, nextTop), behavior });
+}
 
 /**
  * Low-level navigate helper (not exported in context directly)
@@ -101,15 +128,13 @@ const doNavigateToHeading = (
   topOffset: number,
   behavior: ScrollBehavior = 'smooth',
 ) => {
-  if (!item.dom || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
 
-  // Only scroll if element is not already visible
-  if (!isElementVisible(item.dom, topOffset)) {
-    const rect = item.dom.getBoundingClientRect();
-    const top = rect.top + window.scrollY - topOffset;
+  const el =
+    item.dom ?? (item.id ? (document.getElementById(item.id) as HTMLElement | null) : null);
+  if (!el) return;
 
-    window.scrollTo({ top, behavior });
-  }
+  scrollElementToOffset(el, topOffset, behavior);
 
   if (item.editor && typeof item.pos === 'number') {
     selectNodeAndHideFloating(item.editor, item.pos);

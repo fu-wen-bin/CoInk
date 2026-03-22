@@ -65,9 +65,9 @@ export const imageAlignIcons = {
 };
 
 export const imageAlignLabels: Record<ImageAlign, string> = {
-  left: 'Image align left',
-  center: 'Image align center',
-  right: 'Image align right',
+  left: '图片左对齐',
+  center: '图片居中',
+  right: '图片右对齐',
 };
 
 /**

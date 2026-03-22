@@ -4,6 +4,8 @@ import { AllSelection, NodeSelection, Selection, TextSelection } from '@tiptap/p
 import { cellAround, CellSelection } from '@tiptap/pm/tables';
 import { findParentNodeClosestToPos, type Editor, type NodeWithPos } from '@tiptap/react';
 
+import { isEditorImageOssModeEnabled, uploadEditorImageToOss } from '@/lib/editor-image-upload';
+
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const MAC_SYMBOLS: Record<string, string> = {
@@ -334,26 +336,48 @@ export const handleImageUpload = async (
   onProgress?: (event: { progress: number }) => void,
   abortSignal?: AbortSignal,
 ): Promise<string> => {
-  // Validate file
   if (!file) {
-    throw new Error('未提供文件');
+    throw new Error('未提供文件！');
+  }
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('请正确上传图片类型！');
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`文件大小超过限制（最大 ${MAX_FILE_SIZE / (1024 * 1024)}MB）`);
+    throw new Error(`文件大小超出最大允许值(${MAX_FILE_SIZE / (1024 * 1024)}MB)`);
   }
 
-  // For demo/testing: Simulate upload progress. In production, replace the following code
-  // with your own upload implementation.
-  for (let progress = 0; progress <= 100; progress += 10) {
-    if (abortSignal?.aborted) {
-      throw new Error('上传已取消');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    onProgress?.({ progress });
+  if (abortSignal?.aborted) {
+    throw new Error('上传取消');
   }
 
-  return '/images/tiptap-ui-placeholder-image.jpg';
+  if (isEditorImageOssModeEnabled()) {
+    return uploadEditorImageToOss(file, onProgress, abortSignal);
+  }
+
+  // 本地读取为 data URL（Base64）。设置 NEXT_PUBLIC_EDITOR_IMAGE_UPLOAD_MODE=oss 可走服务端 OSS。
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress?.({ progress });
+      }
+    };
+
+    reader.onload = () => {
+      if (abortSignal?.aborted) {
+        reject(new Error('上传取消'));
+      } else {
+        resolve(reader.result as string);
+      }
+    };
+
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
 };
 
 type ProtocolOptions = {

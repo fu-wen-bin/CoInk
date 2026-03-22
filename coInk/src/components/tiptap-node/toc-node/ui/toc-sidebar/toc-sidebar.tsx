@@ -7,7 +7,10 @@ import type {
 } from '@tiptap/extension-table-of-contents';
 
 import { cn } from '@/lib/tiptap-utils';
-import { useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
+import {
+  getScrollableParent,
+  useToc,
+} from '@/components/tiptap-node/toc-node/context/toc-context';
 
 import './toc-sidebar.scss';
 
@@ -149,12 +152,19 @@ export function TocSidebar({
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    const pm = document.querySelector(
+      '.notion-like-editor-content .ProseMirror',
+    ) as HTMLElement | null;
+    const scrollRoot = getScrollableParent(pm);
 
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [manualActiveId]);
+    if (scrollRoot === window) {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
+    scrollRoot.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollRoot.removeEventListener('scroll', handleScroll);
+  }, [manualActiveId, headingList.length]);
 
   const hasHeadings = headingList.length > 0;
 

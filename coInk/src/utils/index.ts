@@ -29,3 +29,6 @@ export * from './url';
 
 // Editor
 export * from './editor';
+
+// Document last modified label (Header)
+export * from './format-document-last-modified';

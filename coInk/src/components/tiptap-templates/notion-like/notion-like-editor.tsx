@@ -91,6 +91,10 @@ import { NotionToolbarFloating } from '@/components/tiptap-templates/notion-like
 import { TocSidebar } from '@/components/tiptap-node/toc-node';
 import { TocProvider, useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
 import { ListNormalizationExtension } from '@/components/tiptap-extension/list-normalization-extension';
+import { EDITOR_AI_ENABLED, createEditorAiExtension } from '@/lib/editor-ai';
+import { getAuthToken } from '@/utils';
+import { useEditorStore } from '@/stores/editorStore';
+import { useSidebar } from '@/stores/sidebarStore';
 export interface CollaborationUser {
   id: string;
   name: string;
@@ -201,6 +205,8 @@ export function EditorProvider(props: EditorProviderProps) {
   } = props;
 
   const { setTocContent } = useToc();
+  const pageWidthMode = useEditorStore((s) => s.pageWidthMode);
+  const isDocsSidebarOpen = useSidebar((s) => s.isOpen);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -273,7 +279,9 @@ export function EditorProvider(props: EditorProviderProps) {
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
       Selection,
-      Image,
+      Image.configure({
+        allowBase64: true,
+      }),
       Details.configure({
         persist: true,
         HTMLAttributes: {
@@ -297,7 +305,7 @@ export function EditorProvider(props: EditorProviderProps) {
         maxSize: MAX_FILE_SIZE,
         limit: 3,
         upload: handleImageUpload,
-        onError: (error) => console.error('上传失败:', error),
+        onError: (error) => console.error('上传出错：', error),
       }),
       UniqueID.configure({
         types: [
@@ -346,6 +354,7 @@ export function EditorProvider(props: EditorProviderProps) {
         disableRegex: true,
         caseSensitive: false,
       }),
+      ...(EDITOR_AI_ENABLED ? [createEditorAiExtension(() => getAuthToken())] : []),
     ],
   });
 
@@ -361,7 +370,12 @@ export function EditorProvider(props: EditorProviderProps) {
     <div className="notion-like-editor-wrapper">
       <EditorContext.Provider value={{ editor }}>
         {showHeader && <NotionEditorHeader />}
-        <div className="notion-like-editor-layout">
+        <div
+          className="notion-like-editor-layout"
+          data-page-width={pageWidthMode}
+          data-sidebar-open={isDocsSidebarOpen ? 'true' : 'false'}
+          suppressHydrationWarning
+        >
           <EditorContentArea />
           {showTocSidebar && <TocSidebar topOffset={48} />}
         </div>

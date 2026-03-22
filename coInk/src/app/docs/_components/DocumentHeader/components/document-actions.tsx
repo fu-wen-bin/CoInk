@@ -1,174 +1,202 @@
 'use client';
 
-import { useState } from 'react';
-import { FileType, MoreHorizontal } from 'lucide-react';
-import juice from 'juice';
-import { toast } from 'sonner';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ChevronRight,
+  FileText,
+  FileType,
+  History,
+  MessageSquare,
+  MoreHorizontal,
+} from 'lucide-react';
 
-import ShareDialog from '../../DocumentSidebar/folder/ShareDialog';
-import HistoryPanel from '../../HistoryPanel';
-import type { DocumentActionsProps, ExportAction } from '../types';
+import type { DocumentActionsProps } from '../types';
+import { PageWidthMenuIcon, PageWidthSettingsPanel } from './page-width-settings';
 
-import type { FileItem } from '@/types/file-system';
 import { useCommentStore } from '@/stores/commentStore';
+import { useEditorStore } from '@/stores/editorStore';
+import { cn, handleExportPDF, handleExportDOCX } from '@/utils';
 import {
-  cleanElementAttributes,
-  extraCss,
-  processImages,
-  processLinks,
-  handleExportPDF,
-  handleExportDOCX,
-} from '@/utils';
-import {
-  Menu as PopoverMenu,
-  Item as PopoverItem,
   CategoryTitle as PopoverCategoryTitle,
+  Divider as PopoverDivider,
 } from '@/components/ui/PopoverMenu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
-export function DocumentActions({
-  editor,
-  documentId,
-  documentTitle,
-  doc,
-  connectedUsers,
-  currentUser,
-}: DocumentActionsProps) {
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
+/** 与 PopoverMenu.Item 一致的菜单项样式 */
+const menuItemClassName = cn(
+  'flex cursor-pointer items-center gap-2 rounded p-1.5 text-sm font-medium text-neutral-500 outline-none',
+  'hover:bg-neutral-100 hover:text-neutral-800 focus:bg-neutral-100 focus:text-neutral-800',
+  'dark:hover:bg-neutral-900 dark:hover:text-neutral-200 dark:focus:bg-neutral-900 dark:focus:text-neutral-200',
+  'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+);
+
+/** 与 Surface + Popover 主菜单容器一致：收窄宽度，高度由内容撑开，最高 80vh */
+const menuContentClassName = cn(
+  'flex w-[12rem] max-w-[85vw] flex-col gap-0.5 overflow-y-auto rounded-xl border border-neutral-100 bg-white p-2 shadow',
+  'max-h-[80vh]',
+  'dark:border-gray-700 dark:bg-gray-800',
+  'z-[9999]',
+);
+
+/** 页宽子菜单：与 Surface 一致 */
+const subMenuContentClassName = cn(
+  'max-h-[80vh] overflow-y-auto overflow-x-hidden rounded-xl border border-neutral-100 bg-white p-0 shadow-lg',
+  'dark:border-gray-700 dark:bg-gray-800',
+  'z-[9999]',
+);
+
+const subMenuTriggerClassName = cn(
+  menuItemClassName,
+  'w-full pr-1 data-[state=open]:bg-neutral-100 dark:data-[state=open]:bg-neutral-900',
+);
+
+/** 菜单内 Lucide 图标统一尺寸与线宽 */
+const menuLucideIconClass = 'h-4 w-4 shrink-0 stroke-[2] text-neutral-500 dark:text-neutral-400';
+
+/** 触发条与左侧浮层之间常有缝隙，略延迟再关，避免移入面板时闪关 */
+const PAGE_WIDTH_HOVER_CLOSE_DELAY_MS = 150;
+
+export function DocumentActions({ editor, documentId, documentTitle, doc }: DocumentActionsProps) {
+  const [pageWidthPopoverOpen, setPageWidthPopoverOpen] = useState(false);
+  const pageWidthHoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPageWidthHoverCloseTimer = () => {
+    if (pageWidthHoverCloseTimerRef.current) {
+      clearTimeout(pageWidthHoverCloseTimerRef.current);
+      pageWidthHoverCloseTimerRef.current = null;
+    }
+  };
+
+  const schedulePageWidthPopoverClose = () => {
+    clearPageWidthHoverCloseTimer();
+    pageWidthHoverCloseTimerRef.current = setTimeout(() => {
+      setPageWidthPopoverOpen(false);
+      pageWidthHoverCloseTimerRef.current = null;
+    }, PAGE_WIDTH_HOVER_CLOSE_DELAY_MS);
+  };
+
+  useEffect(() => {
+    return () => clearPageWidthHoverCloseTimer();
+  }, []);
 
   const { isPanelOpen, togglePanel, comments } = useCommentStore();
-
-  // 处理分享按钮点击
-  const handleShare = () => {
-    if (documentId) {
-      const fileItem: FileItem = {
-        id: documentId,
-        name: documentTitle,
-        type: 'file',
-        depth: 0,
-      };
-      setShareDialogFile(fileItem);
-      setShareDialogOpen(true);
-    }
-  };
-
-  // 处理复制按钮点击
-  const handleCopy = async () => {
-    try {
-      const htmlContent = editor.getHTML();
-
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
-
-      cleanElementAttributes(tempDiv);
-      processImages(tempDiv);
-      processLinks(tempDiv);
-
-      const unsupportedElements = tempDiv.querySelectorAll(
-        'script, style, iframe, object, embed, video, audio, canvas, svg, noscript',
-      );
-      unsupportedElements.forEach((el) => el.remove());
-
-      const processedHTML = tempDiv.innerHTML;
-
-      const inlinedHTML = juice(processedHTML, {
-        removeStyleTags: true,
-        preserveImportant: true,
-        applyWidthAttributes: true,
-        applyHeightAttributes: true,
-        applyAttributesTableElements: true,
-        extraCss: extraCss,
-      });
-
-      const fullHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body>${inlinedHTML}</body></html>`;
-      const textContent = tempDiv.innerText || tempDiv.textContent || '';
-
-      const clipboardItem = new ClipboardItem({
-        'text/html': new Blob([fullHTML], { type: 'text/html' }),
-        'text/plain': new Blob([textContent], { type: 'text/plain' }),
-      });
-
-      await navigator.clipboard.write([clipboardItem]);
-      toast.success('文档已复制到剪贴板');
-    } catch (error) {
-      console.error('复制失败:', error);
-      toast.error('复制失败');
-    }
-  };
-
-  const handleSelectAction = (value: ExportAction) => {
-    switch (value) {
-      case 'copy':
-        handleCopy();
-        break;
-      case 'pdf':
-        handleExportPDF(documentTitle);
-        break;
-      case 'docx':
-        handleExportDOCX(documentTitle, editor);
-        break;
-    }
-  };
+  const setHistoryPanelOpen = useEditorStore((s) => s.setHistoryPanelOpen);
 
   return (
     <>
-      <PopoverMenu
-        trigger={
+      <DropdownMenu
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) {
+            clearPageWidthHoverCloseTimer();
+            setPageWidthPopoverOpen(false);
+          }
+        }}
+      >
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className={cn(
+              'relative cursor-pointer rounded-lg p-2 text-gray-600 transition-colors',
+              'hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
+              'data-[state=open]:bg-gray-100 dark:data-[state=open]:bg-gray-800',
+            )}
+            aria-label="更多操作"
           >
-            <MoreHorizontal className="w-5 h-5" />
+            <MoreHorizontal className="h-5 w-5" />
           </button>
-        }
-        customTrigger
-      >
-        <PopoverCategoryTitle>协作与分享</PopoverCategoryTitle>
-        <PopoverItem
-          label={
-            <div className="flex w-full items-center justify-between">
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={8} className={cn(menuContentClassName)}>
+          {/* Radix SubContent 在 LTR 下固定向右；用 Popover 才能 side:left */}
+          <Popover
+            modal={false}
+            open={pageWidthPopoverOpen}
+            onOpenChange={(open) => {
+              clearPageWidthHoverCloseTimer();
+              setPageWidthPopoverOpen(open);
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={subMenuTriggerClassName}
+                onMouseEnter={() => {
+                  clearPageWidthHoverCloseTimer();
+                  setPageWidthPopoverOpen(true);
+                }}
+                onMouseLeave={schedulePageWidthPopoverClose}
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <PageWidthMenuIcon />
+                  页宽设置
+                </span>
+                <ChevronRight className="ml-auto h-4 w-4 shrink-0 opacity-70" aria-hidden />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="left"
+              align="start"
+              sideOffset={12}
+              collisionPadding={16}
+              className={cn(subMenuContentClassName, 'w-auto max-w-[min(92vw,22rem)] p-0')}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onMouseEnter={() => {
+                clearPageWidthHoverCloseTimer();
+                setPageWidthPopoverOpen(true);
+              }}
+              onMouseLeave={schedulePageWidthPopoverClose}
+            >
+              <PageWidthSettingsPanel />
+            </PopoverContent>
+          </Popover>
+
+          <PopoverCategoryTitle>协作</PopoverCategoryTitle>
+          <DropdownMenuItem className={menuItemClassName} onClick={togglePanel}>
+            <MessageSquare className={menuLucideIconClass} />
+            <span className="flex flex-1 items-center justify-between gap-2">
               <span>{isPanelOpen ? '关闭评论' : '打开评论'}</span>
               {comments.length > 0 && (
-                <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-semibold text-white">
+                <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-semibold text-white">
                   {comments.length}
                 </span>
               )}
-            </div>
-          }
-          icon="MessageSquare"
-          onClick={togglePanel}
-        />
-        {documentId && <PopoverItem label="分享" icon="Share" onClick={handleShare} />}
+            </span>
+          </DropdownMenuItem>
 
-        <PopoverCategoryTitle>文档操作</PopoverCategoryTitle>
-        {documentId && doc && (
-          <HistoryPanel
-            documentId={documentId}
-            doc={doc}
-            connectedUsers={connectedUsers}
-            currentUser={currentUser}
-          />
-        )}
-        <PopoverItem label="复制到公众号" icon="Copy" onClick={() => handleSelectAction('copy')} />
-        <PopoverItem
-          label="导出PDF"
-          iconComponent={<FileType className="w-4 h-4" />}
-          onClick={() => handleSelectAction('pdf')}
-        />
-        <PopoverItem label="导出Word" icon="FileText" onClick={() => handleSelectAction('docx')} />
-      </PopoverMenu>
+          <PopoverDivider />
 
-      {/* 分享对话框 */}
-      {shareDialogFile && (
-        <ShareDialog
-          file={shareDialogFile}
-          isOpen={shareDialogOpen}
-          onClose={() => {
-            setShareDialogOpen(false);
-            setShareDialogFile(null);
-          }}
-        />
-      )}
+          <PopoverCategoryTitle>文档操作</PopoverCategoryTitle>
+          {documentId && doc && (
+            <DropdownMenuItem
+              className={menuItemClassName}
+              onClick={() => setHistoryPanelOpen(true)}
+            >
+              <History className={menuLucideIconClass} />
+              历史记录
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            className={menuItemClassName}
+            onClick={() => handleExportPDF(documentTitle)}
+          >
+            <FileType className={menuLucideIconClass} />
+            导出PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={menuItemClassName}
+            onClick={() => handleExportDOCX(documentTitle, editor)}
+          >
+            <FileText className={menuLucideIconClass} />
+            导出Word
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 }

@@ -21,7 +21,13 @@ const isApiEnvelope = (value: unknown): value is ApiEnvelope<unknown> => {
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
   // 统一处理所有成功响应
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const req = context.switchToHttp().getRequest<{ url?: string }>();
+    // 流式接口自行写入 Response，不能包一层 { code, data }
+    if (typeof req?.url === 'string' && req.url.includes('/ai/editor/stream')) {
+      return next.handle();
+    }
+
     return next.handle().pipe(
       map((data: unknown) => {
         // 若已是统一格式，则直接透传，避免二次包裹

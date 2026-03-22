@@ -5,6 +5,16 @@
   --placeholder-color: var(--tt-gray-light-a-400);
   --thread-bg-color: var(--tt-color-yellow-inc-2);
 
+  /* 飞书式块距 */
+  --tt-flow-gap: 0.625rem;
+  --tt-flow-gap-relaxed: 0.8125rem;
+  --tt-under-heading-gap: 0.375rem;
+  /*
+   * 正文 → 代码块 / 上传 / 表格 / 图 / NodeView 外圈：与「正文 → 标题」同级分割
+   * 数值对齐 heading-node 的 --tt-section-before-h2（二级标题前留白）
+   */
+  --tt-block-section-gap: 1.125rem;
+
   // ai
   --tiptap-ai-insertion-color: var(--tt-brand-color-600);
 
@@ -33,12 +43,113 @@
   outline: none;
   caret-color: var(--tt-cursor-color);
 
-  // Paragraph spacing
+  > p {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: normal;
+  }
+
+  /* 任意上一块后的段落：统一行距（含 p→p、列表/引用/代码→段） */
+  > * + p {
+    margin-top: var(--tt-flow-gap);
+  }
+
+  /* 标题后的首段：收紧，避免「标题 + 段」看起来像双倍段距 */
+  > h1 + p,
+  > h2 + p,
+  > h3 + p,
+  > h4 + p,
+  > h5 + p,
+  > h6 + p {
+    margin-top: var(--tt-under-heading-gap);
+  }
+
+  > h1 + ol,
+  > h1 + ul,
+  > h2 + ol,
+  > h2 + ul,
+  > h3 + ol,
+  > h3 + ul,
+  > h4 + ol,
+  > h4 + ul,
+  > h5 + ol,
+  > h5 + ul,
+  > h6 + ol,
+  > h6 + ul {
+    margin-top: var(--tt-under-heading-gap);
+  }
+
+  /* 列表 / 引用 / 代码 / 表格 / 图片：与正文流一致，略松一档即可（避免旧版 1.5em×2 叠出过大的缝） */
+  > * + ol,
+  > * + ul {
+    margin-top: var(--tt-flow-gap-relaxed);
+  }
+
+  > * + blockquote {
+    margin-top: var(--tt-flow-gap-relaxed);
+  }
+
+  > * + pre,
+  > * + .code-block {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > * + [data-content-type="table"] {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > * + .tiptap-image {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > * + .tiptap-image-upload {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > * + hr,
+  > * + [data-type="horizontalRule"] {
+    margin-top: var(--tt-flow-gap-relaxed);
+  }
+
+  /*
+   * 覆盖 styles/index.css 中 `.ProseMirror > .react-renderer { my-12 }`。
+   * 代码块 / 上传等 NodeView 外层是 .react-renderer，会与块距叠出绿箭头处过大空白。
+   */
+  > .react-renderer {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  > * + .react-renderer {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > .react-renderer + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  /* 直连 pre / 图 等（无 react-renderer 包裹时） */
+  > pre + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+  > .code-block + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+  > .tiptap-image + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+  > .tiptap-image-upload + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+    margin-top: var(--tt-block-section-gap);
+  }
+
+  > [data-content-type="table"] + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+    margin-top: var(--tt-block-section-gap);
+  }
+
   p:not(:first-child):not(td p):not(th p) {
     font-size: 1rem;
     line-height: 1.6;
     font-weight: normal;
-    margin-top: 20px;
+  }
+
+  li > p + p {
+    margin-top: 0.5em;
   }
 
   // Selection styles

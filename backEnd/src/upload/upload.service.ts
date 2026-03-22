@@ -1,13 +1,12 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 
 import { PrismaService } from '../prisma/prisma.service';
-
-import { CompleteFileDto, UploadChunkDto } from './dto';
+import { CompleteFileDto } from './dto';
+import { OssService } from './oss.service';
 
 export interface UploadStatus {
   fileId: string;
@@ -24,7 +23,10 @@ export class UploadService {
   private readonly avatarsDir: string;
   private uploadStatusMap: Map<string, UploadStatus> = new Map();
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ossService: OssService,
+  ) {
     // Use the backend root as base for uploads
     this.uploadDir = path.join(process.cwd(), '..', 'uploads');
     this.tempDir = path.join(this.uploadDir, 'temp');
@@ -129,11 +131,11 @@ export class UploadService {
   /**
    * 上传单个分片
    */
-  async uploadChunk(
+  uploadChunk(
     fileId: string,
     chunkIndex: number,
     totalChunks: number,
-    fileHash: string,
+    _fileHash: string,
     chunkBuffer: Buffer,
   ): Promise<{
     success: boolean;
@@ -170,11 +172,11 @@ export class UploadService {
     // Sort uploaded chunks
     status.uploadedChunks.sort((a, b) => a - b);
 
-    return {
+    return Promise.resolve({
       success: true,
       uploadedChunks: status.uploadedChunks,
       isComplete: status.uploadedChunks.length === totalChunks,
-    };
+    });
   }
 
   // ==================== 文件合并 ====================
@@ -396,6 +398,58 @@ export class UploadService {
     }
 
     return { success: true };
+  }
+
+  // ==================== 编辑器图片（OSS） ====================
+
+  /**
+   * 上传编辑器内图片至阿里云 OSS，返回公网可访问 URL
+   */
+  async uploadEditorImage(
+    fileBuffer: Buffer,
+    originalName: string,
+    mimeType: string,
+    userId: string,
+  ): Promise<{ url: string }> {
+    if (!this.ossService.isEnabled()) {
+      throw new ServiceUnavailableException(
+        '未配置阿里云 OSS，请在服务端环境变量中填写 OSS_REGION、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_BUCKET',
+      );
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(mimeType)) {
+      throw new BadRequestException('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片');
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (fileBuffer.length > maxSize) {
+      throw new BadRequestException('图片大小不能超过 5MB');
+    }
+
+    const ext = this.resolveImageExtension(originalName, mimeType);
+    const dateDir = new Date().toISOString().split('T')[0];
+    const objectKey = `editor-images/${userId}/${dateDir}/${nanoid()}${ext}`;
+
+    const url = await this.ossService.uploadBuffer(objectKey, fileBuffer, mimeType);
+    return { url };
+  }
+
+  private resolveImageExtension(originalName: string, mimeType: string): string {
+    const fromName = path.extname(originalName).toLowerCase();
+    if (fromName && fromName.length <= 8) {
+      return fromName;
+    }
+
+    const map: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+      'image/svg+xml': '.svg',
+    };
+
+    return map[mimeType] ?? '.jpg';
   }
 
   // ==================== 头像上传 ====================

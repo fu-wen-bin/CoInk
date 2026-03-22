@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { History, Clock, Trash2, RotateCcw, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,9 +20,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { cn } from '@/utils';
+import { useEditorStore } from '@/stores/editorStore';
 
 interface CollaborationUser {
   id: string;
@@ -46,7 +46,12 @@ export default function HistoryPanel({
 }: HistoryPanelProps) {
   const otherUsers = connectedUsers.filter((user) => user.id !== currentUser?.id);
   const hasOtherUsers = otherUsers.length > 0;
-  const [isOpen, setIsOpen] = useState(false);
+  const isOpen = useEditorStore((s) => s.isHistoryPanelOpen);
+  const setHistoryPanelOpen = useEditorStore((s) => s.setHistoryPanelOpen);
+
+  useEffect(() => {
+    setHistoryPanelOpen(false);
+  }, [documentId, setHistoryPanelOpen]);
   const [isRestoring, setIsRestoring] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -142,21 +147,8 @@ export default function HistoryPanel({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <div
-            className="flex items-center gap-2 p-1.5 text-sm font-medium text-neutral-500 text-left bg-transparent w-full rounded hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
-            aria-label="查看历史记录"
-          >
-            <History className="w-4 h-4" />
-            <span>历史记录</span>
-            {snapshots.length > 0 && (
-              <span className="ml-auto px-1.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500 text-white min-w-[20px] text-center">
-                {snapshots.length}
-              </span>
-            )}
-          </div>
-        </DialogTrigger>
+      {/* 打开入口：Header「最近修改」或更多菜单「历史记录」，由 editorStore.isHistoryPanelOpen 控制 */}
+      <Dialog open={isOpen} onOpenChange={setHistoryPanelOpen}>
         <DialogContent className="h-[80vh] w-full max-w-2xl overflow-y-auto">
           <DialogDescription className="sr-only">
             查看和管理文档的历史快照，可以创建、恢复或删除快照

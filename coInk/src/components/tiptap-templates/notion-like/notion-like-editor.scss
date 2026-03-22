@@ -62,25 +62,63 @@ body,
   }
 }
 
+/* 仅「页宽档位」过渡：--editor-user-pct 随 data-page-width 变化；侧栏开关只改 --editor-content-pct，无过渡 */
+@property --editor-user-pct {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 75;
+}
+
 .notion-like-editor-layout {
-  --content-width: minmax(0, 708px);
-  --margin-width: minmax(96px, 1fr);
+  --editor-user-pct: 75;
+  transition: --editor-user-pct 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 实际列宽：默认跟随用户档位；侧栏打开时固定 95%（与 --editor-user-pct 解耦，避免侧栏动画） */
+  --editor-content-pct: var(--editor-user-pct);
 
   display: grid;
   grid-template-columns:
-    [full-start] var(--margin-left-width, var(--margin-width))
-    [content-start] var(--content-width)
-    [content-end] var(--margin-right-width, var(--margin-width))
+    [full-start] minmax(0, 1fr)
+    [content-start] minmax(0, calc(var(--editor-content-pct) * 1%))
+    [content-end] minmax(0, 1fr)
     [full-end];
   width: 100%;
   min-width: 0;
   position: relative;
 }
 
+/* 默认 75% / 较宽 85% / 全宽 95%（相对主内容区） */
+.notion-like-editor-layout[data-page-width="default"] {
+  --editor-user-pct: 75;
+}
+
+.notion-like-editor-layout[data-page-width="wide"] {
+  --editor-user-pct: 85;
+}
+
+.notion-like-editor-layout[data-page-width="full"] {
+  --editor-user-pct: 95;
+}
+
+/* 文档侧边栏展开时固定 95%，页宽档位仅作记忆，关闭侧边栏后生效（需写在各档位之后以覆盖） */
+.notion-like-editor-layout[data-sidebar-open="true"] {
+  --editor-content-pct: 95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notion-like-editor-layout {
+    transition: none;
+  }
+}
+
 // Mobile: single column layout
 @media screen and (max-width: 1024px) {
   .notion-like-editor-layout {
-    --margin-width: minmax(1rem, 1fr);
+    /* 窄屏仍保留中间列比例，仅收紧左右列最小留白 */
+    grid-template-columns:
+      [full-start] minmax(1rem, 1fr)
+      [content-start] minmax(0, calc(var(--editor-content-pct) * 1%))
+      [content-end] minmax(1rem, 1fr)
+      [full-end];
   }
 }
 

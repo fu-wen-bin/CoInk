@@ -8,8 +8,6 @@ export interface CollaborationUser {
   avatar: string;
 }
 
-export type ExportAction = 'copy' | 'pdf' | 'docx';
-
 export interface DocumentHeaderProps {
   provider?: unknown;
   connectedUsers?: CollaborationUser[];
@@ -30,8 +28,6 @@ export interface DocumentActionsProps {
   documentId?: string;
   documentTitle: string;
   doc?: Y.Doc;
-  connectedUsers?: CollaborationUser[];
-  currentUser?: CollaborationUser | null;
 }
 
 export interface CollaborationUsersProps {

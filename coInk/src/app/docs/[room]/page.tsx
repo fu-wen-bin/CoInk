@@ -24,6 +24,7 @@ const CommentPanel = dynamic(
 import { getCursorColorByUserId, getAuthToken } from '@/utils';
 import { getSelectionLineRange } from '@/utils/editor';
 import DocumentHeader from '@/app/docs/_components/DocumentHeader';
+import HistoryPanel from '@/app/docs/_components/HistoryPanel';
 import { SearchPanel } from '@/app/docs/_components/SearchPanel';
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
@@ -626,6 +627,16 @@ export default function DocumentPage() {
         <Activity>
           <CommentPanel editor={editor} documentId={documentId} currentUserId={currentUser?.id} />
         </Activity>
+      )}
+
+      {/* 文档历史（快照）弹层：由 Header「最近修改」或更多菜单打开 */}
+      {doc && documentId && (
+        <HistoryPanel
+          documentId={documentId}
+          doc={doc}
+          connectedUsers={connectedUsers}
+          currentUser={currentUser}
+        />
       )}
 
       {/* 搜索面板 */}

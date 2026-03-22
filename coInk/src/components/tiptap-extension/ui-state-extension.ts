@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core';
+import { Extension, type Editor } from '@tiptap/core';
 
 export interface UiState {
   aiGenerationIsSelection: boolean;
@@ -44,51 +44,52 @@ export const defaultUiState: UiState = {
   isDragging: false,
 } as const;
 
+/**
+ * `useEditorState`（如 useUiEditorState）只在 editor 触发 `transaction` 时刷新。
+ * 若只改 extension storage 而不 dispatch，React 不会重绘，AI 加载动画与操作栏会永远不更新。
+ */
+function dispatchUiStateSync(editor: Editor) {
+  editor.view.dispatch(editor.state.tr);
+}
+
 export const UiState = Extension.create<UiState>({
   name: 'uiState',
 
   addStorage() {
-    return {
-      uiState: { ...defaultUiState },
-    };
+    return { ...defaultUiState };
   },
 
   addCommands() {
     const createBooleanSetter = (key: keyof UiState) => (value: boolean) => () => {
       this.storage[key] = value;
+      dispatchUiStateSync(this.editor);
       return true;
     };
 
     const createToggle = (key: keyof UiState, value: boolean) => () => () => {
       this.storage[key] = value;
+      dispatchUiStateSync(this.editor);
       return true;
     };
 
     return {
-      // AI Generation commands
       aiGenerationSetIsSelection: createBooleanSetter('aiGenerationIsSelection'),
       aiGenerationSetIsLoading: createBooleanSetter('aiGenerationIsLoading'),
       aiGenerationHasMessage: createBooleanSetter('aiGenerationHasMessage'),
       aiGenerationShow: createToggle('aiGenerationActive', true),
       aiGenerationHide: createToggle('aiGenerationActive', false),
 
-      // Comment input commands
       commentInputShow: createToggle('commentInputVisible', true),
       commentInputHide: createToggle('commentInputVisible', false),
 
-      // Drag handle commands
       setLockDragHandle: createBooleanSetter('lockDragHandle'),
       setIsDragging: createBooleanSetter('isDragging'),
 
-      // Reset command
       resetUiState: () => () => {
         Object.assign(this.storage, { ...defaultUiState });
+        dispatchUiStateSync(this.editor);
         return true;
       },
     };
-  },
-
-  onCreate() {
-    this.storage = { ...defaultUiState };
   },
 });

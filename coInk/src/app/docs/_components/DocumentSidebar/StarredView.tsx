@@ -8,7 +8,7 @@ import { zhCN } from 'date-fns/locale';
 
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
-import { cn } from '@/utils';
+import { cn, getCurrentUserId } from '@/utils';
 
 interface StarredViewProps {
   isActive: boolean;
@@ -29,9 +29,18 @@ export default function StarredView({ isActive, compact }: StarredViewProps) {
   const loadStarredDocs = async () => {
     setIsLoading(true);
     try {
-      const result = await documentsApi.getStarred({ page: 1, limit: 50 });
-      if (result.data?.data) {
-        setStarredDocs(result.data.data);
+      const ownerId = getCurrentUserId();
+      if (!ownerId) {
+        setStarredDocs([]);
+        return;
+      }
+      const result = await documentsApi.getStarred({ ownerId });
+      const payload = result.data?.data;
+      if (payload) {
+        const list = Array.isArray(payload)
+          ? payload
+          : ((payload as { documents?: Document[] }).documents ?? []);
+        setStarredDocs(list);
       }
     } catch (error) {
       console.error('加载收藏文档失败:', error);

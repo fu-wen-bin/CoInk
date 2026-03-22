@@ -70,8 +70,9 @@ export class AiService {
         '用户会提供 action（操作类型）与选中文本；请按要求改写或生成。',
         '若 textOptions.format 为 rich-text，请输出可直接插入编辑器的 HTML 片段（与 TipTap 兼容的简洁 HTML）；',
         '若为 plain-text 或未指定，请输出纯文本。',
-        '尽量保持用户所使用的自然语言。',
-        'action 为 TipTap 内置操作类型（如 adjust-tone、translate、extend 等）；',
+        '输出语言必须与「选中文本」一致：若选区以中文为主，请用中文作答；若以英文为主，请用英文作答。',
+        '除非用户明确要求某种语言，或 action 为 translate 且 textOptions.language 指定了目标语言，否则不要用另一种语言覆盖用户语言。',
+        'action 仅为 TipTap 内部枚举（如 adjust-tone、translate），不是要求你用英文回复；请按上述语言规则输出。',
         'textOptions 中含二级选项：tone（语气）、language（翻译目标语言 ISO 639-1）等，请严格遵循。',
       ].join('\n');
 

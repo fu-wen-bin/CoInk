@@ -18,6 +18,11 @@ import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
+    // 必须最先加载，其它模块在构造时才能读到 process.env（.env 文件）
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     PrismaModule,
     UserModule,
     DocumentsModule,
@@ -30,10 +35,6 @@ import { AiModule } from './ai/ai.module';
     UploadModule,
     CollaborationModule,
     AiModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
   ],
   controllers: [AppController],
   providers: [AppService],

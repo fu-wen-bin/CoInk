@@ -77,6 +77,8 @@ import { useTocShowTitle } from '@/components/tiptap-node/toc-node/ui/toc-show-t
 import { DividerOutlinedIcon } from '@/components/tiptap-icons/divider-outlined-icon';
 import { ListIndentedIcon } from '@/components/tiptap-icons/list-indented-icon';
 import { insertSlashCommand } from '@/components/tiptap-ui/slash-command-trigger-button';
+import { AskAiShortcutBadge, useAiAsk } from '@/components/tiptap-ui/ai-ask-button';
+import { EDITOR_AI_ENABLED } from '@/lib/editor-ai';
 import './drag-context-menu.scss';
 
 /**
@@ -415,6 +417,33 @@ const CoreActionGroup: React.FC = () => {
   );
 };
 
+/**
+ * 与浮动工具栏「润色」内一致：开启 EDITOR_AI 后显示；当前块不可用时禁用（如纯图片块）。
+ * 点击前先通过拖拽柄 `selectNode` 形成块选区，便于 `canPerformAiAsk` 判断。
+ */
+const DragHandleAiAskMenuItem: React.FC = () => {
+  const { editor } = useTiptapEditor();
+  const { handleAiAsk, canAiAsk, Icon, shortcutKeys } = useAiAsk({
+    hideWhenUnavailable: false,
+  });
+
+  if (!EDITOR_AI_ENABLED || !editor) {
+    return null;
+  }
+
+  return (
+    <BaseMenuItem
+      icon={Icon}
+      label="询问 AI"
+      onClick={() => {
+        handleAiAsk();
+      }}
+      disabled={!canAiAsk}
+      shortcutBadge={<AskAiShortcutBadge shortcutKeys={shortcutKeys} />}
+    />
+  );
+};
+
 const DeleteActionGroup: React.FC = () => {
   const { handleDeleteNode, canDeleteNode, label, Icon } = useDeleteNode();
 
@@ -594,6 +623,12 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
                     </MenuGroup>
 
                     <CoreActionGroup />
+
+                    <MenuGroup>
+                      <DragHandleAiAskMenuItem />
+                    </MenuGroup>
+
+                    <Separator orientation="horizontal" />
 
                     <DeleteActionGroup />
                   </ComboboxList>

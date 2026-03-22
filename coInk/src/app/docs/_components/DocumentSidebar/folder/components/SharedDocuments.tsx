@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
+import { getCurrentUserId } from '@/utils';
 
 interface SharedDocumentsProps {
   isExpanded: boolean;
@@ -38,11 +39,22 @@ const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle 
     setError(null);
 
     try {
-      const response = await documentsApi.getSharedWithMe({ userId: '' });
+      const userId = getCurrentUserId();
+      if (!userId) {
+        setSharedDocs([]);
+        return;
+      }
+      const response = await documentsApi.getSharedWithMe({ userId });
 
-      if (response?.data?.documents) {
-        // Map documents to shared document items
-        const items: SharedDocumentItem[] = response.data.documents.map((doc: Document) => ({
+      const payload = response?.data?.data;
+      const docList: Document[] = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object' && 'documents' in payload
+          ? (payload as { documents: Document[] }).documents
+          : [];
+
+      if (docList.length > 0) {
+        const items: SharedDocumentItem[] = docList.map((doc: Document) => ({
           id: doc.documentId,
           title: doc.title,
           type: doc.type,

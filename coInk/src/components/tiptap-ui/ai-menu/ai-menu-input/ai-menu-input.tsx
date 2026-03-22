@@ -158,7 +158,7 @@ export function AiMenuInputTextarea({
   onEmptyBlur,
   onPlaceholderClick,
   showPlaceholder = false,
-  placeholder = '告诉 AI 你的需求...',
+  placeholder = '告诉 AI 你还想修改什么...',
   ...props
 }: AiMenuInputTextareaProps) {
   const [promptValue, setPromptValue] = useComboboxValueState();

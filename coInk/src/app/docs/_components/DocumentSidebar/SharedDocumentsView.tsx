@@ -6,7 +6,7 @@ import { Share2, FileText, Folder, Loader2 } from 'lucide-react';
 
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
-import { cn } from '@/utils';
+import { cn, getCurrentUserId } from '@/utils';
 
 interface SharedDocumentsViewProps {
   isActive: boolean;
@@ -35,12 +35,20 @@ export default function SharedDocumentsView({ isActive, compact }: SharedDocumen
   const loadSharedDocs = async () => {
     setIsLoading(true);
     try {
-      // 获取与我共享的文档
-      const result = await documentsApi.getSharedWithMe({ userId: '' });
-      // 修复类型问题 - 使用双重 data 嵌套
-      const responseData = (result.data as unknown as { data?: { documents: Document[] } })?.data;
-      if (responseData?.documents) {
-        const items: SharedDocumentItem[] = responseData.documents.map((doc: Document) => ({
+      const userId = getCurrentUserId();
+      if (!userId) {
+        setSharedDocs([]);
+        return;
+      }
+      const result = await documentsApi.getSharedWithMe({ userId });
+      const payload = result.data?.data;
+      const docList: Document[] = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object' && 'documents' in payload
+          ? (payload as { documents: Document[] }).documents
+          : [];
+      if (docList.length > 0) {
+        const items: SharedDocumentItem[] = docList.map((doc: Document) => ({
           id: doc.documentId,
           title: doc.title,
           type: doc.type,

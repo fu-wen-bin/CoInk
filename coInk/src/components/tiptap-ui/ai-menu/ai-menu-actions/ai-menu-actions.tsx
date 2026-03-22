@@ -56,22 +56,33 @@ export function AiMenuActions({
             className="tiptap-button"
             onClick={handleRegenerate}
             disabled={aiGenerationIsLoading}
+            aria-label="重新生成"
           >
             <RefreshAiIcon className="tiptap-button-icon" />
-            Try again
+            重新生成
           </Button>
         </ButtonGroup>
       </div>
 
       <div className="tiptap-ai-menu-commit">
         <ButtonGroup orientation="horizontal">
-          <Button data-style="ghost" className="tiptap-button" onClick={handleDiscard}>
+          <Button
+            data-style="ghost"
+            className="tiptap-button"
+            onClick={handleDiscard}
+            aria-label="放弃"
+          >
             <XIcon className="tiptap-button-icon" />
-            Discard
+            放弃
           </Button>
-          <Button data-style="primary" className="tiptap-button" onClick={handleApply}>
+          <Button
+            data-style="primary"
+            className="tiptap-button"
+            onClick={handleApply}
+            aria-label="应用"
+          >
             <CheckIcon className="tiptap-button-icon" />
-            Apply
+            应用
           </Button>
         </ButtonGroup>
       </div>

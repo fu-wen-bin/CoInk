@@ -12,7 +12,7 @@ import { ListIcon } from '@/components/tiptap-icons/list-icon';
 import { ListOrderedIcon } from '@/components/tiptap-icons/list-ordered-icon';
 import { ListTodoIcon } from '@/components/tiptap-icons/list-todo-icon';
 import { AiSparklesIcon } from '@/components/tiptap-icons/ai-sparkles-icon';
-import { MinusIcon } from '@/components/tiptap-icons/minus-icon';
+import { DividerOutlinedIcon } from '@/components/tiptap-icons/divider-outlined-icon';
 import { TypeIcon } from '@/components/tiptap-icons/type-icon';
 import { AtSignIcon } from '@/components/tiptap-icons/at-sign-icon';
 import { SmilePlusIcon } from '@/components/tiptap-icons/smile-plus-icon';
@@ -149,7 +149,7 @@ const texts = {
     title: '分割线',
     subtext: '使用横线分隔内容',
     keywords: ['hr', 'horizontalRule', 'line', 'separator'],
-    badge: MinusIcon,
+    badge: DividerOutlinedIcon,
     group: '插入',
   },
   toc: {

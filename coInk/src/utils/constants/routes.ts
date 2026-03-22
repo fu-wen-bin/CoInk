@@ -8,8 +8,6 @@ export const ROUTES = {
   AUTH: '/auth',
   DASHBOARD: '/dashboard',
   DOCS: '/docs',
-  // MESSAGES: '/dashboard/messages',
-  MESSAGES: '/chat-ai',
   WORKFLOW: '/dashboard/workflow',
   KNOWLEDGE: '/dashboard/knowledge',
   PODCAST: '/dashboard/podcast',
@@ -23,7 +21,6 @@ export const ROUTES = {
 // 页面标题映射
 export const PAGE_TITLE_MAP: Record<string, string> = {
   [ROUTES.DASHBOARD]: '仪表盘',
-  [ROUTES.MESSAGES]: 'AI聊天助手',
   [ROUTES.WORKFLOW]: '工作流编辑器',
   [ROUTES.CONTACTS]: '通讯录',
   [ROUTES.ORGANIZATIONS]: '组织管理',
@@ -39,7 +36,6 @@ export const PAGE_TITLE_MAP: Record<string, string> = {
 export const PAGE_DESCRIPTION_MAP: Record<string, string> = {
   [ROUTES.DASHBOARD]: '欢迎回来，查看您的工作概览',
   [ROUTES.USER]: '管理您的账户信息和资料',
-  [ROUTES.MESSAGES]: '与AI助手进行智能对话和协作',
   [ROUTES.WORKFLOW]: '创建和管理自动化工作流程',
   [ROUTES.SETTINGS]: '配置您的偏好设置',
   [ROUTES.KNOWLEDGE]: '管理和组织您的知识库内容',

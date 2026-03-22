@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Podcast,
-  Bot,
   Workflow,
   Users,
   Building2,
@@ -31,13 +30,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: ROUTES.DASHBOARD,
     icon: <LayoutDashboard className="w-5 h-5" />,
     tourContent: '仪表盘用于展示系统概览和关键指标，帮助你快速了解当前工作状态。',
-  },
-  {
-    name: '聊天助手',
-    href: ROUTES.MESSAGES,
-    external: true,
-    icon: <Bot className="w-5 h-5" />,
-    tourContent: '聊天助手提供 AI 对话能力，支持智能问答、写作辅助等功能。',
   },
   {
     name: '工作流',

@@ -167,7 +167,7 @@ const BlocksTab = () => {
       category: 'layout',
     },
     {
-      icon: 'Minus',
+      icon: 'DividerOutlined',
       label: '分割线',
       description: '添加水平分割线',
       blockType: 'divider',

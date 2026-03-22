@@ -3,13 +3,6 @@ import { CellSelection } from '@tiptap/pm/tables';
 import type { JSONContent, Editor } from '@tiptap/react';
 import { isTextSelection, isNodeSelection, posToDOMRect } from '@tiptap/react';
 
-// TipTap AI
-export const TIPTAP_AI_APP_ID = process.env.NEXT_PUBLIC_TIPTAP_AI_APP_ID || '';
-export const TIPTAP_AI_TOKEN = process.env.NEXT_PUBLIC_TIPTAP_AI_TOKEN || '';
-export const AI_FALLBACK_TOKEN = 'coink-ai-placeholder-token';
-
-export const USE_JWT_TOKEN_API_ENDPOINT = process.env.NEXT_PUBLIC_USE_JWT_TOKEN_API_ENDPOINT || '';
-
 const NODE_TYPE_LABELS: Record<string, string> = {
   paragraph: '正文',
   heading: '标题',
@@ -20,15 +13,6 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   tocNode: '目录',
 };
 export type OverflowPosition = 'none' | 'top' | 'bottom' | 'both';
-
-/**
- * Utility function to get URL parameters
- */
-export const getUrlParam = (param: string): string | null => {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  return params.get(param);
-};
 
 /**
  * Returns a display name for the current node in the editor
@@ -169,34 +153,4 @@ export const getAvatar = (name: string) => {
   const id = 1 + Math.floor(randomFraction * 20);
   const idString = id.toString().padStart(2, '0');
   return `/avatars/memoji_${idString}.png`;
-};
-
-/**
- * Fetch AI JWT token from the API
- */
-export const fetchAiToken = async () => {
-  if (USE_JWT_TOKEN_API_ENDPOINT) {
-    try {
-      // Example API endpoint that returns a JWT token.
-      // TODO: implement this API endpoint in your app
-      const response = await fetch(`/api/ai`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch token: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.token || AI_FALLBACK_TOKEN;
-    } catch (error) {
-      console.error('Failed to fetch AI token:', error);
-      return AI_FALLBACK_TOKEN;
-    }
-  }
-
-  return TIPTAP_AI_TOKEN || AI_FALLBACK_TOKEN;
 };

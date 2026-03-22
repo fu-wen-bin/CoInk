@@ -16,7 +16,6 @@ import {
   List,
   ListOrdered,
   ListTodo,
-  Minus,
   Plus,
   Quote,
   Repeat2,
@@ -75,6 +74,8 @@ import type {
 } from '@/components/tiptap-ui/drag-context-menu/drag-context-menu-types';
 import { Label } from '@/components/tiptap-ui-primitive/label';
 import { useTocShowTitle } from '@/components/tiptap-node/toc-node/ui/toc-show-title-button';
+import { DividerOutlinedIcon } from '@/components/tiptap-icons/divider-outlined-icon';
+import { ListIndentedIcon } from '@/components/tiptap-icons/list-indented-icon';
 import { insertSlashCommand } from '@/components/tiptap-ui/slash-command-trigger-button';
 import './drag-context-menu.scss';
 
@@ -175,7 +176,7 @@ function DragHandleNodeIcon({ node }: { node: TiptapNode | null }) {
     case 'blockquote':
       return <Quote className={combined} strokeWidth={stroke} />;
     case 'horizontalRule':
-      return <Minus className={combined} strokeWidth={stroke} />;
+      return <DividerOutlinedIcon className={combined} />;
     case 'image':
     case 'imageUpload':
       return <Image className={combined} strokeWidth={stroke} />;
@@ -184,7 +185,7 @@ function DragHandleNodeIcon({ node }: { node: TiptapNode | null }) {
     case 'details':
       return <IndentIncrease className={combined} strokeWidth={stroke} />;
     case 'tocNode':
-      return <IndentIncrease className={combined} strokeWidth={stroke} />;
+      return <ListIndentedIcon className={combined} />;
     default:
       return <Type className={combined} strokeWidth={stroke} />;
   }

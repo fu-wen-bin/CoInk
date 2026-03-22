@@ -180,7 +180,7 @@ export const GROUPS: Group[] = [
       {
         name: 'horizontalRule',
         label: '分割线',
-        iconName: 'Minus',
+        iconName: 'DividerOutlined',
         description: '插入水平分隔线',
         aliases: ['hr'],
         action: (editor) => {
@@ -190,7 +190,7 @@ export const GROUPS: Group[] = [
       {
         name: 'toc',
         label: '目录',
-        iconName: 'Book',
+        iconName: 'ListIndented',
         aliases: ['outline'],
         description: '插入文档目录',
         shouldBeHidden: (editor) => editor.isActive('columns'),

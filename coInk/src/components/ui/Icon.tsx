@@ -1,5 +1,7 @@
 import * as LucideIcons from 'lucide-react';
 
+import { DividerOutlinedIcon } from '@/components/tiptap-icons/divider-outlined-icon';
+import { ListIndentedIcon } from '@/components/tiptap-icons/list-indented-icon';
 import { cn } from '@/utils';
 
 // 创建图标映射，包含所有图标组件（排除 Lucide 前缀的别名和 icons 对象本身）
@@ -30,6 +32,10 @@ for (const [key, value] of Object.entries(LucideIcons)) {
     }
   }
 }
+
+// 与编辑器内自定义 tiptap-icons 对齐：分割线、目录
+icons.DividerOutlined = DividerOutlinedIcon;
+icons.ListIndented = ListIndentedIcon;
 
 export type IconName = keyof typeof icons;
 

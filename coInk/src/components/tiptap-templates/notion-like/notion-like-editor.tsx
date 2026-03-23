@@ -5,12 +5,13 @@ import { EditorContent, EditorContext, useEditor, type Editor } from '@tiptap/re
 import type { Doc as YDoc } from 'yjs';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit';
 import { Mention } from '@tiptap/extension-mention';
 import { TaskList, TaskItem } from '@tiptap/extension-list';
 import { Color, TextStyle } from '@tiptap/extension-text-style';
-import { Placeholder, Selection } from '@tiptap/extensions';
+import { Selection } from '@tiptap/extensions';
 import { Collaboration, isChangeOrigin } from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
 import { Typography } from '@tiptap/extension-typography';
@@ -62,6 +63,7 @@ import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
 import {
   CharacterCount,
   Chart,
+  ClearEmptyHeadingOnBackspace,
   ClearMarksOnEnter,
   CodeBlock,
   Column,
@@ -82,6 +84,7 @@ import {
   Underline,
   Youtube,
 } from '@/extensions';
+import { CoInkPlaceholder } from '@/extensions/coink-placeholder';
 // --- Styles ---
 import '@/components/tiptap-templates/notion-like/notion-like-editor.scss';
 // --- Content ---
@@ -197,7 +200,7 @@ export function EditorProvider(props: EditorProviderProps) {
     provider,
     ydoc,
     user,
-    placeholder = '开始输入...',
+    placeholder = '',
     editable = true,
     showHeader = true,
     showTocSidebar = true,
@@ -233,9 +236,14 @@ export function EditorProvider(props: EditorProviderProps) {
         provider,
         user: { id: user.id, name: user.name, color: user.color },
       }),
-      Placeholder.configure({
-        placeholder,
-        emptyNodeClass: 'is-empty with-slash',
+      CoInkPlaceholder.configure({
+        placeholder: ({ node }) => {
+          if (node.type.name === 'heading') {
+            return `H${node.attrs.level as number}`;
+          }
+          return placeholder;
+        },
+        emptyNodeClass: 'is-empty',
       }),
       Mention,
       Emoji.configure({
@@ -300,12 +308,15 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       TableHandleExtension,
       ListNormalizationExtension,
+      ClearEmptyHeadingOnBackspace,
       ImageUploadNode.configure({
         accept: 'image/*',
         maxSize: MAX_FILE_SIZE,
         limit: 3,
         upload: handleImageUpload,
-        onError: (error) => console.error('上传出错：', error),
+        onError: (error) => {
+          toast.error(error.message || '图片上传失败');
+        },
       }),
       UniqueID.configure({
         types: [
@@ -403,7 +414,7 @@ export function NotionEditor({
   provider,
   ydoc,
   user,
-  placeholder = '开始输入...',
+  placeholder = '',
   editable = true,
   showHeader = true,
   showTocSidebar = true,

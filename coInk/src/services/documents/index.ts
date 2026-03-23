@@ -25,10 +25,25 @@ import type {
   GetDeletedParams,
   GetSharedParams,
   GetPermissionParams,
+  RecordAccessParams,
+  RemoveFromRecentParams,
 } from './types';
 
 import { clientRequest } from '@/services/request';
 import type { ErrorHandler, RequestResult } from '@/services/request';
+
+/**
+ * 批量收藏文档
+ */
+const batchStarDocuments = (
+  userId: string,
+  documentIds: string[],
+  errorHandler?: ErrorHandler,
+): Promise<RequestResult<{ starred: number; requested: number }>> =>
+  clientRequest.post<{ starred: number; requested: number }>('/documents/stars/batch', {
+    params: { userId, documentIds },
+    errorHandler,
+  });
 
 /**
  * 创建文档或文件夹
@@ -135,11 +150,13 @@ const getByParent = (
 const getStarred = (
   params: GetStarredParams,
   errorHandler?: ErrorHandler,
-): Promise<RequestResult<{ documents: Document[]; total: number }>> =>
-  clientRequest.get<{ documents: Document[]; total: number }>('/documents/starred', {
-    params,
+): Promise<RequestResult<{ documents: Document[]; total: number }>> => {
+  const userId = params.userId ?? params.ownerId;
+  return clientRequest.get<{ documents: Document[]; total: number }>('/documents/starred', {
+    params: userId ? { userId } : {},
     errorHandler,
   });
+};
 
 /**
  * 获取回收站文档
@@ -237,6 +254,31 @@ const getByShareToken = (
  */
 const getById = (id: string, errorHandler?: ErrorHandler): Promise<RequestResult<Document>> =>
   clientRequest.get<Document>(`/documents/${id}`, {
+    errorHandler,
+  });
+
+/**
+ * 记录用户打开文档（用于「最近访问」）
+ */
+const recordAccess = (
+  id: string,
+  params: RecordAccessParams,
+  errorHandler?: ErrorHandler,
+): Promise<RequestResult<{ success: boolean }>> =>
+  clientRequest.post<{ success: boolean }>(`/documents/${id}/access`, {
+    params,
+    errorHandler,
+  });
+
+/**
+ * 从最近访问中批量移除（仅删除访问记录）
+ */
+const removeFromRecent = (
+  params: RemoveFromRecentParams,
+  errorHandler?: ErrorHandler,
+): Promise<RequestResult<{ success: boolean; removed: number }>> =>
+  clientRequest.post<{ success: boolean; removed: number }>('/documents/recent/remove', {
+    params,
     errorHandler,
   });
 
@@ -596,6 +638,10 @@ export const documentsApi = {
   getByShareToken,
   /** 获取单个文档详情 */
   getById,
+  /** 记录打开文档（最近访问） */
+  recordAccess,
+  /** 从最近访问列表移除 */
+  removeFromRecent,
   /** 更新文档 */
   update,
   /** 重命名文档 */
@@ -620,6 +666,8 @@ export const documentsApi = {
   setPermission,
   /** 移除用户权限 */
   removePermission,
+  /** 批量收藏 */
+  batchStarDocuments,
 };
 
 /** 默认导出 */

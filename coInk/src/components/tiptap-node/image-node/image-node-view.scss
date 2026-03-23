@@ -79,6 +79,8 @@
     margin-top: 0.5rem;
     outline: none;
     position: relative;
+    /* 覆盖 .tiptap-image-container 的 user-select: none，否则说明文字无法选中编辑 */
+    user-select: text;
 
     &:has(
         > [data-node-view-content-react] > .ProseMirror-trailingBreak:only-child

@@ -69,6 +69,8 @@ export interface CreateCommentRequest {
  * 创建回复的请求
  */
 export interface CreateReplyRequest {
+  /** 文档 ID（与后端 `documents/:documentId/comments/.../reply` 一致） */
+  documentId: string;
   threadId: string;
   content: string;
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef, startTransition } from 'react';
+import React, { useEffect, useMemo, useRef, startTransition } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { closestCenter, DndContext, MeasuringStrategy, PointerSensor } from '@dnd-kit/core';
 import { useSensor, useSensors } from '@dnd-kit/core';
 import { Folder as FolderIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 import ShareDialog from './ShareDialog';
 import GroupedFileTree from './components/GroupedFileTree';
@@ -16,7 +17,10 @@ import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useContextMenu } from './hooks/useContextMenu';
 
 import { FileExplorerProps, FileItem } from '@/types/file-system';
+import { documentsApi } from '@/services/documents';
 import { useSidebar } from '@/stores/sidebarStore';
+import { getCurrentUserId } from '@/utils';
+import { getSidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -34,7 +38,9 @@ export const TRASH_ID = 'void';
 const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   const router = useRouter();
   const pathname = usePathname();
-  const { refreshTrigger, lastOperationSource, triggerRefresh } = useSidebar();
+  const { refreshTrigger, lastOperationSource, triggerRefresh, bumpStarredList } = useSidebar();
+  const starredDocumentIds = useSidebar((s) => s.starredDocumentIds);
+  const sharedDocumentIds = useSidebar((s) => s.sharedDocumentIds);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 使用 Zustand stores
@@ -65,7 +71,19 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
     loadFiles,
     finishCreateNewItem,
     cancelCreateNewItem,
+    patchDocumentStarred,
   } = useFileStore();
+
+  const sidebarHighlightZone = useMemo(
+    () =>
+      getSidebarHighlightZone(
+        selectedFileId,
+        documentGroups.find((g) => g.type === 'personal')?.files ?? [],
+        sharedDocumentIds,
+        starredDocumentIds,
+      ),
+    [selectedFileId, documentGroups, sharedDocumentIds, starredDocumentIds],
+  );
 
   // 文件夹操作
   const toggleFolder = (folderId: string, e: React.MouseEvent) => {
@@ -130,16 +148,19 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
     }
   }, [refreshTrigger, lastOperationSource, loadFiles]);
 
-  // URL选中逻辑 - 从URL参数识别当前选中的文档
+  // URL 选中逻辑：/docs/[room] 的 room 为文档 id（含 UUID；/docs/[id]/snapshot 等同当前文档）
   useEffect(() => {
-    const match = pathname.match(/^\/docs\/(\d+)$/);
-
-    if (match) {
-      const fileId = String(match[1]);
-      setSelectedFileId(fileId);
-    } else {
+    const m = pathname.match(/^\/docs\/([^/]+)/);
+    if (!m) {
       setSelectedFileId(null);
+      return;
     }
+    const segment = m[1];
+    if (segment === 'trash' || segment === 'search') {
+      setSelectedFileId(null);
+      return;
+    }
+    setSelectedFileId(segment);
   }, [pathname, setSelectedFileId]);
 
   // 当文件列表加载完成后，验证选中的文件是否存在
@@ -232,6 +253,24 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   const handleShare = (file: FileItem) => {
     setShareDialogFile(file);
     setShareDialogOpen(true);
+  };
+
+  const handleStar = async (file: FileItem) => {
+    if (file.type !== 'file') return;
+    const uid = getCurrentUserId();
+    if (!uid) {
+      toast.error('请先登录');
+      return;
+    }
+    const next = !file.is_starred;
+    const { error } = await documentsApi.star(file.id, { isStarred: next, userId: uid });
+    if (error) {
+      toast.error(next ? '收藏失败' : '取消收藏失败');
+      return;
+    }
+    patchDocumentStarred(file.id, next);
+    toast.success(next ? '已加入收藏' : '已取消收藏');
+    bumpStarredList();
   };
 
   const handleRename = (file: FileItem) => {
@@ -410,6 +449,7 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
                   )}
 
                   <GroupedFileTree
+                    compact={compact}
                     groups={documentGroups}
                     projected={projected}
                     expandedFolders={expandedFolders}
@@ -439,6 +479,8 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
                     onRename={handleRename}
                     onDuplicate={fileOperations.handleDuplicate}
                     onDownload={fileOperations.handleDownload}
+                    onStar={handleStar}
+                    sidebarHighlightZone={sidebarHighlightZone}
                   />
                 </>
               );

@@ -33,7 +33,9 @@ export interface TemplateResponse {
 }
 
 export interface ProjectorIntroduction {
-  content: string;
+  /** TipTap JSON 文档或 HTML 字符串；部分接口会把文档放在 `default` */
+  content?: string | Record<string, unknown>;
+  default?: string | Record<string, unknown>;
 }
 
 export interface QueryTemplate {

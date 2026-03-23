@@ -55,6 +55,7 @@ const getVersions = (
  * @example
  * ```typescript
  * const { data, error } = await documentVersionApi.createVersion('doc_xxx', {
+ *   documentId: 'doc_xxx',
  *   title: '版本 1.0 - 初稿完成',
  *   content: {
  *     type: 'doc',
@@ -110,9 +111,12 @@ const getVersionById = (
   versionId: string,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<DocumentVersion>> =>
-  clientRequest.get<DocumentVersion>(`/documents/${documentId}/versions/${versionId}`, {
-    errorHandler,
-  });
+  clientRequest.get<DocumentVersion>(
+    `/documents/${documentId}/versions/${encodeURIComponent(versionId)}`,
+    {
+      errorHandler,
+    },
+  );
 
 /**
  * 恢复到指定版本
@@ -138,9 +142,12 @@ const restoreVersion = (
   versionId: string,
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<null>> =>
-  clientRequest.post<null>(`/documents/${documentId}/versions/${versionId}/restore`, {
-    errorHandler,
-  });
+  clientRequest.post<null>(
+    `/documents/${documentId}/versions/${encodeURIComponent(versionId)}/restore`,
+    {
+      errorHandler,
+    },
+  );
 
 /**
  * 文档版本管理 API 对象

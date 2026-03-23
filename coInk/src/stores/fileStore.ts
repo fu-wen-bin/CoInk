@@ -64,10 +64,16 @@ interface FileState {
   toggleItemSelection: (id: string) => void;
   clearSelection: () => void;
   selectAll: () => void;
+  /** 仅更新批量选中 id，不退出批量模式（用于全选/取消全选） */
+  setBatchSelectedItems: (ids: string[]) => void;
   // 批量操作
   batchCopy: () => Promise<void>;
   batchMove: (targetFolderId: string | null) => Promise<void>;
   batchDelete: () => Promise<void>;
+  /** 协同落库后更新侧栏中该文件的 `updated_at`（无需整页刷新） */
+  patchDocumentUpdatedAt: (documentId: string, updatedAt: string) => void;
+  /** 收藏状态变更后同步「我的文档库」树节点（与 document_user_star 一致） */
+  patchDocumentStarred: (documentId: string, isStarred: boolean) => void;
   loadFiles: (isInitialLoad?: boolean) => Promise<void>;
   processApiDocuments: (documents: Document[]) => FileItem[];
   createNewItem: (name: string, type: 'file' | 'folder', parentId?: string) => Promise<boolean>;
@@ -131,7 +137,8 @@ export const useFileStore = create<FileState>((set, get) => ({
           : [...state.selectedItems, idStr],
       };
     }),
-  clearSelection: () => set({ selectedItems: [], batchMode: false, selectedFileId: null }),
+  /** 仅退出批量选择，保留当前打开文档的侧栏高亮（与 URL 一致） */
+  clearSelection: () => set({ selectedItems: [], batchMode: false }),
   selectAll: () => {
     const { documentGroups } = get();
     const allIds: string[] = [];
@@ -144,6 +151,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     documentGroups.forEach((group) => collectIds(group.files));
     set({ selectedItems: allIds });
   },
+  setBatchSelectedItems: (ids) => set({ selectedItems: ids.map(String) }),
 
   processApiDocuments: (documents) => {
     const docMap = new Map<string, Document>();
@@ -370,5 +378,51 @@ export const useFileStore = create<FileState>((set, get) => ({
     // 清空选择并刷新
     set({ selectedItems: [], batchMode: false });
     await loadFiles(false);
+  },
+
+  patchDocumentUpdatedAt: (documentId, updatedAt) => {
+    const { documentGroups } = get();
+    const idStr = String(documentId);
+
+    const patchTree = (items: FileItem[]): FileItem[] =>
+      items.map((item) => {
+        if (String(item.id) === idStr) {
+          return { ...item, updated_at: updatedAt };
+        }
+        if (item.children?.length) {
+          return { ...item, children: patchTree(item.children) };
+        }
+        return item;
+      });
+
+    set({
+      documentGroups: documentGroups.map((g) => ({
+        ...g,
+        files: patchTree(g.files),
+      })),
+    });
+  },
+
+  patchDocumentStarred: (documentId, isStarred) => {
+    const { documentGroups } = get();
+    const idStr = String(documentId);
+
+    const patchTree = (items: FileItem[]): FileItem[] =>
+      items.map((item) => {
+        if (String(item.id) === idStr) {
+          return { ...item, is_starred: isStarred };
+        }
+        if (item.children?.length) {
+          return { ...item, children: patchTree(item.children) };
+        }
+        return item;
+      });
+
+    set({
+      documentGroups: documentGroups.map((g) => ({
+        ...g,
+        files: patchTree(g.files),
+      })),
+    });
   },
 }));

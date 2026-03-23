@@ -42,6 +42,11 @@ export const MarkdownPaste = Extension.create<MarkdownPasteOptions>({
             paste: (view, event: ClipboardEvent) => {
               if (!this.options.transformPastedText) return false;
 
+              const html = event.clipboardData?.getData('text/html') ?? '';
+              if (html.trim()) {
+                return false;
+              }
+
               const text = event.clipboardData?.getData('text/plain') ?? '';
               if (!text.trim()) return false;
               if (!isMarkdownContent(text)) return false;

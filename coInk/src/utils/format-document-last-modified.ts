@@ -9,7 +9,7 @@ import { zhCN } from 'date-fns/locale';
  * - 24 小时内（且 ≥2 分钟）：N 分钟前 / N 小时前
  * - 满 24 小时及以上：M月d日 HH:mm（本地时区）
  *
- * 时间来源：后端 `documents.updatedAt`（协作保存时由 Nest/Prisma 更新），前端仅做与当前时间的差值比较。
+ * 时间来源：后端 `documents.updatedAt`，前端仅做与当前时间的差值比较。
  */
 export function formatDocumentLastModified(input: string | Date | undefined | null): string {
   if (input === undefined || input === null || input === '') return '';

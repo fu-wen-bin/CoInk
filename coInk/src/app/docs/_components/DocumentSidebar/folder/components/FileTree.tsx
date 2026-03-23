@@ -8,6 +8,7 @@ import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
+import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 
 export interface FileTreeProps {
   files: FileItem[];
@@ -37,6 +38,8 @@ export interface FileTreeProps {
   onRename: (file: FileItem) => void;
   onDuplicate: (file: FileItem) => void;
   onDownload: (file: FileItem) => void;
+  onStar?: (file: FileItem) => void;
+  sidebarHighlightZone?: SidebarHighlightZone;
 }
 
 const FileTree: React.FC<FileTreeProps> = (props) => {

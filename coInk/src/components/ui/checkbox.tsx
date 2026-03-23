@@ -21,6 +21,21 @@ const CheckIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+/** 半选态：中间小横杠 */
+const MinusIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    className={className}
+  >
+    <line x1="6" y1="12" x2="18" y2="12" />
+  </svg>
+);
+
 const Checkbox = React.forwardRef<
   React.ComponentRef<typeof CheckboxPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
@@ -28,13 +43,14 @@ const Checkbox = React.forwardRef<
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
-      'peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
+      'group peer inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-slate-400 bg-transparent align-middle shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-500/35 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-500 data-[state=checked]:border-primary-500 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=indeterminate]:border-primary-500 data-[state=indeterminate]:bg-primary-500 data-[state=indeterminate]:text-white',
       className,
     )}
     {...props}
   >
-    <CheckboxPrimitive.Indicator className={cn('flex items-center justify-center text-current')}>
-      <CheckIcon className="h-4 w-4" />
+    <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
+      <CheckIcon className="hidden h-4 w-4 group-data-[state=checked]:block" />
+      <MinusIcon className="hidden h-3 w-3 group-data-[state=indeterminate]:block" />
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>
 ));

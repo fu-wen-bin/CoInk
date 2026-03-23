@@ -70,9 +70,20 @@ export class CreateDocumentVersionDto {
   @MaxLength(512)
   title: string;
 
+  /** 版本说明（快照描述） */
+  @IsString()
+  @IsOptional()
+  @MaxLength(4000)
+  description?: string;
+
   @IsObject()
   @IsNotEmpty()
   content: Record<string, unknown>;
+
+  /** 可选：base64(encodeStateAsUpdate)，与协同 y_state 一致 */
+  @IsString()
+  @IsOptional()
+  yStateBase64?: string;
 
   @IsString()
   @IsNotEmpty()

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 
@@ -8,9 +9,17 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
+/** JSON / urlencoded 体积上限（文档版本含 TipTap JSON + yState Base64 时易超过默认 100kb） */
+const BODY_PARSER_LIMIT = process.env.BODY_PARSER_LIMIT ?? '32mb';
+
 // 应用入口：注册中间件、拦截器与过滤器
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
+
+  app.use(json({ limit: BODY_PARSER_LIMIT }));
+  app.use(urlencoded({ extended: true, limit: BODY_PARSER_LIMIT }));
 
   // 启用 CORS，允许携带 Cookie
   app.enableCors({

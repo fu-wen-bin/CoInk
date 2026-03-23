@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ChevronRight,
   FileText,
@@ -14,7 +15,6 @@ import type { DocumentActionsProps } from '../types';
 import { PageWidthMenuIcon, PageWidthSettingsPanel } from './page-width-settings';
 
 import { useCommentStore } from '@/stores/commentStore';
-import { useEditorStore } from '@/stores/editorStore';
 import { cn, handleExportPDF, handleExportDOCX } from '@/utils';
 import {
   CategoryTitle as PopoverCategoryTitle,
@@ -63,6 +63,7 @@ const menuLucideIconClass = 'h-4 w-4 shrink-0 stroke-[2] text-neutral-500 dark:t
 const PAGE_WIDTH_HOVER_CLOSE_DELAY_MS = 150;
 
 export function DocumentActions({ editor, documentId, documentTitle, doc }: DocumentActionsProps) {
+  const router = useRouter();
   const [pageWidthPopoverOpen, setPageWidthPopoverOpen] = useState(false);
   const pageWidthHoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -86,7 +87,6 @@ export function DocumentActions({ editor, documentId, documentTitle, doc }: Docu
   }, []);
 
   const { isPanelOpen, togglePanel, comments } = useCommentStore();
-  const setHistoryPanelOpen = useEditorStore((s) => s.setHistoryPanelOpen);
 
   return (
     <>
@@ -175,7 +175,7 @@ export function DocumentActions({ editor, documentId, documentTitle, doc }: Docu
           {documentId && doc && (
             <DropdownMenuItem
               className={menuItemClassName}
-              onClick={() => setHistoryPanelOpen(true)}
+              onClick={() => router.push(`/docs/${documentId}/snapshot`)}
             >
               <History className={menuLucideIconClass} />
               历史记录

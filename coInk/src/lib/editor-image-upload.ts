@@ -3,7 +3,14 @@
  * 与 Base64 方案并存，由 NEXT_PUBLIC_EDITOR_IMAGE_UPLOAD_MODE 切换。
  */
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+import { formatFileSize } from '@/utils/format/file-size';
+
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** 编辑器图片单文件上限的展示文案（与校验字节数一致，避免各处手写「10MB」不一致） */
+export function formatEditorImageMaxLabel(bytes: number = MAX_IMAGE_BYTES): string {
+  return formatFileSize(bytes);
+}
 
 function getServerBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_SERVER_URL ?? '').replace(/\/$/, '');
@@ -28,7 +35,7 @@ export async function uploadEditorImageToOss(
   }
 
   if (file.size > MAX_IMAGE_BYTES) {
-    throw new Error(`文件大小超出最大允许值(${MAX_IMAGE_BYTES / (1024 * 1024)}MB)`);
+    throw new Error(`文件大小超出最大允许值（${formatEditorImageMaxLabel(MAX_IMAGE_BYTES)}）`);
   }
 
   const endpoint = `${base}/upload/editor-image`;
@@ -85,5 +92,3 @@ export async function uploadEditorImageToOss(
     xhr.send(form);
   });
 }
-
-export { MAX_IMAGE_BYTES };

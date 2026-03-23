@@ -7,6 +7,9 @@ import { isValidPosition } from '@/lib/tiptap-utils';
 
 import './image-node-view.scss';
 
+/** 悬浮图片后延迟选中节点，以显示浮动工具栏中的图片左/中/右对齐（NotionToolbarFloating / ImageNodeFloating） */
+const IMAGE_FLOATING_TOOLBAR_HOVER_MS = 200;
+
 export interface ResizeParams {
   handleUsed: 'left' | 'right';
   initialWidth: number;
@@ -75,6 +78,27 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
   const leftResizeHandleRef = useRef<HTMLDivElement>(null);
   const rightResizeHandleRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const imageToolbarHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearImageToolbarHoverTimer = useCallback(() => {
+    if (imageToolbarHoverTimerRef.current) {
+      clearTimeout(imageToolbarHoverTimerRef.current);
+      imageToolbarHoverTimerRef.current = null;
+    }
+  }, []);
+
+  /** 选中图片节点后，useFloatingToolbarVisibility + ImageNodeFloating 会显示左/中/右对齐等 */
+  const scheduleSelectImageForFloatingToolbar = useCallback(() => {
+    if (!editor?.isEditable || resizeParams) return;
+    clearImageToolbarHoverTimer();
+    imageToolbarHoverTimerRef.current = setTimeout(() => {
+      imageToolbarHoverTimerRef.current = null;
+      const pos = getPos();
+      if (isValidPosition(pos)) {
+        editor.chain().focus().setNodeSelection(pos).run();
+      }
+    }, IMAGE_FLOATING_TOOLBAR_HOVER_MS);
+  }, [editor, resizeParams, getPos, clearImageToolbarHoverTimer]);
 
   // Listen to editor selection changes to detect when focus leaves the caption
   useEffect(() => {
@@ -228,7 +252,9 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
     if (editor?.isEditable && isMountedRef.current) setShowHandles(true);
   };
 
-  const wrapperMouseLeaveHandler = (event: React.MouseEvent<HTMLDivElement>) => {
+  const wrapperMouseLeaveHandler = (
+    event: React.MouseEvent<HTMLDivElement> | React.PointerEvent<HTMLDivElement>,
+  ) => {
     if (!isMountedRef.current) return;
 
     if (
@@ -267,12 +293,22 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    return () => clearImageToolbarHoverTimer();
+  }, [clearImageToolbarHoverTimer]);
+
   const shouldShowCaption = showCaption || hasContent;
 
   return (
     <NodeViewWrapper
-      onMouseEnter={wrapperMouseEnterHandler}
-      onMouseLeave={wrapperMouseLeaveHandler}
+      onPointerEnter={() => {
+        wrapperMouseEnterHandler();
+        scheduleSelectImageForFloatingToolbar();
+      }}
+      onPointerLeave={(e) => {
+        clearImageToolbarHoverTimer();
+        wrapperMouseLeaveHandler(e);
+      }}
       onTouchStart={wrapperTouchStartHandler}
       data-align={align}
       data-width={width}

@@ -1,9 +1,18 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 // 全局异常过滤器：统一错误响应格式
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   // 捕获所有异常并标准化输出
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -14,7 +23,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const errorResponse = isHttpException ? exception.getResponse() : null;
-    const message = this.extractMessage(errorResponse) ?? '服务器异常';
+    let message = this.extractMessage(errorResponse) ?? '服务器异常';
+
+    if (!isHttpException) {
+      const err = exception instanceof Error ? exception : new Error(String(exception));
+      this.logger.error(`${request.method} ${request.url} — ${err.message}`, err.stack);
+
+      if (process.env.NODE_ENV !== 'production' && exception instanceof Error) {
+        message = exception.message;
+      }
+    }
 
     // 统一错误响应结构
     response.status(status).json({

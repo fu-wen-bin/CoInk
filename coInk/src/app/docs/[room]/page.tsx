@@ -24,7 +24,6 @@ const CommentPanel = dynamic(
 import { getCursorColorByUserId, getAuthToken } from '@/utils';
 import { getSelectionLineRange } from '@/utils/editor';
 import DocumentHeader from '@/app/docs/_components/DocumentHeader';
-import HistoryPanel from '@/app/docs/_components/HistoryPanel';
 import { SearchPanel } from '@/app/docs/_components/SearchPanel';
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
@@ -62,11 +61,16 @@ export default function DocumentPage() {
   const searchParams = useSearchParams();
   const documentId = params?.room as string;
   const groupRef = useRef<GroupImperativeHandle>(null);
+  const collabSyncedRef = useRef(false);
+  const cloudSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cloudSaveSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** onSynced 后短窗口内忽略 Yjs update，减少 IDB 合并/初始同步误触发「正在保存」 */
+  const ignoreCloudSaveHintsUntilRef = useRef(0);
 
   // 获取URL参数中的只读模式设置
   const forceReadOnly = searchParams?.get('readonly') === 'true';
 
-  const { documentGroups } = useFileStore();
+  const { documentGroups, patchDocumentUpdatedAt } = useFileStore();
   const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
 
   // 防止水合不匹配的强制客户端渲染
@@ -84,6 +88,9 @@ export default function DocumentPage() {
   const [connectedUsers, setConnectedUsers] = useState<CollaborationUser[]>([]);
   const [isIndexedDBReady, setIsIndexedDBReady] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
+  /** Hocuspocus 落库成功后 stateless 推送的 updatedAt（ISO） */
+  const [cloudSavedUpdatedAt, setCloudSavedUpdatedAt] = useState<string | null>(null);
+  const [isCloudSaving, setIsCloudSaving] = useState(false);
   const { closePanel, isPanelOpen } = useCommentStore();
   const { setEditor, clearEditor } = useEditorStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -141,6 +148,10 @@ export default function DocumentPage() {
     setProvider(null);
     setConnectedUsers([]);
     setConnectionStatus('disconnected');
+    collabSyncedRef.current = false;
+    ignoreCloudSaveHintsUntilRef.current = 0;
+    setCloudSavedUpdatedAt(null);
+    setIsCloudSaving(false);
 
     async function init() {
       setIsLoadingPermission(true);
@@ -193,22 +204,43 @@ export default function DocumentPage() {
         // 解析失败时保持空字符串
       }
 
+      const rawPerm = data.data.permission;
+      let docTitle = '';
+      let documentType: 'FILE' | 'FOLDER' = 'FILE';
+      if (!rawPerm || rawPerm === '') {
+        const docRes = await documentsApi.getById(documentId);
+        const meta = docRes?.data?.data;
+        if (meta) {
+          docTitle = meta.title ?? '';
+          documentType = meta.type === 'FOLDER' ? 'FOLDER' : 'FILE';
+        }
+      }
+
       // Map the response to the expected format
       const permData: DocumentPermissionData = {
         documentId,
         userId,
         username: name,
         avatar: avatarUrl,
-        documentTitle: '',
-        documentType: 'FILE',
+        documentTitle: docTitle,
+        documentType,
         isOwner: false,
-        permission: data.data.permission as PermissionLevel,
+        permission: (rawPerm ?? '') as PermissionLevel,
       };
       setPermissionData(permData);
       setIsLoadingPermission(false);
 
+      if (
+        userId &&
+        rawPerm &&
+        rawPerm !== '' &&
+        permData.documentType === 'FILE'
+      ) {
+        void documentsApi.recordAccess(documentId, { userId });
+      }
+
       // 无权限时不初始化编辑器 (没有 'view' 权限表示无权限)
-      if (!data.data.permission || data.data.permission === '') {
+      if (!rawPerm || rawPerm === '') {
         setIsMounted(true);
 
         return;
@@ -281,23 +313,59 @@ export default function DocumentPage() {
       onSynced: ({ state }) => {
         console.log('文档同步完成', state);
         setConnectionStatus('connected');
+        collabSyncedRef.current = true;
+        ignoreCloudSaveHintsUntilRef.current = Date.now() + 1500;
       },
 
       onDisconnect: () => {
         setConnectionStatus('disconnected');
+        collabSyncedRef.current = false;
       },
 
       onClose: () => {
         setConnectionStatus('disconnected');
+        collabSyncedRef.current = false;
+      },
+
+      onStateless: ({ payload }) => {
+        try {
+          const data = JSON.parse(payload) as {
+            type?: string;
+            documentId?: string;
+            updatedAt?: string;
+          };
+          if (data.type !== 'coink:document-saved' || data.documentId !== documentId) {
+            return;
+          }
+          if (data.updatedAt) {
+            patchDocumentUpdatedAt(documentId, data.updatedAt);
+            setCloudSavedUpdatedAt(data.updatedAt);
+          }
+          setIsCloudSaving(false);
+          if (cloudSaveSafetyRef.current) {
+            clearTimeout(cloudSaveSafetyRef.current);
+            cloudSaveSafetyRef.current = null;
+          }
+        } catch {
+          // 非 JSON 或其它 stateless 消息忽略
+        }
       },
     });
 
     setProvider(hocuspocusProvider);
 
     return () => {
+      if (cloudSaveDebounceRef.current) {
+        clearTimeout(cloudSaveDebounceRef.current);
+        cloudSaveDebounceRef.current = null;
+      }
+      if (cloudSaveSafetyRef.current) {
+        clearTimeout(cloudSaveSafetyRef.current);
+        cloudSaveSafetyRef.current = null;
+      }
       hocuspocusProvider.destroy();
     };
-  }, [documentId, doc, permissionData, isIndexedDBReady]);
+  }, [documentId, doc, permissionData, isIndexedDBReady, patchDocumentUpdatedAt]);
 
   // 设置用户awareness信息
   useEffect(() => {
@@ -343,6 +411,49 @@ export default function DocumentPage() {
 
   // 判断是否为只读模式
   const isReadOnly = forceReadOnly || permissionData?.permission === 'view';
+
+  const CLOUD_SAVE_DEBOUNCE_MS = 400;
+  const CLOUD_SAVE_SAFETY_MS = 20_000;
+
+  // 本地编辑（非远端 Yjs 同步）→ 防抖后显示「正在保存」，直至收到服务端 stateless 落库确认
+  useEffect(() => {
+    if (!doc || !provider || isReadOnly) return;
+
+    const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (!collabSyncedRef.current) return;
+      if (Date.now() < ignoreCloudSaveHintsUntilRef.current) return;
+      if (origin === provider) return;
+
+      if (cloudSaveDebounceRef.current) {
+        clearTimeout(cloudSaveDebounceRef.current);
+      }
+      cloudSaveDebounceRef.current = setTimeout(() => {
+        cloudSaveDebounceRef.current = null;
+        setIsCloudSaving(true);
+        if (cloudSaveSafetyRef.current) {
+          clearTimeout(cloudSaveSafetyRef.current);
+        }
+        cloudSaveSafetyRef.current = setTimeout(() => {
+          cloudSaveSafetyRef.current = null;
+          setIsCloudSaving(false);
+        }, CLOUD_SAVE_SAFETY_MS);
+      }, CLOUD_SAVE_DEBOUNCE_MS);
+    };
+
+    doc.on('update', handleDocUpdate);
+
+    return () => {
+      doc.off('update', handleDocUpdate);
+      if (cloudSaveDebounceRef.current) {
+        clearTimeout(cloudSaveDebounceRef.current);
+        cloudSaveDebounceRef.current = null;
+      }
+      if (cloudSaveSafetyRef.current) {
+        clearTimeout(cloudSaveSafetyRef.current);
+        cloudSaveSafetyRef.current = null;
+      }
+    };
+  }, [doc, provider, isReadOnly]);
 
   // 搜索快捷键监听
   useEffect(() => {
@@ -408,28 +519,32 @@ export default function DocumentPage() {
     }
   }, [editor, isPanelOpen, closePanel]);
 
-  // Ctrl+C 复制选中文本为 JSON 格式，并添加文档引用元数据
+  // 编辑器内复制：写入 text/html + text/plain（与 ProseMirror 序列化一致），避免只写纯文本导致粘贴丢失格式
+  // 不再写入 text/json 整篇文档，否则会触发 JsonPaste 覆盖整篇内容
   useEffect(() => {
     if (!editor) return;
 
+    const dom = editor.view.dom;
+
     const handleCopy = (e: ClipboardEvent) => {
-      // 1. 检查是否有选区
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) return;
+      const { state } = editor;
+      const { selection } = state;
+
+      if (selection.empty || !e.clipboardData) return;
 
       try {
-        // 2. 获取选中的文本内容
-        const selectedText = selection.toString();
-        if (!selectedText) return;
+        const slice = selection.content();
+        const { dom: htmlWrap, text } = editor.view.serializeForClipboard(slice);
+        const selectedText = state.doc.textBetween(selection.from, selection.to, '\n');
 
-        // 3. 获取编辑器 JSON 数据
-        const json = editor.getJSON();
-        const jsonString = JSON.stringify(json);
+        e.clipboardData.setData('text/html', htmlWrap.innerHTML);
+        e.clipboardData.setData('text/plain', text || selectedText);
 
-        const { from, to } = editor.state.selection;
-        const { startLine, endLine } = getSelectionLineRange(editor.state.doc, from, to);
-
-        // 5. 构建文档引用元数据
+        const { startLine, endLine } = getSelectionLineRange(
+          state.doc,
+          selection.from,
+          selection.to,
+        );
         const documentName = getCurrentDocumentName() || '未命名文档';
         const referenceData = {
           type: 'docflow-reference',
@@ -439,25 +554,17 @@ export default function DocumentPage() {
           content: selectedText,
           charCount: selectedText.length,
         };
+        e.clipboardData.setData('application/docflow-reference', JSON.stringify(referenceData));
 
-        // 6. 使用 e.clipboardData 设置多种格式
-        if (e.clipboardData) {
-          // 设置纯文本（保持默认复制行为）
-          e.clipboardData.setData('text/plain', selectedText);
-          // 设置 JSON 格式（原有功能）
-          e.clipboardData.setData('text/json', jsonString);
-          // 设置文档引用元数据（新功能）
-          e.clipboardData.setData('application/docflow-reference', JSON.stringify(referenceData));
-          e.preventDefault();
-        }
+        e.preventDefault();
       } catch (error) {
         console.error('复制失败:', error);
       }
     };
 
-    document.addEventListener('copy', handleCopy);
+    dom.addEventListener('copy', handleCopy);
 
-    return () => document.removeEventListener('copy', handleCopy);
+    return () => dom.removeEventListener('copy', handleCopy);
   }, [editor]);
 
   // 自动插入模板内容
@@ -548,7 +655,10 @@ export default function DocumentPage() {
     return (
       <NoPermission
         documentTitle={permissionData?.documentTitle}
-        message={permissionError || '您没有访问此文档的权限。请联系文档所有者获取访问权限。'}
+        message={
+          permissionError ||
+          '您当前没有访问此文档的权限。若该文档曾出现在共享列表中，可能是所有者已收回或变更了权限。'
+        }
       />
     );
   }
@@ -594,6 +704,8 @@ export default function DocumentPage() {
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
         connectionStatus={connectionStatus}
+        cloudSavedUpdatedAt={cloudSavedUpdatedAt}
+        isCloudSaving={isCloudSaving}
       />
 
       {/* 主内容区域 - 使用可调整大小的面板布局 */}
@@ -627,16 +739,6 @@ export default function DocumentPage() {
         <Activity>
           <CommentPanel editor={editor} documentId={documentId} currentUserId={currentUser?.id} />
         </Activity>
-      )}
-
-      {/* 文档历史（快照）弹层：由 Header「最近修改」或更多菜单打开 */}
-      {doc && documentId && (
-        <HistoryPanel
-          documentId={documentId}
-          doc={doc}
-          connectedUsers={connectedUsers}
-          currentUser={currentUser}
-        />
       )}
 
       {/* 搜索面板 */}

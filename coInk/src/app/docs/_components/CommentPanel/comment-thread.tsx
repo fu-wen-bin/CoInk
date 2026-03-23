@@ -52,6 +52,7 @@ export function CommentThread({
 
     try {
       const newReply = await CommentApi.createReply({
+        documentId: thread.documentId,
         threadId: thread.id,
         content: replyContent.trim(),
       });

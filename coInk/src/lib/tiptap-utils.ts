@@ -4,9 +4,15 @@ import { AllSelection, NodeSelection, Selection, TextSelection } from '@tiptap/p
 import { cellAround, CellSelection } from '@tiptap/pm/tables';
 import { findParentNodeClosestToPos, type Editor, type NodeWithPos } from '@tiptap/react';
 
-import { isEditorImageOssModeEnabled, uploadEditorImageToOss } from '@/lib/editor-image-upload';
+import {
+  formatEditorImageMaxLabel,
+  isEditorImageOssModeEnabled,
+  MAX_IMAGE_BYTES,
+  uploadEditorImageToOss,
+} from '@/lib/editor-image-upload';
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+/** 编辑器图片单文件上限（与 OSS 上传、本地读取校验一致） */
+export const MAX_FILE_SIZE = MAX_IMAGE_BYTES;
 
 export const MAC_SYMBOLS: Record<string, string> = {
   mod: '⌘',
@@ -345,7 +351,7 @@ export const handleImageUpload = async (
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`文件大小超出最大允许值(${MAX_FILE_SIZE / (1024 * 1024)}MB)`);
+    throw new Error(`文件大小超出最大允许值（${formatEditorImageMaxLabel(MAX_FILE_SIZE)}）`);
   }
 
   if (abortSignal?.aborted) {

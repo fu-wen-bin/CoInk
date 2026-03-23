@@ -1,0 +1,1 @@
+export { ClearEmptyHeadingOnBackspace } from './ClearEmptyHeadingOnBackspace';

@@ -1,0 +1,14 @@
+/* 历史版本只读预览：隐藏拖拽手柄，避免误触 */
+
+.notion-like-editor-wrapper.snapshot-readonly [data-drag-handle],
+.notion-like-editor-wrapper.snapshot-readonly .draggable-block {
+  display: none !important;
+}
+
+.notion-like-editor-wrapper.snapshot-readonly .ProseMirror {
+  cursor: default;
+}
+
+.notion-like-editor-wrapper.snapshot-readonly .ProseMirror-selectednode {
+  outline: none !important;
+}

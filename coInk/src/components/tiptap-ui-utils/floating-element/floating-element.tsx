@@ -2,15 +2,19 @@
 
 import type { HTMLAttributes } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type Editor } from '@tiptap/react';
-import { flip, offset, shift, useMergeRefs, type UseFloatingOptions } from '@floating-ui/react';
+import {
+  flip,
+  offset,
+  shift,
+  useMergeRefs,
+  type AutoUpdateOptions,
+  type UseFloatingOptions,
+} from '@floating-ui/react';
 import { Selection } from '@tiptap/pm/state';
+import { type Editor } from '@tiptap/react';
 
-// --- Hooks ---
 import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 import { useFloatingElement } from '@/hooks/use-floating-element';
-
-// --- Lib ---
 import { getSelectionBoundingRect, isSelectionValid } from '@/lib/tiptap-collab-utils';
 import { isElementWithinEditor } from '@/components/tiptap-ui-utils/floating-element';
 import { isValidPosition } from '@/lib/tiptap-utils';
@@ -44,6 +48,10 @@ export interface FloatingElementProps extends HTMLAttributes<HTMLDivElement> {
    */
   referenceElement?: HTMLElement | null;
   /**
+   * 传给 Floating UI `autoUpdate`（如选中图片时开启 `animationFrame` 可随滚动/布局实时跟图）。
+   */
+  autoUpdateOptions?: AutoUpdateOptions;
+  /**
    * Custom function to determine the position of the floating element.
    * Only used if referenceElement is not provided.
    * @default getSelectionBoundingRect
@@ -74,6 +82,7 @@ export const FloatingElement = forwardRef<HTMLDivElement, FloatingElementProps>(
       zIndex = 50,
       onOpenChange,
       referenceElement,
+      autoUpdateOptions,
       getBoundingClientRect = getSelectionBoundingRect,
       closeOnEscape = true,
       resetTextSelectionOnClose = true,
@@ -151,6 +160,7 @@ export const FloatingElement = forwardRef<HTMLDivElement, FloatingElementProps>(
         },
         ...floatingOptions,
       },
+      autoUpdateOptions,
     );
 
     const updateSelectionState = useCallback(() => {

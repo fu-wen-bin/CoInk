@@ -4,6 +4,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import Mathematics, { migrateMathStrings } from '@tiptap/extension-mathematics';
 import { Extension } from '@tiptap/core';
+import { toast } from 'sonner';
 
 import {
   CharacterCount,
@@ -49,9 +50,9 @@ import {
   Underline,
   emojiSuggestion,
   Columns,
-  Column,
-  TaskItem,
   TaskList,
+  TaskItem,
+  Column,
   UniqueID,
   DraggableBlock,
   DragHandler,
@@ -70,7 +71,16 @@ import { ImageUpload } from './ImageUpload';
 import { TableOfContentsNode } from './TableOfContentsNode';
 
 import { SelectOnlyCode } from '@/extensions/CodeBlock';
+import { Image as EditorImage } from '@/components/tiptap-node/image-node/image-node-extension';
+import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
+import { NodeBackground } from '@/components/tiptap-extension/node-background-extension';
+import { TocNode } from '@/components/tiptap-node/toc-node/extensions/toc-node-extension';
 import uploadService from '@/services/upload';
+
+function uploadErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return '图片上传失败';
+}
 
 export interface ExtensionKitProps {
   provider: HocuspocusProvider | null;
@@ -155,31 +165,37 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
   FileHandler.configure({
     allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
     onDrop: (currentEditor, files, pos) => {
-      files.forEach(async (file) => {
-        const url = await uploadService.uploadImage(file);
+      files.forEach((file) => {
+        void (async () => {
+          try {
+            const url = await uploadService.uploadImage(file);
 
-        // 检查是否在表格中
-        const resolvedPos = currentEditor.state.doc.resolve(pos);
-        let isInTable = false;
+            // 检查是否在表格中
+            const resolvedPos = currentEditor.state.doc.resolve(pos);
+            let isInTable = false;
 
-        for (let i = resolvedPos.depth; i > 0; i--) {
-          const node = resolvedPos.node(i);
+            for (let i = resolvedPos.depth; i > 0; i--) {
+              const node = resolvedPos.node(i);
 
-          if (
-            node.type.name === 'table' ||
-            node.type.name === 'tableCell' ||
-            node.type.name === 'tableHeader'
-          ) {
-            isInTable = true;
-            break;
+              if (
+                node.type.name === 'table' ||
+                node.type.name === 'tableCell' ||
+                node.type.name === 'tableHeader'
+              ) {
+                isInTable = true;
+                break;
+              }
+            }
+
+            if (isInTable) {
+              currentEditor.chain().setTableImageAt({ pos, src: url }).focus().run();
+            } else {
+              currentEditor.chain().setImageBlockAt({ pos, src: url }).focus().run();
+            }
+          } catch (error) {
+            toast.error(uploadErrorMessage(error));
           }
-        }
-
-        if (isInTable) {
-          currentEditor.chain().setTableImageAt({ pos, src: url }).focus().run();
-        } else {
-          currentEditor.chain().setImageBlockAt({ pos, src: url }).focus().run();
-        }
+        })();
       });
     },
     onPaste: (currentEditor, files) => {
@@ -245,8 +261,7 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
             }
           }
         } catch (error) {
-          console.error('图片处理失败:', error);
-          // 可以在这里添加用户友好的错误提示
+          toast.error(uploadErrorMessage(error));
         }
       });
 
@@ -498,7 +513,11 @@ export const StaticExtensionKit = [
   CharacterCount.configure({ limit: 50000 }),
   TableOfContents,
   TableOfContentsNode,
+  /** 与协作编辑器一致：正文中的目录块为 `tocNode` */
+  TocNode.configure({ topOffset: 48 }),
   ImageBlock,
+  /** 与 notion-like 编辑器一致，支持 JSON 中的 `image` 节点（generateHTML 等） */
+  EditorImage,
   TableImage,
   DraggableBlock,
   DragHandler,
@@ -508,6 +527,21 @@ export const StaticExtensionKit = [
   TextAlign.extend({}).configure({
     types: ['heading', 'paragraph'],
   }),
+  NodeBackground.configure({
+    types: [
+      'paragraph',
+      'heading',
+      'blockquote',
+      'taskList',
+      'bulletList',
+      'orderedList',
+      'tableCell',
+      'tableHeader',
+      'tableOfContentsNode',
+      'tocNode',
+    ],
+  }),
+  NodeAlignment,
   Subscript,
   Superscript,
   Table,

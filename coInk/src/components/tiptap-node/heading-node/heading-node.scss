@@ -1,12 +1,13 @@
 .tiptap.ProseMirror {
-  /* 飞书：大留白主要在「正文/列表等 → 新标题」；标题默认不自带大 margin-top，避免与段 margin 叠高 */
-  --tt-section-before-h1: 1.25rem;
-  --tt-section-before-h2: 1.125rem;
-  --tt-section-before-h3: 1.0625rem;
-  --tt-section-before-h4: 1rem;
-  --tt-section-before-h5: 0.9375rem;
-  --tt-section-before-h6: 0.875rem;
-  --tt-heading-stack-gap: 0.5rem;
+  /* 「正文/列表/引用等 → 新标题」上方留白；略加大以便与连续正文段距区分 */
+  --tt-section-before-h1: 1.5rem;
+  --tt-section-before-h2: 1.375rem;
+  --tt-section-before-h3: 1.3125rem;
+  --tt-section-before-h4: 1.25rem;
+  --tt-section-before-h5: 1.1875rem;
+  --tt-section-before-h6: 1.125rem;
+  /* 相邻标题（h1→h2、h3→h2 等）栈距：用 rem 随根字号缩放，不写死 px */
+  --tt-heading-stack-gap: 0.875rem;
 }
 
 .tiptap.ProseMirror {
@@ -46,11 +47,11 @@
     margin-top: var(--tt-section-before-h6);
   }
 
-  > h1 + h2,
-  > h2 + h3,
-  > h3 + h4,
-  > h4 + h5,
-  > h5 + h6 {
+  /*
+   * 任意「标题 → 标题」紧邻（含 h3→h2、h2→h1 等跳级），统一用栈距；
+   * 避免仅 h1+h2、h2+h3… 时 h3+h2 等组合 margin-top 仍为 0、贴得过紧。
+   */
+  > :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
     margin-top: var(--tt-heading-stack-gap);
   }
 

@@ -422,9 +422,9 @@ export class UploadService {
       throw new BadRequestException('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片');
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 10 * 1024 * 1024;
     if (fileBuffer.length > maxSize) {
-      throw new BadRequestException('图片大小不能超过 5MB');
+      throw new BadRequestException('图片大小不能超过 10MB');
     }
 
     const ext = this.resolveImageExtension(originalName, mimeType);
@@ -473,10 +473,10 @@ export class UploadService {
       throw new BadRequestException('仅支持 JPEG, PNG, GIF, WebP 格式的图片');
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validate file size (max 10MB；与编辑器内嵌图片共用接口时上限一致)
+    const maxSize = 10 * 1024 * 1024;
     if (fileBuffer.length > maxSize) {
-      throw new BadRequestException('头像文件大小不能超过 5MB');
+      throw new BadRequestException('图片文件大小不能超过 10MB');
     }
 
     // Create user avatar directory

@@ -8,8 +8,11 @@ import type { FileItem } from '@/types/file-system';
 import { DocumentGroup } from '@/stores/fileStore';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
+import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 
 export interface GroupedFileTreeProps {
+  /** 侧边栏紧凑模式：收紧标题与首行列表的间距，与「收藏的文档」一致 */
+  compact?: boolean;
   groups: DocumentGroup[];
   expandedFolders: Record<string, boolean>;
   expandedGroups: Record<string, boolean>;
@@ -40,11 +43,14 @@ export interface GroupedFileTreeProps {
   onRename: (file: FileItem) => void;
   onDuplicate: (file: FileItem) => void;
   onDownload: (file: FileItem) => void;
+  onStar?: (file: FileItem) => void;
+  sidebarHighlightZone?: SidebarHighlightZone;
 }
 
 const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const {
+    compact = false,
     groups,
     expandedGroups,
     newItemFolder,
@@ -167,7 +173,7 @@ const GroupedFileTree: React.FC<GroupedFileTreeProps> = (props) => {
   const activeFile = allFileIds.find((id) => id === dndState.activeId);
 
   return (
-    <div className="py-2">
+    <div className={cn(compact ? 'pt-0 pb-1.5' : 'py-2')}>
       <SortableContext strategy={verticalListSortingStrategy} items={allFileIds}>
         {groups.map((group) => {
           const isExpanded = expandedGroups[group.id];

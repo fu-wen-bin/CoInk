@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { PanelLeft, ChevronDown, LogOut, User, Share2, Search, Plus, Bell } from 'lucide-react';
+import { PanelLeft, ChevronDown, LogOut, User, Share2, Search, Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 import { UserAvatar } from './components/user-avatar';
 import { DocumentActions } from './components/document-actions';
+import { CreateVersionPopover } from './components/create-version-popover';
 import type { DocumentHeaderProps, CollaborationUser } from './types';
 import ShareDialog from '../DocumentSidebar/folder/ShareDialog';
 
@@ -236,10 +237,13 @@ export default function DocumentHeader({
   doc,
   isSidebarOpen = true,
   toggleSidebar,
+  cloudSavedUpdatedAt = null,
+  isCloudSaving = false,
 }: DocumentHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const isCollaborationMode = Boolean(provider) && Array.isArray(connectedUsers);
-  const { editor, setIsHeaderHovered, setHistoryPanelOpen } = useEditorStore();
+  const { editor, setIsHeaderHovered } = useEditorStore();
   const { documentGroups } = useFileStore();
 
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -278,7 +282,8 @@ export default function DocumentHeader({
     };
   }, [documentId, currentFile?.updated_at]);
 
-  const updatedAtSource = currentFile?.updated_at ?? fetchedUpdatedAt ?? undefined;
+  const updatedAtSource =
+    cloudSavedUpdatedAt ?? currentFile?.updated_at ?? fetchedUpdatedAt ?? undefined;
 
   const lastModifiedDisplay = useMemo(() => {
     return updatedAtSource ? formatDocumentLastModified(updatedAtSource) : '';
@@ -324,18 +329,21 @@ export default function DocumentHeader({
           <h1 className="truncate text-base font-semibold leading-tight text-gray-900 dark:text-gray-100">
             {displayTitle}
           </h1>
-          {documentId && lastModifiedDisplay && (
+          {documentId && (isCloudSaving || lastModifiedDisplay) && (
             <button
               type="button"
-              disabled={!doc}
-              onClick={() => doc && setHistoryPanelOpen(true)}
+              disabled={!doc || isCloudSaving}
+              onClick={() => doc && documentId && router.push(`/docs/${documentId}/snapshot`)}
               className={cn(
                 'mt-0.5 block max-w-full truncate text-left text-xs text-gray-400 dark:text-gray-500',
-                doc && 'cursor-pointer hover:text-gray-600 dark:hover:text-gray-400',
+                doc &&
+                  !isCloudSaving &&
+                  'cursor-pointer hover:text-gray-600 dark:hover:text-gray-400',
                 !doc && 'cursor-not-allowed opacity-60',
+                isCloudSaving && 'cursor-default',
               )}
             >
-              最近修改：{lastModifiedDisplay}
+              {isCloudSaving ? '正在保存到云端…' : `最近修改：${lastModifiedDisplay}`}
             </button>
           )}
         </div>
@@ -395,14 +403,9 @@ export default function DocumentHeader({
           <Search className="w-5 h-5" />
         </button>
 
-        {/* 添加按钮 */}
-        <button
-          type="button"
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          title="新建"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+        {documentId && (
+          <CreateVersionPopover documentId={documentId} documentTitle={displayTitle} doc={doc ?? null} />
+        )}
 
         {/* 分隔线 */}
         <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1" />

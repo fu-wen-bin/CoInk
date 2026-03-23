@@ -2,6 +2,8 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 
+import { MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
+
 export interface DragHandlerOptions {
   /**
    * 是否启用拖拽功能
@@ -119,7 +121,7 @@ class ImageBlockStrategy implements BlockContentStrategy {
       type: 'imageUpload',
       attrs: {
         placeholder: '点击上传图片',
-        maxSize: 5 * 1024 * 1024, // 5MB
+        maxSize: MAX_IMAGE_BYTES,
       },
     };
   }

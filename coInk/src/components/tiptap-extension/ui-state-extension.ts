@@ -1,4 +1,5 @@
 import { Extension, type Editor } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 
 export interface UiState {
   aiGenerationIsSelection: boolean;
@@ -91,5 +92,23 @@ export const UiState = Extension.create<UiState>({
         return true;
       },
     };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      /**
+       * @tiptap/extension-drag-handle：顶层块增删后 view.update 里用 mapping 更新 currentNodePos，
+       * 在「悬浮块菜单已打开(lockDragHandle)」等情况下 keydown 不会清空柄状态，易出现错位。
+       * doc 直接子块数量变化时派发 hideDragHandle，与官方插件一致地重置，下次 mousemove 再对齐。
+       */
+      new Plugin({
+        key: new PluginKey('dragHandleResetAfterDocStructureChange'),
+        appendTransaction: (transactions, oldState, newState) => {
+          if (!transactions.some((tr) => tr.docChanged)) return null;
+          if (oldState.doc.childCount === newState.doc.childCount) return null;
+          return newState.tr.setMeta('hideDragHandle', true);
+        },
+      }),
+    ];
   },
 });

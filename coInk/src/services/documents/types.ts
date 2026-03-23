@@ -71,6 +71,10 @@ export interface Document {
   createdAt: string;
   /** 更新时间 */
   updatedAt: string;
+  /** 当前用户最近一次打开该文档的时间（后端按用户维度返回） */
+  lastAccessedAt?: string | null;
+  /** 父文件夹名称（仅当 parentId 存在且能解析到文件夹时） */
+  parentFolderTitle?: string | null;
   /** 所有者信息（可选） */
   owner?: {
     userId: string;
@@ -79,6 +83,10 @@ export interface Document {
   };
   /** 子文档数量（文件夹类型） */
   childrenCount?: number;
+  /** 与我共享：当前用户已无访问权限，仅因最近访问/收藏保留在列表；点进文档会提示无权限 */
+  sharedAccessDenied?: boolean;
+  /** 协作者权限（共享列表等场景，后端可选返回） */
+  myPermission?: string;
 }
 
 /**
@@ -113,6 +121,8 @@ export interface DocumentVersion {
   documentId: string;
   /** 版本时的标题 */
   title: string;
+  /** 版本说明（快照描述） */
+  description?: string | null;
   /** 版本内容 */
   content: Record<string, any>;
   /** 创建时间 */
@@ -215,6 +225,8 @@ export interface MoveDocumentParams {
 export interface StarDocumentParams {
   /** 是否星标 */
   isStarred: boolean;
+  /** 执行收藏操作的用户（必须与登录用户一致；有文档访问权限即可收藏） */
+  userId: string;
 }
 
 /**
@@ -271,10 +283,16 @@ export interface UpdateContentParams {
  * 创建文档版本参数
  */
 export interface CreateVersionParams {
+  /** 文档 ID（与路径参数一致，后端校验用） */
+  documentId: string;
   /** 版本标题 */
   title: string;
+  /** 版本说明（快照描述） */
+  description?: string;
   /** 版本内容 */
   content: Record<string, any>;
+  /** 可选：base64(encodeStateAsUpdate)，与协同 y_state 一致 */
+  yStateBase64?: string;
   /** 用户ID */
   userId: string;
 }
@@ -293,8 +311,10 @@ export interface GetByParentParams {
  * 获取星标文档参数
  */
 export interface GetStarredParams {
-  /** 用户ID（必填） */
-  ownerId: string;
+  /** 当前用户 ID（收藏列表按该用户维度） */
+  userId?: string;
+  /** @deprecated 请使用 userId */
+  ownerId?: string;
 }
 
 /**
@@ -319,6 +339,21 @@ export interface GetSharedParams {
 export interface GetPermissionParams {
   /** 用户ID（必填） */
   userId: string;
+}
+
+/**
+ * 记录文档访问（最近访问时间）
+ */
+export interface RecordAccessParams {
+  userId: string;
+}
+
+/**
+ * 从最近访问列表批量移除
+ */
+export interface RemoveFromRecentParams {
+  userId: string;
+  documentIds: string[];
 }
 
 // ==================== 响应类型 ====================

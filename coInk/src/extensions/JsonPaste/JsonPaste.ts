@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core';
+import { Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 
 export const JsonPaste = Extension.create({
@@ -26,10 +27,16 @@ export const JsonPaste = Extension.create({
 
                 event.preventDefault();
 
+                const node = view.state.schema.nodeFromJSON(json);
                 const tr = view.state.tr;
-                const doc = view.state.schema.nodeFromJSON(json);
-                tr.replaceWith(0, view.state.doc.content.size, doc);
-                view.dispatch(tr);
+
+                if (node.type.name === 'doc') {
+                  tr.replaceSelection(new Slice(node.content, 0, 0));
+                } else {
+                  tr.replaceSelectionWith(node);
+                }
+
+                view.dispatch(tr.scrollIntoView());
 
                 return true;
               } catch (error) {

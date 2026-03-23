@@ -2,20 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { type Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
+import { type Editor } from '@tiptap/react';
 
-// --- Hooks ---
-import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
-import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
-
-// --- Lib ---
-import { isExtensionAvailable } from '@/lib/tiptap-utils';
-
-// --- Icons ---
 import { AlignCenterVerticalIcon } from '@/components/tiptap-icons/align-center-vertical-icon';
 import { AlignEndVerticalIcon } from '@/components/tiptap-icons/align-end-vertical-icon';
 import { AlignStartVerticalIcon } from '@/components/tiptap-icons/align-start-vertical-icon';
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
+import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
+import { isExtensionAvailable } from '@/lib/tiptap-utils';
 
 export type ImageAlign = 'left' | 'center' | 'right';
 
@@ -225,13 +220,14 @@ export function useImageAlign(config: UseImageAlignConfig) {
   const { editor } = useTiptapEditor(providedEditor);
   const isMobile = useIsBreakpoint();
   const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [isActive, setIsActive] = useState<boolean>(false);
+
   const canAlign = canSetImageAlign(editor, align, extensionName, attributeName);
-  const isActive = isImageAlignActive(editor, align, extensionName, attributeName);
 
   useEffect(() => {
     if (!editor) return;
 
-    const handleSelectionUpdate = () => {
+    const sync = () => {
       setIsVisible(
         shouldShowButton({
           editor,
@@ -241,13 +237,16 @@ export function useImageAlign(config: UseImageAlignConfig) {
           attributeName,
         }),
       );
+      setIsActive(isImageAlignActive(editor, align, extensionName, attributeName));
     };
 
-    handleSelectionUpdate();
+    sync();
 
-    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('selectionUpdate', sync);
+    editor.on('transaction', sync);
     return () => {
-      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('selectionUpdate', sync);
+      editor.off('transaction', sync);
     };
   }, [editor, hideWhenUnavailable, align, extensionName, attributeName]);
 

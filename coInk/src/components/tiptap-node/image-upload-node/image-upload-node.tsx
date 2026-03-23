@@ -7,6 +7,7 @@ import { NodeViewWrapper } from '@tiptap/react';
 import { Button } from '@/components/tiptap-ui-primitive/button';
 import { CloseIcon } from '@/components/tiptap-icons/close-icon';
 import '@/components/tiptap-node/image-upload-node/image-upload-node.scss';
+import { formatEditorImageMaxLabel } from '@/lib/editor-image-upload';
 import { focusNextNode, isValidPosition } from '@/lib/tiptap-utils';
 
 export interface FileItem {
@@ -33,6 +34,11 @@ export interface FileItem {
    * @optional
    */
   url?: string;
+  /**
+   * Human-readable error when status is "error"
+   * @optional
+   */
+  errorMessage?: string;
   /**
    * Controller that can be used to abort the upload process
    * @optional
@@ -88,7 +94,9 @@ function useFileUpload(options: UploadOptions) {
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (file.size > options.maxSize) {
-      const error = new Error(`文件大小超过限制（最大 ${options.maxSize / 1024 / 1024}MB）`);
+      const error = new Error(
+        `文件大小超过限制（最大 ${formatEditorImageMaxLabel(options.maxSize)}）`,
+      );
       options.onError?.(error);
       return null;
     }
@@ -136,12 +144,15 @@ function useFileUpload(options: UploadOptions) {
       return null;
     } catch (error) {
       if (!abortController.signal.aborted) {
+        const err = error instanceof Error ? error : new Error('上传失败');
         setFileItems((prev) =>
           prev.map((item) =>
-            item.id === fileId ? { ...item, status: 'error', progress: 0 } : item,
+            item.id === fileId
+              ? { ...item, status: 'error', progress: 0, errorMessage: err.message }
+              : item,
           ),
         );
-        options.onError?.(error instanceof Error ? error : new Error('上传失败'));
+        options.onError?.(err);
       }
       return null;
     }
@@ -366,6 +377,15 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({ fileItem, onRem
           {fileItem.status === 'uploading' && (
             <span className="tiptap-image-upload-progress-text">{fileItem.progress}%</span>
           )}
+          {fileItem.status === 'error' && fileItem.errorMessage && (
+            <span
+              className="tiptap-image-upload-progress-text"
+              style={{ color: 'var(--destructive, #dc2626)' }}
+              title={fileItem.errorMessage}
+            >
+              {fileItem.errorMessage}
+            </span>
+          )}
           <Button
             type="button"
             data-style="ghost"
@@ -397,7 +417,7 @@ const DropZoneContent: React.FC<{ maxSize: number; limit: number }> = ({ maxSize
         <em>点击上传</em> 或拖拽到此处
       </span>
       <span className="tiptap-image-upload-subtext">
-        最多 {limit} 个文件，每个 {maxSize / 1024 / 1024}MB
+        最多 {limit} 个文件，每个不超过 {formatEditorImageMaxLabel(maxSize)}
       </span>
     </div>
   </>

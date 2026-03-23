@@ -20,7 +20,9 @@ import { CurrentUserId } from '../common/decorators';
 import { CheckFileDto, CompleteFileDto, UploadChunkDto } from './dto';
 import { UploadService, UploadStatus } from './upload.service';
 
-const EDITOR_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const EDITOR_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** 与编辑器内嵌图片共用 `/upload/avatar` 时的上限 */
+const AVATAR_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 
 @Controller('upload')
 export class UploadController {
@@ -126,7 +128,11 @@ export class UploadController {
    * 上传头像
    */
   @Post('avatar')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: { fileSize: AVATAR_UPLOAD_MAX_BYTES },
+    }),
+  )
   async uploadAvatar(@UploadedFile() file: Express.Multer.File, @CurrentUserId() userId: string) {
     if (!file) {
       throw new BadRequestException('头像文件不能为空');

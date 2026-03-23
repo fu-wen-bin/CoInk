@@ -1,19 +1,9 @@
 import { useEffect, useState } from 'react';
-import { type Editor } from '@tiptap/react';
+import type { AutoUpdateOptions } from '@floating-ui/react';
+import { isNodeSelection, type Editor } from '@tiptap/react';
 
-// --- Hooks ---
-import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
-import { useUiEditorState } from '@/hooks/use-ui-editor-state';
-import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
-import { useFloatingToolbarVisibility } from '@/hooks/use-floating-toolbar-visibility';
-
-// --- Node ---
 import { ImageNodeFloating } from '@/components/tiptap-node/image-node/image-node-floating';
-
-// --- Icons ---
 import { MoreVerticalIcon } from '@/components/tiptap-icons/more-vertical-icon';
-
-// --- UI ---
 import { ColorTextPopover } from '@/components/tiptap-ui/color-text-popover';
 import { ImproveDropdown } from '@/components/tiptap-ui/improve-dropdown';
 import { LinkPopover } from '@/components/tiptap-ui/link-popover';
@@ -22,18 +12,19 @@ import { canToggleMark, MarkButton } from '@/components/tiptap-ui/mark-button';
 import type { TextAlign } from '@/components/tiptap-ui/text-align-button';
 import { canSetTextAlign, TextAlignButton } from '@/components/tiptap-ui/text-align-button';
 import { TurnIntoDropdown } from '@/components/tiptap-ui/turn-into-dropdown';
-
-// --- Utils ---
-import { isSelectionValid } from '@/lib/tiptap-collab-utils';
-
-// --- Primitive UI Components ---
 import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
 import { Button } from '@/components/tiptap-ui-primitive/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/tiptap-ui-primitive/popover';
 import { Toolbar, ToolbarGroup, ToolbarSeparator } from '@/components/tiptap-ui-primitive/toolbar';
-
-// --- UI Utils ---
 import { FloatingElement } from '@/components/tiptap-ui-utils/floating-element';
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
+import { useUiEditorState } from '@/hooks/use-ui-editor-state';
+import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
+import { useFloatingToolbarVisibility } from '@/hooks/use-floating-toolbar-visibility';
+import { getImageSelectionReferenceElement, isSelectionValid } from '@/lib/tiptap-collab-utils';
+
+/** 图片选中时开启 requestAnimationFrame 轮询参照矩形，工具栏随滚动/布局与图片同步 */
+const IMAGE_TOOLBAR_AUTO_UPDATE: AutoUpdateOptions = { animationFrame: true };
 
 export function NotionToolbarFloating() {
   const { editor } = useTiptapEditor();
@@ -46,10 +37,41 @@ export function NotionToolbarFloating() {
     extraHideWhen: Boolean(aiGenerationActive || commentInputVisible),
   });
 
+  const [imageReferenceElement, setImageReferenceElement] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const syncImageRef = () => {
+      setImageReferenceElement(getImageSelectionReferenceElement(editor));
+    };
+
+    syncImageRef();
+    editor.on('selectionUpdate', syncImageRef);
+    editor.on('transaction', syncImageRef);
+
+    return () => {
+      editor.off('selectionUpdate', syncImageRef);
+      editor.off('transaction', syncImageRef);
+    };
+  }, [editor]);
+
+  const isImageNodeSelection = Boolean(
+    editor &&
+    isNodeSelection(editor.state.selection) &&
+    editor.state.selection.node.type.name === 'image',
+  );
+
   if (lockDragHandle || isMobile) return null;
 
   return (
-    <FloatingElement shouldShow={shouldShow}>
+    <FloatingElement
+      shouldShow={shouldShow}
+      autoUpdateOptions={isImageNodeSelection ? IMAGE_TOOLBAR_AUTO_UPDATE : undefined}
+      referenceElement={
+        editor && isImageNodeSelection ? (imageReferenceElement ?? undefined) : undefined
+      }
+    >
       <Toolbar variant="floating">
         <ToolbarGroup>
           <ImproveDropdown hideWhenUnavailable={true} />

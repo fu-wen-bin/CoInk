@@ -1,41 +1,115 @@
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { NodeSelection, type Selection } from '@tiptap/pm/state';
 import { CellSelection } from '@tiptap/pm/tables';
 import type { JSONContent, Editor } from '@tiptap/react';
 import { isTextSelection, isNodeSelection, posToDOMRect } from '@tiptap/react';
 
-const NODE_TYPE_LABELS: Record<string, string> = {
+/**
+ * 图片块选中时，用实际图片容器作为浮动层参照，使工具栏水平居中对齐图片（而非整行宽）。
+ */
+export const getImageSelectionReferenceElement = (editor: Editor | null): HTMLElement | null => {
+  if (!editor) return null;
+  const { selection } = editor.state;
+  if (!isNodeSelection(selection) || selection.node.type.name !== 'image') return null;
+  const nodeDom = editor.view.nodeDOM(selection.from) as HTMLElement | null;
+  if (!nodeDom) return null;
+  return nodeDom.querySelector('.tiptap-image-container') as HTMLElement | null;
+};
+
+/** 拖拽菜单 / 转换 上方的块类型标题（中文；标题为 H1、H2、H3…） */
+const BLOCK_TYPE_LABELS: Record<string, string> = {
   paragraph: '正文',
-  heading: '标题',
   blockquote: '引用',
-  listItem: '列表项',
   codeBlock: '代码块',
   table: '表格',
   tocNode: '目录',
+  bulletList: '无序列表',
+  orderedList: '有序列表',
+  taskList: '任务列表',
+  listItem: '无序列表',
+  taskItem: '任务列表',
+  image: '图片',
+  imageUpload: '图片',
+  horizontalRule: '分割线',
+  details: '折叠列表',
 };
+
+function humanizeNodeTypeName(name: string): string {
+  const spaced = name.replace(/([A-Z])/g, ' $1').trim();
+  if (!spaced) return name;
+  return spaced
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/** 当前块的展示名（标题为 H1、H2、H3…，其余为中文） */
+function labelForBlockNode(node: PMNode, editor: Editor | null): string {
+  const name = node.type.name;
+
+  if (name === 'heading') {
+    const level = node.attrs.level as number;
+    return `H${level}`;
+  }
+
+  if (name === 'paragraph' && editor) {
+    if (editor.isActive('heading')) {
+      const level = editor.getAttributes('heading').level as number;
+      return `H${level}`;
+    }
+    if (editor.isActive('bulletList')) return '无序列表';
+    if (editor.isActive('orderedList')) return '有序列表';
+    if (editor.isActive('taskList')) return '任务列表';
+  }
+
+  if (name === 'listItem' && editor) {
+    if (editor.isActive('orderedList')) return '有序列表';
+    if (editor.isActive('taskList')) return '任务列表';
+    return '无序列表';
+  }
+
+  if (name === 'taskItem') {
+    return '任务列表';
+  }
+
+  return BLOCK_TYPE_LABELS[name] ?? humanizeNodeTypeName(name);
+}
+
 export type OverflowPosition = 'none' | 'top' | 'bottom' | 'both';
 
 /**
- * Returns a display name for the current node in the editor
- * @param editor The Tiptap editor instance
- * @returns The display name of the current node
+ * 当前块的展示名（中文；标题为 H1、H2、H3…）。
+ * @param dragHandleNode 来自拖拽柄时，与当前块一致（避免选区尚未更新）。
  */
-export const getNodeDisplayName = (editor: Editor | null): string => {
-  if (!editor) return '节点';
+export const getNodeDisplayName = (editor: Editor | null, dragHandleNode?: PMNode | null): string => {
+  if (!editor) return '块';
+
+  if (dragHandleNode) {
+    return labelForBlockNode(dragHandleNode, editor);
+  }
 
   const { selection } = editor.state;
 
   if (selection instanceof NodeSelection) {
-    const nodeType = selection.node.type.name;
-    return NODE_TYPE_LABELS[nodeType] || nodeType.toLowerCase();
+    return labelForBlockNode(selection.node, editor);
   }
 
   if (selection instanceof CellSelection) {
     return '表格';
   }
 
-  const { $anchor } = selection;
-  const nodeType = $anchor.parent.type.name;
-  return NODE_TYPE_LABELS[nodeType] || nodeType.toLowerCase();
+  if (editor.isActive('heading')) {
+    const level = editor.getAttributes('heading').level as number;
+    return `H${level}`;
+  }
+  if (editor.isActive('bulletList')) return '无序列表';
+  if (editor.isActive('orderedList')) return '有序列表';
+  if (editor.isActive('taskList')) return '任务列表';
+  if (editor.isActive('blockquote')) return '引用';
+  if (editor.isActive('codeBlock')) return '代码块';
+
+  const parent = selection.$anchor.parent;
+  return labelForBlockNode(parent, editor);
 };
 
 /**
@@ -128,6 +202,12 @@ export const getSelectionBoundingRect = (editor: Editor): DOMRect | null => {
   if (isNodeSelection(selection)) {
     const node = editor.view.nodeDOM(from) as HTMLElement;
     if (node) {
+      if (selection.node.type.name === 'image') {
+        const imageBox = node.querySelector('.tiptap-image-container') as HTMLElement | null;
+        if (imageBox) {
+          return imageBox.getBoundingClientRect();
+        }
+      }
       return node.getBoundingClientRect();
     }
   }

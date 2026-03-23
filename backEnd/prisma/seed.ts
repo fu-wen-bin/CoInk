@@ -54,7 +54,6 @@ async function main() {
         type: 'FOLDER',
         owner_id: userId,
         parent_id: null,
-        is_starred: false,
         sort_order: 0,
         is_deleted: false,
         share_token: nanoid(),
@@ -82,12 +81,14 @@ async function main() {
         type: 'FILE',
         owner_id: userId,
         parent_id: folder.document_id,
-        is_starred: true,
         sort_order: 1,
         is_deleted: false,
         share_token: nanoid(),
         link_permission: 'view',
       },
+    });
+    await prisma.document_user_star.create({
+      data: { document_id: docId, user_id: userId },
     });
     console.log(`创建文档: ${document.title}`);
 

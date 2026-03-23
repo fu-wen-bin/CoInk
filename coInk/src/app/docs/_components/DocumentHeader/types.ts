@@ -21,6 +21,10 @@ export interface DocumentHeaderProps {
   toggleSidebar?: () => void;
   // 新增：连接状态
   connectionStatus?: string;
+  /** 协同落库成功后由 Hocuspocus stateless 推送的 ISO 时间，用于 Header「最近修改」 */
+  cloudSavedUpdatedAt?: string | null;
+  /** 本地编辑后、尚未收到落库确认时展示「正在保存到云端」 */
+  isCloudSaving?: boolean;
 }
 
 export interface DocumentActionsProps {

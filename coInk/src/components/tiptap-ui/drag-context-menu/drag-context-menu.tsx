@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Editor } from '@tiptap/react';
 import type { Node as TiptapNode } from '@tiptap/pm/model';
 import { offset } from '@floating-ui/react';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
 import {
+  ArrowDownToLine,
+  ArrowUpToLine,
   Braces,
   ChevronRight,
   GripVertical,
@@ -81,6 +84,22 @@ import { AskAiShortcutBadge, useAiAsk } from '@/components/tiptap-ui/ai-ask-butt
 import { EDITOR_AI_ENABLED } from '@/lib/editor-ai';
 import './drag-context-menu.scss';
 
+/** 拖拽时光标会移出编辑器区域，仅给 EditorContent 设 cursor 无效，需在 html/body 上临时设为 grabbing */
+function setGlobalBlockDragCursor(active: boolean) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const body = document.body;
+  if (active) {
+    root.style.cursor = 'grabbing';
+    body.style.cursor = 'grabbing';
+    body.style.userSelect = 'none';
+  } else {
+    root.style.cursor = '';
+    body.style.cursor = '';
+    body.style.userSelect = '';
+  }
+}
+
 /**
  * 固定槽宽 + 触发器 `absolute right-0`：各行按钮**右缘**与同槽右边界对齐，
  * 不受「仅加号」与「类型+握把」宽度差或 Menu 内部包裹层影响。
@@ -90,6 +109,40 @@ const DRAG_HANDLE_TRIGGER_PIN_CLASS =
   'absolute right-0 top-1/2 flex -translate-y-1/2 items-center justify-end';
 const DRAG_HANDLE_CONTROL_CLASS =
   'drag-handle-btn box-border flex h-7 shrink-0 items-center gap-0.5 rounded-md border border-gray-200 bg-white px-1.5 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800';
+
+/**
+ * 在当前拖拽块之前/之后插入空块：列表项插入同类型项，其余插入空段落。
+ */
+function insertAdjacentEmptyBlock(
+  editor: Editor,
+  node: TiptapNode,
+  nodePos: number,
+  placement: 'above' | 'below',
+): boolean {
+  if (!editor.isEditable || nodePos < 0) return false;
+  const insertPos = placement === 'above' ? nodePos : nodePos + node.nodeSize;
+  const name = node.type.name;
+
+  let content: Record<string, unknown>;
+
+  if (name === 'listItem') {
+    content = { type: 'listItem', content: [{ type: 'paragraph' }] };
+  } else if (name === 'taskItem') {
+    content = {
+      type: 'taskItem',
+      attrs: { checked: false },
+      content: [{ type: 'paragraph' }],
+    };
+  } else {
+    content = { type: 'paragraph' };
+  }
+
+  return editor
+    .chain()
+    .focus()
+    .insertContentAt(insertPos, content, { updateSelection: true })
+    .run();
+}
 
 function isEmptyLineBlockNode(node: TiptapNode | null): boolean {
   if (!node) return false;
@@ -253,6 +306,35 @@ const BaseMenuItem: React.FC<MenuItemProps> = ({
     {shortcutBadge}
   </MenuItem>
 );
+
+const InsertAdjacentBlockItems: React.FC<{
+  editor: Editor;
+  node: TiptapNode | null;
+  nodePos: number;
+}> = ({ editor, node, nodePos }) => {
+  const disabled = !node || nodePos < 0 || !editor.isEditable;
+
+  return (
+    <>
+      <BaseMenuItem
+        icon={ArrowUpToLine}
+        label="在上方插入"
+        onClick={() => {
+          if (node) insertAdjacentEmptyBlock(editor, node, nodePos, 'above');
+        }}
+        disabled={disabled}
+      />
+      <BaseMenuItem
+        icon={ArrowDownToLine}
+        label="在下方插入"
+        onClick={() => {
+          if (node) insertAdjacentEmptyBlock(editor, node, nodePos, 'below');
+        }}
+        disabled={disabled}
+      />
+    </>
+  );
+};
 
 const SubMenuTrigger: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
@@ -482,6 +564,8 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
   }, []);
 
   const isEmptyLine = useMemo(() => isEmptyLineBlockNode(node), [node]);
+  /** 仅空「正文段落」用加号唤起 slash；有块级格式（标题、列表等）仍显示类型图标与完整菜单 */
+  const showPlusOnlyEmptyLine = isEmptyLine && node?.type.name === 'paragraph';
 
   useEffect(() => {
     if (!editor) return;
@@ -520,11 +604,14 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
 
   const onElementDragStart = useCallback(() => {
     if (!editor) return;
+    setOpen(false);
+    setGlobalBlockDragCursor(true);
     editor.commands.setIsDragging(true);
   }, [editor]);
 
   const onElementDragEnd = useCallback(() => {
     if (!editor) return;
+    setGlobalBlockDragCursor(false);
     editor.commands.setIsDragging(false);
 
     setTimeout(() => {
@@ -533,9 +620,13 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
     }, 0);
   }, [editor]);
 
+  useEffect(() => {
+    return () => setGlobalBlockDragCursor(false);
+  }, []);
+
   if (!editor) return null;
 
-  const nodeName = getNodeDisplayName(editor);
+  const nodeName = getNodeDisplayName(editor, node);
   const shouldHide =
     aiGenerationActive || isMobile || isTextSelectionValid(editor) || isHeaderHovered;
 
@@ -562,7 +653,7 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
             ...(isDragging ? { opacity: 0, pointerEvents: 'none', cursor: 'grabbing' } : {}),
           }}
         >
-          {isEmptyLine ? (
+          {showPlusOnlyEmptyLine ? (
             <div className={DRAG_HANDLE_TRIGGER_PIN_CLASS}>
               <button
                 type="button"
@@ -591,7 +682,6 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
                     tabIndex={-1}
                     style={{
                       cursor: 'grab',
-                      ...(open ? { pointerEvents: 'none' } : {}),
                     }}
                     onMouseDown={() => selectNodeAndHideFloating(editor, nodePos)}
                   >
@@ -614,6 +704,7 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
                     <Label>{nodeName}</Label>
 
                     <MenuGroup>
+                      <InsertAdjacentBlockItems editor={editor} node={node} nodePos={nodePos} />
                       <TocShowTitle />
                       <ColorMenu />
                       <TableAlignMenu />

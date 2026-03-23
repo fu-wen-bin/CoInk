@@ -1,6 +1,6 @@
-import { mergeAttributes } from '@tiptap/core';
-import TiptapLink from '@tiptap/extension-link';
-import { Plugin } from '@tiptap/pm/state';
+import { getAttributes, mergeAttributes } from '@tiptap/core';
+import TiptapLink, { isAllowedUri as validateLinkProtocol } from '@tiptap/extension-link';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 
 export const Link = TiptapLink.extend({
@@ -45,6 +45,8 @@ export const Link = TiptapLink.extend({
   addProseMirrorPlugins() {
     const parentPlugins = this.parent?.() || [];
     const { editor } = this;
+    const linkMarkType = this.type;
+    const linkOptions = this.options;
 
     return [
       // Markdown 链接语法插件放在最前面，优先处理
@@ -107,6 +109,56 @@ export const Link = TiptapLink.extend({
       }),
       // 保留父级 Link 扩展的所有插件（autolink、点击处理等）
       ...parentPlugins,
+      // ⌘/Ctrl + 左键在可编辑模式下打开链接（与 openOnClick: false 搭配，避免普通点击误跳转）
+      new Plugin({
+        key: new PluginKey('handleModClickLink'),
+        props: {
+          handleClick: (view, _pos, event) => {
+            if (event.button !== 0) return false;
+            if (!(event.metaKey || event.ctrlKey)) return false;
+
+            let link: HTMLAnchorElement | null = null;
+
+            if (event.target instanceof HTMLAnchorElement) {
+              link = event.target;
+            } else {
+              const target = event.target as HTMLElement | null;
+              if (!target) return false;
+              const root = editor.view.dom;
+              link = target.closest<HTMLAnchorElement>('a');
+              if (link && !root.contains(link)) {
+                link = null;
+              }
+            }
+
+            if (!link) return false;
+
+            const attrs = getAttributes(view.state, linkMarkType.name) as {
+              href?: string | null;
+              target?: string | null;
+            };
+            const href = link.href || attrs.href || '';
+            const targetFrame = link.target || attrs.target || '_blank';
+
+            if (!href) return false;
+
+            const { protocols, defaultProtocol } = linkOptions;
+            if (
+              !linkOptions.isAllowedUri(href, {
+                defaultValidate: (url: string) => !!validateLinkProtocol(url, protocols),
+                protocols,
+                defaultProtocol,
+              })
+            ) {
+              return false;
+            }
+
+            event.preventDefault();
+            window.open(href, targetFrame || '_blank');
+            return true;
+          },
+        },
+      }),
     ];
   },
 });

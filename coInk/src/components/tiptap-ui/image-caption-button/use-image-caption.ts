@@ -1,17 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { type Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
+import { type Editor } from '@tiptap/react';
 
-// --- Hooks ---
-import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
-
-// --- Lib ---
-import { isExtensionAvailable, isNodeTypeSelected } from '@/lib/tiptap-utils';
-
-// --- Icons ---
 import { ImageCaptionIcon } from '@/components/tiptap-icons/image-caption-icon';
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
+import { isExtensionAvailable, isNodeTypeSelected } from '@/lib/tiptap-utils';
 
 /**
  * Configuration for the image caption functionality
@@ -170,17 +165,19 @@ export function useImageCaption(config?: UseImageCaptionConfig) {
   useEffect(() => {
     if (!editor) return;
 
-    const handleSelectionUpdate = () => {
+    const sync = () => {
       setIsVisible(shouldShowButton({ editor, hideWhenUnavailable }));
       setIsActive(isImageCaptionActive(editor));
     };
 
-    handleSelectionUpdate();
+    sync();
 
-    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('selectionUpdate', sync);
+    editor.on('transaction', sync);
 
     return () => {
-      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('selectionUpdate', sync);
+      editor.off('transaction', sync);
     };
   }, [editor, hideWhenUnavailable]);
 

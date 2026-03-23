@@ -57,19 +57,19 @@ export const blockTypeOptions = [
   },
   {
     type: 'heading',
-    label: '一级标题',
+    label: 'H1',
     level: 1 as Level,
     isActive: (editor: Editor) => editor.isActive('heading', { level: 1 }),
   },
   {
     type: 'heading',
-    label: '二级标题',
+    label: 'H2',
     level: 2 as Level,
     isActive: (editor: Editor) => editor.isActive('heading', { level: 2 }),
   },
   {
     type: 'heading',
-    label: '三级标题',
+    label: 'H3',
     level: 3 as Level,
     isActive: (editor: Editor) => editor.isActive('heading', { level: 3 }),
   },

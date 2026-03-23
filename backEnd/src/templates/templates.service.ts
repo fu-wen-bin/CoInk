@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 
 import { Prisma } from '../../generated/prisma/client';
@@ -21,6 +21,8 @@ const TEMPLATE_CATEGORIES = [
 
 @Injectable()
 export class TemplatesService {
+  private readonly logger = new Logger(TemplatesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ==================== 模板 CRUD ====================
@@ -233,23 +235,33 @@ export class TemplatesService {
    * 优先从数据库获取官方项目模板，如果没有则返回默认模板
    */
   async getProjectIntroduction(): Promise<Template> {
-    // 首先尝试从数据库获取官方的项目模板
-    const template = await this.prisma.templates.findFirst({
-      where: {
-        category: 'meeting',
-        is_official: true,
-        is_public: true,
-      },
-      orderBy: {
-        use_count: 'desc',
-      },
-    });
+    try {
+      // 优先：会议类官方公开模板；也可匹配项目类（与「项目介绍」页语义一致）
+      const template = await this.prisma.templates.findFirst({
+        where: {
+          OR: [{ category: 'meeting' }, { category: 'project' }],
+          is_official: true,
+          is_public: true,
+        },
+        orderBy: {
+          use_count: 'desc',
+        },
+      });
 
-    if (template) {
-      return this.mapToEntity(template);
+      if (template) {
+        return this.mapToEntity(template);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `getProjectIntroduction 查询失败，使用内置默认模板: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
-    // 如果没有找到，返回默认模板
+    return this.getDefaultProjectIntroductionTemplate();
+  }
+
+  /** 无数据库或查询失败时的内置项目介绍文档（TipTap JSON） */
+  private getDefaultProjectIntroductionTemplate(): Template {
     return {
       templateId: 'default-project-intro',
       title: '项目介绍',
@@ -266,17 +278,36 @@ export class TemplatesService {
           {
             type: 'bulletList',
             content: [
-              { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: '特性 1' }] }] },
-              { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: '特性 2' }] }] },
+              {
+                type: 'listItem',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: '特性 1' }] }],
+              },
+              {
+                type: 'listItem',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: '特性 2' }] }],
+              },
             ],
           },
           { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: '开始使用' }] },
           {
             type: 'orderedList',
             content: [
-              { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: '创建你的第一个文档' }] }] },
-              { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: '邀请团队成员协作' }] }] },
-              { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: '分享你的作品' }] }] },
+              {
+                type: 'listItem',
+                content: [
+                  { type: 'paragraph', content: [{ type: 'text', text: '创建你的第一个文档' }] },
+                ],
+              },
+              {
+                type: 'listItem',
+                content: [
+                  { type: 'paragraph', content: [{ type: 'text', text: '邀请团队成员协作' }] },
+                ],
+              },
+              {
+                type: 'listItem',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: '分享你的作品' }] }],
+              },
             ],
           },
         ],
@@ -319,7 +350,6 @@ export class TemplatesService {
         type: 'FILE',
         owner_id: generateDto.ownerId,
         parent_id: generateDto.parentId || null,
-        is_starred: false,
         sort_order: 0,
         is_deleted: false,
         share_token: nanoid(),

@@ -1,8 +1,9 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useMutation } from '@tanstack/react-query';
 import { Editor } from '@tiptap/core';
 
+import { formatEditorImageMaxLabel, MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
 import { uploadService } from '@/services/upload';
 
 export const useUploader = () => {
@@ -15,12 +16,21 @@ export const useUploader = () => {
       const url = await uploadService.uploadImage(file);
 
       return url;
-    } catch (errPayload: any) {
-      const error = errPayload?.response?.data?.error || 'Something went wrong';
-      toast.error(error);
+    } catch (errPayload: unknown) {
+      const message =
+        errPayload &&
+        typeof errPayload === 'object' &&
+        'response' in errPayload &&
+        errPayload.response &&
+        typeof errPayload.response === 'object' &&
+        'data' in errPayload.response
+          ? (errPayload.response as { data?: { error?: string; message?: string } }).data
+              ?.message || (errPayload.response as { data?: { error?: string } }).data?.error
+          : undefined;
+      toast.error(message || (errPayload instanceof Error ? errPayload.message : '图片上传失败'));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return { loading, uploadFile };
@@ -120,9 +130,8 @@ export const useImgUpload = () => {
         throw new Error('请上传图片文件');
       }
 
-      // 文件大小验证 (10MB)
-      if (params.file.size > 10 * 1024 * 1024) {
-        throw new Error('图片大小不能超过 10MB');
+      if (params.file.size > MAX_IMAGE_BYTES) {
+        throw new Error(`图片大小不能超过 ${formatEditorImageMaxLabel(MAX_IMAGE_BYTES)}`);
       }
 
       // 调用上传服务

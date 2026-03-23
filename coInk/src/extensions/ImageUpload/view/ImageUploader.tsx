@@ -6,6 +6,7 @@ import { useDropZone, useFileUpload, useImgUpload } from './hooks';
 import Spinner from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/Icon';
+import { formatEditorImageMaxLabel, MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
 import { cn } from '@/utils';
 
 export const ImageUploader = ({
@@ -73,6 +74,9 @@ export const ImageUploader = ({
             Upload an image
           </Button>
         </div>
+        <p className="text-xs text-center text-neutral-400 dark:text-neutral-500 mt-1">
+          单张不超过 {formatEditorImageMaxLabel(MAX_IMAGE_BYTES)}
+        </p>
       </div>
       <input
         className="w-0 h-0 overflow-hidden opacity-0"

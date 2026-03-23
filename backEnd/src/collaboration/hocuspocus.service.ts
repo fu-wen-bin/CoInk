@@ -1,15 +1,20 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { TiptapTransformer } from '@hocuspocus/transformer';
 import { Server } from '@hocuspocus/server';
 import { Logger } from '@hocuspocus/extension-logger';
 import { encodeStateAsUpdate } from 'yjs';
 
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { applyStoredDocumentToYdoc, TIPTAP_COLLABORATION_FIELD } from './document-yjs-storage';
 
 /**
  * Hocuspocus 协同编辑服务
  *
- * 提供 WebSocket 服务用于文档实时协作编辑
- * 端口: 9999 (与前端配置一致)
+ * - `y_state`：Yjs 完整快照（协同加载优先）
+ * - `content`：Tiptap JSON（检索 / REST / 导出）
+ *
+ * 端口: 9999（与前端配置一致）
  */
 @Injectable()
 export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
@@ -20,87 +25,80 @@ export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.server = new Server({
       port: 9999,
-      extensions: [
-        new Logger(),
-      ],
-      // 从数据库加载文档
+      debounce: 3000,
+      extensions: [new Logger()],
       onLoadDocument: async ({ documentName, document }) => {
         try {
-          const doc = await this.prisma.document_contents.findUnique({
+          const row = await this.prisma.document_contents.findUnique({
             where: { document_id: documentName },
           });
-
-          if (doc?.content) {
-            // 解析 JSON 内容
-            let binaryContent: Uint8Array | null = null;
-
-            if (typeof doc.content === 'string') {
-              // 如果是 base64 字符串
-              binaryContent = new Uint8Array(Buffer.from(doc.content, 'base64'));
-            } else if (Buffer.isBuffer(doc.content)) {
-              // 如果是 Buffer
-              binaryContent = new Uint8Array(doc.content);
-            } else if (doc.content && typeof doc.content === 'object') {
-              // 如果是 JSON 对象，尝试获取 data 字段
-              const content = doc.content as any;
-              if (content.data) {
-                binaryContent = new Uint8Array(content.data);
-              }
-            }
-
-            if (binaryContent) {
-              // 应用更新到文档
-              // 注意：这里不能直接返回，需要应用更新
-              // 但 Hocuspocus 的 onLoadDocument 需要返回 null 来允许默认加载
-              // 我们应该使用 afterLoadDocument 钩子来应用更新
-              // 暂时不处理，让文档从空开始
-            }
+          if (row) {
+            applyStoredDocumentToYdoc(document, row);
           }
-          return null;
         } catch (error) {
-          console.error('Error fetching document:', error);
-          return null;
+          console.error('Error loading document:', error);
         }
       },
-      // 保存文档内容到数据库
       onStoreDocument: async ({ documentName, document }) => {
         try {
-          // 获取文档状态
           const state = encodeStateAsUpdate(document);
-          const base64Content = Buffer.from(state).toString('base64');
+          const jsonContent = JSON.parse(
+            JSON.stringify(TiptapTransformer.fromYdoc(document, TIPTAP_COLLABORATION_FIELD)),
+          ) as Prisma.InputJsonValue;
 
-          await this.prisma.document_contents.upsert({
-            where: { document_id: documentName },
-            create: {
-              document_id: documentName,
-              content: base64Content,
-            },
-            update: {
-              content: base64Content,
-              updated_at: new Date(),
-            },
-          });
-          console.log(`Document ${documentName} saved`);
+          const now = new Date();
+
+          await this.prisma.$transaction([
+            this.prisma.document_contents.upsert({
+              where: { document_id: documentName },
+              create: {
+                document_id: documentName,
+                content: jsonContent,
+                y_state: Buffer.from(state),
+              },
+              update: {
+                content: jsonContent,
+                y_state: Buffer.from(state),
+                updated_at: now,
+              },
+            }),
+            this.prisma.documents_info.updateMany({
+              where: { document_id: documentName },
+              data: { updated_at: now },
+            }),
+          ]);
+          console.log(
+            `Document ${documentName} saved (y_state + Tiptap JSON, documents_info.updated_at synced)`,
+          );
+
+          document.broadcastStateless(
+            JSON.stringify({
+              type: 'coink:document-saved',
+              documentId: documentName,
+              updatedAt: now.toISOString(),
+            }),
+          );
         } catch (error) {
           console.error('Error storing document:', error);
         }
       },
-      // 验证连接
       onConnect: async ({ requestParameters }) => {
         const token = requestParameters.get('token');
         console.log('Client connected, token:', token ? 'present' : 'missing');
+        await Promise.resolve();
       },
       onDisconnect: async () => {
         console.log('Client disconnected');
+        await Promise.resolve();
       },
     });
 
-    this.server.listen();
+    void this.server.listen();
     console.log('Hocuspocus server started on ws://localhost:9999');
   }
 
   onModuleDestroy() {
-    this.server?.destroy();
+    void this.server?.destroy();
     console.log('Hocuspocus server stopped');
   }
 }

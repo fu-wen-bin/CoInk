@@ -1,16 +1,20 @@
 'use client';
 
-import React, { Ref, useEffect } from 'react';
+import React, { Ref, useEffect, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FileText, Folder, Check, MoreVertical, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, Folder, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 import FileItemMenu from '../FileItemMenu';
 import { useFileActions } from '../hooks/useFileActions';
 
+import { Checkbox } from '@/components/ui/checkbox';
 import type { FileItem } from '@/types/file-system';
 import { useFileStore } from '@/stores/fileStore';
 import { cn } from '@/utils';
+import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
+import { SIDEBAR_LIST_ROW_HOVER, SIDEBAR_LIST_ROW_SELECTED } from '@/utils/sidebar-list-styles';
+import { countAllNodesInTree } from '@/utils/sidebar-tree-count';
 
 interface RenderFileProps {
   file: FileItem;
@@ -30,6 +34,9 @@ interface RenderFileProps {
   onDelete: (file: FileItem) => void;
   onDuplicate: (file: FileItem) => void;
   onDownload: (file: FileItem) => void;
+  onStar?: (file: FileItem) => void;
+  /** 当前打开文档在侧栏的主分区；仅当为 library 时本行显示文档库浅蓝高亮 */
+  sidebarHighlightZone?: SidebarHighlightZone;
 }
 
 export const RenderFile: React.FC<RenderFileProps> = ({
@@ -50,7 +57,11 @@ export const RenderFile: React.FC<RenderFileProps> = ({
   onDelete,
   onDuplicate,
   onDownload,
+  onStar,
+  sidebarHighlightZone = null,
 }): React.ReactElement => {
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
   // Use store state directly
   const {
     expandedFolders,
@@ -68,7 +79,7 @@ export const RenderFile: React.FC<RenderFileProps> = ({
   } = useFileStore();
 
   // Use file actions hook
-  const { startCreateNewItem, finishCreateNewItem, cancelCreateNewItem } = useFileActions();
+  const { finishCreateNewItem, cancelCreateNewItem } = useFileActions();
 
   const isFolder = file.type === 'folder';
   const isExpanded = isFolder && expandedFolders[file.id];
@@ -78,6 +89,12 @@ export const RenderFile: React.FC<RenderFileProps> = ({
   const isAddingNewItem = String(newItemFolder) === String(file.id) && newItemGroupId === groupId;
   const isBatchSelected = selectedItems.some((item) => String(item) === String(file.id));
 
+  const isOpenDoc = isSelected;
+  /** 仅当当前打开文档属于「我的文档库」分区时本行浅蓝高亮 */
+  const rowHighlightOpenDoc = !batchMode && isOpenDoc && sidebarHighlightZone === 'library';
+  /** 仅打开三点菜单但未打开该文件时用灰底 */
+  const rowHighlightMenuOnly = !batchMode && moreMenuOpen && !isOpenDoc;
+
   const FileItemHeight = 46;
 
   // 计算有多少个子文件 渲染侧边连接线高度
@@ -86,6 +103,9 @@ export const RenderFile: React.FC<RenderFileProps> = ({
       return file.children!.length * FileItemHeight;
     }
   })();
+
+  const folderSubtreeCount =
+    isFolder && file.children?.length ? countAllNodesInTree(file.children) : 0;
 
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: id,
@@ -151,27 +171,33 @@ export const RenderFile: React.FC<RenderFileProps> = ({
         <div
           className={cn(
             'flex items-center py-2 px-3 text-[13px] font-normal cursor-pointer relative group box-border',
-            'transition-all duration-200 ease-out rounded-md my-0.5',
-            // 批量选中状态
-            isBatchSelected && [
-              'bg-blue-100 dark:bg-blue-900/30',
-              'border-2 border-blue-500 dark:border-blue-400',
-            ],
-            // 普通选中状态
-            !isBatchSelected &&
-              isSelected && [
-                'bg-blue-50 dark:bg-blue-900/20',
-                'text-blue-700 dark:text-blue-300',
-                'border-2 border-blue-500 dark:border-blue-400',
-              ],
-            // 未选中状态
-            !isBatchSelected &&
-              !isSelected && [
-                'hover:bg-gray-100 dark:hover:bg-gray-800',
+            'transition-all duration-200 ease-out rounded-lg my-0.5 border-2',
+            // 批量：选中行
+            batchMode && isBatchSelected && [SIDEBAR_LIST_ROW_SELECTED, 'border-transparent'],
+            // 批量：未选中行（显式透明底，避免取消勾选后背景残留）
+            batchMode &&
+              !isBatchSelected && [
+                'bg-transparent',
+                SIDEBAR_LIST_ROW_HOVER,
+                'border-transparent',
                 'text-gray-700 dark:text-gray-300',
-                'border-2 border-transparent',
+                sidebarHighlightZone === 'library' &&
+                  isOpenDoc &&
+                  'ring-1 ring-inset ring-blue-300/70 dark:ring-blue-500/45',
               ],
-            isOverlay && 'border-lime-500 border-2',
+            // 非批量：当前在编辑器打开的文档 → 浅蓝底
+            rowHighlightOpenDoc && [SIDEBAR_LIST_ROW_SELECTED, 'border-transparent'],
+            // 非批量：仅打开更多菜单、且未打开该文件 → 灰底（非浅蓝）
+            rowHighlightMenuOnly && ['border-transparent', 'bg-gray-100 dark:bg-gray-800'],
+            // 非批量：普通行（悬浮灰）
+            !batchMode &&
+              !rowHighlightOpenDoc &&
+              !rowHighlightMenuOnly && [
+                SIDEBAR_LIST_ROW_HOVER,
+                'border-transparent',
+                'text-gray-700 dark:text-gray-300',
+              ],
+            isOverlay && 'border-lime-500',
           )}
           style={{
             animationDelay: `${depth * 50}ms`,
@@ -179,20 +205,17 @@ export const RenderFile: React.FC<RenderFileProps> = ({
           onClick={handleClick}
           onContextMenu={(e) => onContextMenu(e, file.id)}
         >
-          {/* 批量选择复选框 */}
+          {/* 批量选择复选框（与收藏区同一 Checkbox 组件） */}
           {batchMode && (
-            <div className="mr-2 flex-shrink-0">
-              <div
-                className={cn(
-                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
-                  isBatchSelected
-                    ? 'bg-blue-500 border-blue-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400',
-                )}
-              >
-                {isBatchSelected && <Check className="w-3 h-3 text-white" />}
-              </div>
-            </div>
+            <span
+              className="mr-2 flex h-4 w-4 shrink-0 items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={!!isBatchSelected}
+                onCheckedChange={() => toggleItemSelection(file.id)}
+              />
+            </span>
           )}
 
           {/* 展开/折叠图标 - 只为文件夹显示 */}
@@ -230,13 +253,13 @@ export const RenderFile: React.FC<RenderFileProps> = ({
           </div>
 
           {/* 名称/重命名输入框 */}
-          <div className="flex-1 min-w-0 mr-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1 mr-2">
             <input
               ref={inputRef}
               type="text"
               readOnly={!isItemRenaming}
               className={cn(
-                'w-full text-sm rounded transition-all font-medium',
+                'w-full text-[13px] rounded transition-all font-normal',
                 'outline-none border',
                 isItemRenaming
                   ? [
@@ -249,14 +272,15 @@ export const RenderFile: React.FC<RenderFileProps> = ({
                       'cursor-text',
                     ]
                   : [
-                      // 只读状态
+                      // 只读状态（与「收藏的文档」列表字号一致）
                       'bg-transparent border-transparent',
                       'px-0 py-0',
                       'cursor-pointer pointer-events-none',
                       'truncate',
-                      isSelected || isBatchSelected
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300',
+                      batchMode && isBatchSelected && 'text-blue-700 dark:text-blue-300',
+                      batchMode && !isBatchSelected && 'text-gray-700 dark:text-gray-300',
+                      !batchMode && isOpenDoc && 'text-gray-900 dark:text-gray-100',
+                      !batchMode && !isOpenDoc && 'text-gray-700 dark:text-gray-300',
                     ],
               )}
               defaultValue={file.name}
@@ -275,6 +299,11 @@ export const RenderFile: React.FC<RenderFileProps> = ({
               }}
               onKeyDown={onKeyDown}
             />
+            {isFolder && !isItemRenaming && folderSubtreeCount > 0 && (
+              <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                ({folderSubtreeCount})
+              </span>
+            )}
           </div>
 
           {/* 操作按钮区域 */}
@@ -282,19 +311,21 @@ export const RenderFile: React.FC<RenderFileProps> = ({
             <div
               className={cn(
                 'flex items-center space-x-1',
-                'opacity-0 group-hover:opacity-100',
                 'transition-opacity duration-200',
+                moreMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
               )}
             >
               {/* 更多操作菜单 */}
               <FileItemMenu
                 file={file}
                 onShare={onShare}
+                onStar={onStar}
                 onDelete={onDelete}
                 onRename={onRename}
                 onDuplicate={onDuplicate}
                 onDownload={onDownload}
                 onMenuOpen={closeContextMenu}
+                onOpenChange={setMoreMenuOpen}
               />
             </div>
           )}
@@ -384,6 +415,8 @@ export const RenderFile: React.FC<RenderFileProps> = ({
                   onDelete={onDelete}
                   onDuplicate={onDuplicate}
                   onDownload={onDownload}
+                  onStar={onStar}
+                  sidebarHighlightZone={sidebarHighlightZone}
                 />
               ))}
             </div>

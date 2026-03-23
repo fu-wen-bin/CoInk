@@ -57,6 +57,7 @@ export { JsonPaste } from './JsonPaste';
 export { SelectOnlyCode } from './CodeBlock/SelectOnlyCode';
 export { Youtube } from './Youtube';
 export { ClearMarksOnEnter } from './ClearMarksOnEnter';
+export { ClearEmptyHeadingOnBackspace } from './ClearEmptyHeadingOnBackspace';
 export { Chart } from './Chart';
 export { Countdown } from './Countdown';
 export { Comment } from './Comment';

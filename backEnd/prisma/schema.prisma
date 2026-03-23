@@ -10,7 +10,10 @@ datasource db {
 
 model document_contents {
   document_id String   @id @db.VarChar(21)
+  /// Tiptap/ProseMirror JSON（片段 `default`，便于检索、导出与 REST）
   content     Json
+  /// Yjs `encodeStateAsUpdate` 快照，协同加载时优先于此（与 content 双写）
+  y_state     Bytes?   @db.MediumBlob
   updated_at  DateTime @default(now()) @db.DateTime(0)
   updated_by  String?  @db.VarChar(21)
 }
@@ -32,14 +35,19 @@ model document_principals {
 }
 
 model document_versions {
-  version_id  DateTime @id @default(now()) @db.Timestamp(0)
-  document_id String?  @db.VarChar(21)
+  document_id String   @db.VarChar(21)
+  /// 快照时间（秒精度）；与 document_id 组成复合主键，避免 MySQL 单列 TIMESTAMP 主键在 Prisma create 回读失败，并允许同一秒内多文档各有一条版本
+  version_id  DateTime @db.Timestamp(0)
   title       String   @db.VarChar(512)
+  /// 版本说明（用户填写的「快照描述」等）
+  description String?  @db.Text
   content     Json
+  /// 可选：创建版本时的 Yjs 全量状态（encodeStateAsUpdate），还原时优先于仅 JSON
+  y_state     Bytes?   @db.MediumBlob
   created_at  DateTime @default(now()) @db.DateTime(0)
   user_id     String   @db.VarChar(21)
 
-  @@index([version_id(sort: Desc)], map: "idx_doc_versions_doc_ver")
+  @@id([document_id, version_id])
 }
 
 model documents_info {
@@ -48,7 +56,6 @@ model documents_info {
   type            documents_info_type
   owner_id        String                          @db.VarChar(21)
   parent_id       String?                         @db.VarChar(21)
-  is_starred      Boolean                         @default(false)
   sort_order      Int                             @default(0)
   is_deleted      Boolean                         @default(false)
   created_at      DateTime                        @default(now()) @db.DateTime(0)
@@ -59,6 +66,26 @@ model documents_info {
   @@index([owner_id], map: "idx_documents_owner")
   @@index([parent_id], map: "idx_documents_parent")
   @@index([type], map: "idx_documents_type")
+}
+
+/// 用户对文档的最近打开时间（「最近访问」列表按当前用户维度）
+model document_user_access {
+  document_id      String   @db.VarChar(21)
+  user_id          String   @db.VarChar(21)
+  last_accessed_at DateTime @default(now()) @db.DateTime(0)
+
+  @@id([document_id, user_id])
+  @@index([user_id, last_accessed_at], map: "idx_doc_access_user_time")
+}
+
+/// 用户对文档的收藏（按用户维度）
+model document_user_star {
+  document_id String   @db.VarChar(21)
+  user_id     String   @db.VarChar(21)
+  created_at  DateTime @default(now()) @db.DateTime(0)
+
+  @@id([document_id, user_id])
+  @@index([user_id], map: "idx_doc_star_user")
 }
 
 model group_members {

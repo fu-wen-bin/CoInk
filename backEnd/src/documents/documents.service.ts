@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { nanoid } from 'nanoid';
@@ -15,6 +17,7 @@ import {
   DocumentType,
 } from './dto/create-document.dto';
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
+import { EMPTY_TIPTAP_DOCUMENT_JSON } from '../collaboration/document-yjs-storage';
 
 // 权限等级映射
 const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
@@ -27,6 +30,8 @@ const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ==================== 文档元数据操作 ====================
@@ -56,7 +61,6 @@ export class DocumentsService {
         type: createDocumentDto.type,
         owner_id: createDocumentDto.ownerId,
         parent_id: createDocumentDto.parentId || null,
-        is_starred: createDocumentDto.isStarred || false,
         sort_order: createDocumentDto.sortOrder || 0,
         is_deleted: false,
         share_token: shareToken,
@@ -69,7 +73,7 @@ export class DocumentsService {
       await this.prisma.document_contents.create({
         data: {
           document_id: documentId,
-          content: {},
+          content: EMPTY_TIPTAP_DOCUMENT_JSON,
           updated_by: createDocumentDto.ownerId,
         },
       });
@@ -86,13 +90,17 @@ export class DocumentsService {
       },
     });
 
+    if (createDocumentDto.isStarred) {
+      await this.applyUserStar(documentId, createDocumentDto.ownerId, true);
+    }
+
     return {
       documentId: doc.document_id,
       title: doc.title,
       type: doc.type,
       ownerId: doc.owner_id,
       parentId: doc.parent_id,
-      isStarred: doc.is_starred,
+      isStarred: Boolean(createDocumentDto.isStarred),
       sortOrder: doc.sort_order,
       shareToken: doc.share_token,
       linkPermission: doc.link_permission,
@@ -102,23 +110,39 @@ export class DocumentsService {
 
   /**
    * 获取用户的所有文档（不包含已删除的）
+   * 含：自己拥有的文档 + 他人文档但对当前用户有效权限为 full 的协作文档（与「共享」互斥）
    */
   async findAll(ownerId: string) {
-    const docs = await this.prisma.documents_info.findMany({
+    const owned = await this.prisma.documents_info.findMany({
       where: {
         owner_id: ownerId,
         is_deleted: false,
       },
-      orderBy: [{ is_starred: 'desc' }, { sort_order: 'asc' }, { updated_at: 'desc' }],
+      orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
     });
 
-    return docs.map((doc) => this.mapDocumentInfo(doc));
+    const fullCollaborationIds = await this.findDocumentIdsWhereUserHasFullAsNonOwner(ownerId);
+    let extra: typeof owned = [];
+    if (fullCollaborationIds.length > 0) {
+      extra = await this.prisma.documents_info.findMany({
+        where: {
+          document_id: { in: fullCollaborationIds },
+          is_deleted: false,
+        },
+        orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
+      });
+    }
+
+    const merged = this.mergeDocumentsById(owned, extra);
+    const sorted = await this.sortDocsByUserStarForUser(merged, ownerId);
+    return this.enrichDocumentsForUser(sorted, ownerId);
   }
 
   /**
    * 获取单个文档详情
+   * @param userId 传入时，isStarred 表示该用户是否在 document_user_star 中收藏
    */
-  async findOne(documentId: string) {
+  async findOne(documentId: string, userId?: string) {
     const doc = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
     });
@@ -127,14 +151,20 @@ export class DocumentsService {
       throw new NotFoundException('文档不存在');
     }
 
-    return this.mapDocumentInfo(doc);
+    if (!userId) {
+      return this.mapDocumentInfo(doc, false);
+    }
+
+    const starred = await this.isStarredByUser(documentId, userId);
+    return this.mapDocumentInfo(doc, starred);
   }
 
   /**
    * 按父目录获取文档
+   * 含：自己该目录下的文档 + 他人文档但对当前用户有效权限为 full 且 parent 匹配的协作文档
    */
   async findByParent(parentId: string | null, ownerId: string) {
-    const docs = await this.prisma.documents_info.findMany({
+    const owned = await this.prisma.documents_info.findMany({
       where: {
         owner_id: ownerId,
         parent_id: parentId || null,
@@ -147,23 +177,74 @@ export class DocumentsService {
       ],
     });
 
-    return docs.map((doc) => this.mapDocumentInfo(doc));
+    const fullCollaborationIds = await this.findDocumentIdsWhereUserHasFullAsNonOwner(ownerId);
+    let extra: typeof owned = [];
+    if (fullCollaborationIds.length > 0) {
+      extra = await this.prisma.documents_info.findMany({
+        where: {
+          document_id: { in: fullCollaborationIds },
+          parent_id: parentId || null,
+          is_deleted: false,
+        },
+        orderBy: [
+          { type: 'desc' },
+          { sort_order: 'asc' },
+          { updated_at: 'desc' },
+        ],
+      });
+    }
+
+    const merged = this.mergeDocumentsById(owned, extra);
+    const sorted = await this.sortDocsByUserStarForUser(merged, ownerId);
+    return this.enrichDocumentsForUser(sorted, ownerId);
   }
 
   /**
-   * 获取星标文档
+   * 获取当前用户在 document_user_star 中的收藏（含他人文档、共享文档）
    */
-  async findStarred(ownerId: string) {
+  async findStarred(userId: string) {
+    let starRows: { document_id: string; created_at: Date }[] = [];
+    try {
+      starRows = await this.prisma.document_user_star.findMany({
+        where: { user_id: userId },
+        orderBy: { created_at: 'desc' },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `document_user_star 查询失败：${err instanceof Error ? err.message : String(err)}`,
+      );
+      return [];
+    }
+
+    if (starRows.length === 0) {
+      return [];
+    }
+
+    const orderMap = new Map<string, number>(starRows.map((s, i) => [s.document_id, i]));
+    const docIds = starRows.map((s) => s.document_id);
+
     const docs = await this.prisma.documents_info.findMany({
       where: {
-        owner_id: ownerId,
-        is_starred: true,
+        document_id: { in: docIds },
         is_deleted: false,
       },
-      orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
     });
 
-    return docs.map((doc) => this.mapDocumentInfo(doc));
+    const allowed: typeof docs = [];
+    for (const doc of docs) {
+      try {
+        const { permission } = await this.getUserPermission(doc.document_id, userId);
+        if (permission) {
+          allowed.push(doc);
+        }
+      } catch {
+        // 文档不存在等跳过
+      }
+    }
+
+    allowed.sort((a, b) => (orderMap.get(a.document_id) ?? 0) - (orderMap.get(b.document_id) ?? 0));
+
+    return this.enrichDocumentsForUser(allowed, userId);
   }
 
   /**
@@ -178,7 +259,7 @@ export class DocumentsService {
       orderBy: { updated_at: 'desc' },
     });
 
-    return docs.map((doc) => this.mapDocumentInfo(doc));
+    return docs.map((doc) => this.mapDocumentInfo(doc, false));
   }
 
   /**
@@ -210,14 +291,18 @@ export class DocumentsService {
       }
     }
 
+    const starred = userId ? await this.isStarredByUser(doc.document_id, userId) : false;
+
     return {
-      ...this.mapDocumentInfo(doc),
+      ...this.mapDocumentInfo(doc, starred),
       linkPermission: doc.link_permission,
     };
   }
 
   /**
-   * 获取与我共享的文档列表
+   * 获取与我共享的文档列表（非拥有者，且有效权限不为 full——可读/可写/评论/管理等在侧栏「共享」展示）
+   * full 权限协作文档出现在「我的文档库」接口中，不在此列表。
+   * 列表随拥有者修改权限而变；协作者无法通过「退出」接口改变服务端权限。
    */
   async findSharedWithMe(userId: string) {
     // 获取用户直接拥有的权限
@@ -255,7 +340,7 @@ export class DocumentsService {
       },
     });
 
-    // 构建权限映射
+    // 构建权限映射（principal 行，用于展示；有效权限以 getUserPermission 为准）
     const permissionMap = new Map<string, (typeof principals)[0]>();
     for (const p of [...principals, ...groupPrincipals]) {
       const existing = permissionMap.get(p.document_id);
@@ -264,10 +349,230 @@ export class DocumentsService {
       }
     }
 
-    return docs.map((doc) => ({
-      ...this.mapDocumentInfo(doc),
-      myPermission: permissionMap.get(doc.document_id)?.permission,
+    // 仅保留有效权限存在且不为 full 的文档（full 归入「我的文档库」）
+    const filteredDocs: typeof docs = [];
+    for (const doc of docs) {
+      const { permission } = await this.getUserPermission(doc.document_id, userId);
+      if (permission && permission !== 'full') {
+        filteredDocs.push(doc);
+      }
+    }
+
+    const enriched = await this.enrichDocumentsForUser(filteredDocs, userId);
+
+    const activeRows = enriched.map((item, i) => ({
+      ...item,
+      myPermission: permissionMap.get(filteredDocs[i].document_id)?.permission,
+      sharedAccessDenied: false,
     }));
+
+    const includedIds = new Set(filteredDocs.map((d) => d.document_id));
+    const staleDocs = await this.findStaleNonOwnerDocsWithoutPermission(userId, includedIds);
+    if (staleDocs.length === 0) {
+      return activeRows;
+    }
+
+    const staleEnriched = await this.enrichDocumentsForUser(staleDocs, userId);
+    const staleRows = staleEnriched.map((item) => ({
+      ...item,
+      sharedAccessDenied: true,
+    }));
+
+    return [...activeRows, ...staleRows];
+  }
+
+  /**
+   * 非拥有、当前已无任何有效权限，但仍有「最近访问」或「收藏」记录的文档（侧栏仍展示，点进后提示无权限）
+   */
+  private async findStaleNonOwnerDocsWithoutPermission(
+    userId: string,
+    alreadyIncluded: Set<string>,
+  ) {
+    let accessIds: string[] = [];
+    try {
+      const rows = await this.prisma.document_user_access.findMany({
+        where: { user_id: userId },
+        select: { document_id: true },
+      });
+      accessIds = rows.map((r) => r.document_id);
+    } catch (err) {
+      this.logger.warn(
+        `document_user_access 查询失败（无权限占位列表将省略）：${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    let starIds: string[] = [];
+    try {
+      const rows = await this.prisma.document_user_star.findMany({
+        where: { user_id: userId },
+        select: { document_id: true },
+      });
+      starIds = rows.map((r) => r.document_id);
+    } catch (err) {
+      this.logger.warn(
+        `document_user_star 查询失败（无权限占位列表将省略）：${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    const candidateIds = [...new Set([...accessIds, ...starIds])].filter(
+      (id) => id && !alreadyIncluded.has(id),
+    );
+    if (candidateIds.length === 0) {
+      return [];
+    }
+
+    const docs = await this.prisma.documents_info.findMany({
+      where: {
+        document_id: { in: candidateIds },
+        is_deleted: false,
+        owner_id: { not: userId },
+      },
+    });
+
+    const stale: typeof docs = [];
+    for (const doc of docs) {
+      const { permission } = await this.getUserPermission(doc.document_id, userId);
+      if (permission === null) {
+        stale.push(doc);
+      }
+    }
+    return stale;
+  }
+
+  /** 合并文档列表并按 document_id 去重（primary 顺序优先） */
+  private mergeDocumentsById<
+    T extends { document_id: string },
+  >(primary: T[], secondary: T[]): T[] {
+    const seen = new Set<string>();
+    const out: T[] = [];
+    for (const d of primary) {
+      if (!seen.has(d.document_id)) {
+        seen.add(d.document_id);
+        out.push(d);
+      }
+    }
+    for (const d of secondary) {
+      if (!seen.has(d.document_id)) {
+        seen.add(d.document_id);
+        out.push(d);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 非拥有者身份下，有效权限为 full 的文档 ID（与「共享的文档」互斥，出现在「我的文档库」树）
+   */
+  private async findDocumentIdsWhereUserHasFullAsNonOwner(userId: string): Promise<string[]> {
+    const principals = await this.prisma.document_principals.findMany({
+      where: { principal_type: 'user', principal_id: userId },
+    });
+    const userGroups = await this.prisma.group_members.findMany({
+      where: { user_id: userId },
+    });
+    const groupPrincipals =
+      userGroups.length > 0
+        ? await this.prisma.document_principals.findMany({
+            where: {
+              principal_type: 'group',
+              principal_id: { in: userGroups.map((g) => g.group_id) },
+            },
+          })
+        : [];
+    const candidateIds = [
+      ...new Set([...principals, ...groupPrincipals].map((p) => p.document_id)),
+    ];
+    const result: string[] = [];
+    for (const documentId of candidateIds) {
+      const doc = await this.prisma.documents_info.findUnique({
+        where: { document_id: documentId },
+        select: { owner_id: true, is_deleted: true },
+      });
+      if (!doc || doc.is_deleted || doc.owner_id === userId) continue;
+      const { permission } = await this.getUserPermission(documentId, userId);
+      if (permission === 'full') {
+        result.push(documentId);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 记录当前用户打开文档（用于「最近访问」时间，按用户维度）
+   */
+  async recordAccess(documentId: string, userId: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    const doc = await this.prisma.documents_info.findUnique({
+      where: { document_id: documentId },
+    });
+
+    if (!doc || doc.is_deleted) {
+      throw new NotFoundException('文档不存在');
+    }
+
+    if (doc.type !== 'FILE') {
+      return { success: true };
+    }
+
+    const canView = await this.checkUserPermission(documentId, userId, 'view');
+    if (!canView) {
+      throw new ForbiddenException('没有权限访问此文档');
+    }
+
+    try {
+      await this.prisma.document_user_access.upsert({
+        where: {
+          document_id_user_id: {
+            document_id: documentId,
+            user_id: userId,
+          },
+        },
+        create: {
+          document_id: documentId,
+          user_id: userId,
+          last_accessed_at: new Date(),
+        },
+        update: {
+          last_accessed_at: new Date(),
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `recordAccess 写入失败（表未迁移时属预期）：${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * 从「最近访问」中移除：删除当前用户在这些文档上的访问记录（不删文档）
+   */
+  async removeFromRecentList(userId: string, documentIds: string[]) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    if (!documentIds?.length) {
+      return { success: true, removed: 0 };
+    }
+
+    try {
+      const result = await this.prisma.document_user_access.deleteMany({
+        where: {
+          user_id: userId,
+          document_id: { in: documentIds },
+        },
+      });
+      return { success: true, removed: result.count };
+    } catch (err) {
+      this.logger.warn(
+        `removeFromRecentList 失败（表未迁移时属预期）：${err instanceof Error ? err.message : String(err)}`,
+      );
+      return { success: true, removed: 0 };
+    }
   }
 
   /**
@@ -292,9 +597,6 @@ export class DocumentsService {
     if (updateDocumentDto.parentId !== undefined) {
       data.parent_id = updateDocumentDto.parentId || null;
     }
-    if (updateDocumentDto.isStarred !== undefined) {
-      data.is_starred = updateDocumentDto.isStarred;
-    }
     if (updateDocumentDto.sortOrder !== undefined) {
       data.sort_order = updateDocumentDto.sortOrder;
     }
@@ -310,7 +612,13 @@ export class DocumentsService {
       data,
     });
 
-    return this.mapDocumentInfo(doc);
+    if (updateDocumentDto.isStarred !== undefined) {
+      await this.applyUserStar(documentId, existing.owner_id, updateDocumentDto.isStarred);
+      return this.mapDocumentInfo(doc, updateDocumentDto.isStarred);
+    }
+
+    const ownerStarred = await this.isStarredByUser(documentId, existing.owner_id);
+    return this.mapDocumentInfo(doc, ownerStarred);
   }
 
   /**
@@ -333,7 +641,8 @@ export class DocumentsService {
       },
     });
 
-    return this.mapDocumentInfo(doc);
+    const starred = await this.isStarredByUser(documentId, existing.owner_id);
+    return this.mapDocumentInfo(doc, starred);
   }
 
   /**
@@ -385,30 +694,30 @@ export class DocumentsService {
       },
     });
 
-    return this.mapDocumentInfo(updated);
+    const starred = await this.isStarredByUser(documentId, userId);
+    return this.mapDocumentInfo(updated, starred);
   }
 
   /**
-   * 星标/取消星标文档
+   * 收藏/取消收藏（仅写入 document_user_star）
    */
-  async toggleStar(documentId: string, isStarred: boolean) {
+  async toggleStar(documentId: string, userId: string, isStarred: boolean) {
     const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
     });
 
-    if (!existing) {
+    if (!existing || existing.is_deleted) {
       throw new NotFoundException('文档不存在');
     }
 
-    const doc = await this.prisma.documents_info.update({
-      where: { document_id: documentId },
-      data: {
-        is_starred: isStarred,
-        updated_at: new Date(),
-      },
-    });
+    const { permission } = await this.getUserPermission(documentId, userId);
+    if (!permission) {
+      throw new ForbiddenException('没有权限收藏此文档');
+    }
 
-    return this.mapDocumentInfo(doc);
+    await this.applyUserStar(documentId, userId, isStarred);
+
+    return this.mapDocumentInfo(existing, isStarred);
   }
 
   /**
@@ -436,7 +745,7 @@ export class DocumentsService {
       },
     });
 
-    return this.mapDocumentInfo(doc);
+    return this.mapDocumentInfo(doc, false);
   }
 
   /**
@@ -464,7 +773,7 @@ export class DocumentsService {
       },
     });
 
-    return this.mapDocumentInfo(doc);
+    return this.mapDocumentInfo(doc, false);
   }
 
   /**
@@ -498,6 +807,12 @@ export class DocumentsService {
         where: { document_id: documentId },
       }),
       this.prisma.document_principals.deleteMany({
+        where: { document_id: documentId },
+      }),
+      this.prisma.document_user_star.deleteMany({
+        where: { document_id: documentId },
+      }),
+      this.prisma.document_user_access.deleteMany({
         where: { document_id: documentId },
       }),
       this.prisma.documents_info.delete({
@@ -634,6 +949,7 @@ export class DocumentsService {
       where: { document_id: documentId },
       data: {
         content: updateContentDto.content as Prisma.InputJsonValue,
+        y_state: null,
         updated_by: updateContentDto.updatedBy,
         updated_at: new Date(),
       },
@@ -647,38 +963,87 @@ export class DocumentsService {
     };
   }
 
+  /** 与 MySQL TIMESTAMP(0) 对齐的秒级时间，供 document_versions.version_id 写入 */
+  private nextDocumentVersionTimestamp(): Date {
+    const d = new Date();
+    d.setMilliseconds(0);
+    return d;
+  }
+
   // ==================== 文档版本操作 ====================
 
   /**
    * 创建文档版本（保存历史）
    */
   async createVersion(createVersionDto: CreateDocumentVersionDto) {
-    // 获取当前内容
-    const currentContent = await this.prisma.document_contents.findUnique({
+    const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: createVersionDto.documentId },
     });
-
-    if (!currentContent) {
+    if (!existing || existing.is_deleted) {
+      throw new NotFoundException('文档不存在');
+    }
+    const row = await this.prisma.document_contents.findUnique({
+      where: { document_id: createVersionDto.documentId },
+    });
+    if (!row) {
       throw new NotFoundException('文档内容不存在');
     }
 
-    // 创建版本记录
-    const version = await this.prisma.document_versions.create({
-      data: {
-        document_id: createVersionDto.documentId,
-        title: createVersionDto.title,
-        content: createVersionDto.content as Prisma.InputJsonValue,
-        user_id: createVersionDto.userId,
-      },
-    });
+    let yState: Buffer | null = null;
+    if (createVersionDto.yStateBase64) {
+      try {
+        const buf = Buffer.from(createVersionDto.yStateBase64, 'base64');
+        if (buf.length > 0) {
+          yState = buf;
+        }
+      } catch {
+        throw new BadRequestException('yStateBase64 无效');
+      }
+    }
 
-    return {
-      versionId: version.version_id,
-      documentId: version.document_id,
-      title: version.title,
-      createdAt: version.created_at,
-      userId: version.user_id,
+    // 显式写入 version_id（秒精度），避免依赖 DB DEFAULT 时 Prisma 对 MySQL TIMESTAMP 主键回读失败；
+    // 若同一文档同一秒内重复创建，则顺延到下一秒（P2002 重试）
+    let snapshotAt = this.nextDocumentVersionTimestamp();
+    const dataBase = {
+      document_id: createVersionDto.documentId,
+      title: createVersionDto.title,
+      description: createVersionDto.description ?? null,
+      content: createVersionDto.content as Prisma.InputJsonValue,
+      y_state: (yState ?? null) as Prisma.Bytes | null,
+      user_id: createVersionDto.userId,
     };
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      try {
+        const version = await this.prisma.document_versions.create({
+          data: {
+            ...dataBase,
+            version_id: snapshotAt,
+          },
+        });
+
+        return {
+          versionId: version.version_id.toISOString(),
+          documentId: version.document_id,
+          title: version.title,
+          description: version.description,
+          createdAt: version.created_at,
+          userId: version.user_id,
+        };
+      } catch (err) {
+        const code =
+          typeof err === 'object' && err !== null && 'code' in err
+            ? (err as { code: string }).code
+            : '';
+        if (code === 'P2002' && attempt < 7) {
+          snapshotAt = new Date(snapshotAt.getTime() + 1000);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw new InternalServerErrorException('无法创建文档版本，请稍后重试');
   }
 
   /**
@@ -693,27 +1058,45 @@ export class DocumentsService {
       throw new NotFoundException('文档不存在');
     }
 
+    // 列表不读取 content / y_state：避免单行 JSON 损坏或超大 BLOB 导致整次查询失败
     const versions = await this.prisma.document_versions.findMany({
       where: { document_id: documentId },
+      select: {
+        version_id: true,
+        document_id: true,
+        title: true,
+        description: true,
+        created_at: true,
+        user_id: true,
+      },
       orderBy: { version_id: 'desc' },
-      take: 50, // 限制返回最近50个版本
+      take: 50,
     });
 
-    return versions.map((v) => ({
-      versionId: v.version_id,
-      documentId: v.document_id,
-      title: v.title,
-      createdAt: v.created_at,
-      userId: v.user_id,
-    }));
+    return {
+      versions: versions.map((v) => ({
+        versionId: v.version_id.toISOString(),
+        documentId: v.document_id,
+        title: v.title,
+        description: v.description,
+        createdAt: v.created_at,
+        userId: v.user_id,
+      })),
+      total: versions.length,
+    };
   }
 
   /**
    * 获取指定版本详情
    */
-  async findVersion(versionId: Date) {
+  async findVersion(documentId: string, versionId: Date) {
     const version = await this.prisma.document_versions.findUnique({
-      where: { version_id: versionId },
+      where: {
+        document_id_version_id: {
+          document_id: documentId,
+          version_id: versionId,
+        },
+      },
     });
 
     if (!version) {
@@ -721,9 +1104,10 @@ export class DocumentsService {
     }
 
     return {
-      versionId: version.version_id,
+      versionId: version.version_id.toISOString(),
       documentId: version.document_id,
       title: version.title,
+      description: version.description,
       content: version.content,
       createdAt: version.created_at,
       userId: version.user_id,
@@ -735,18 +1119,27 @@ export class DocumentsService {
    */
   async restoreVersion(documentId: string, versionId: Date) {
     const version = await this.prisma.document_versions.findUnique({
-      where: { version_id: versionId },
+      where: {
+        document_id_version_id: {
+          document_id: documentId,
+          version_id: versionId,
+        },
+      },
     });
 
-    if (!version || version.document_id !== documentId) {
+    if (!version) {
       throw new NotFoundException('版本不存在');
     }
 
-    // 更新当前内容为版本内容
+    const yState: Buffer | null =
+      version.y_state && version.y_state.length > 0 ? Buffer.from(version.y_state) : null;
+
+    // 更新当前内容为版本内容（若有保存的 y_state 则一并还原协同状态）
     const content = await this.prisma.document_contents.update({
       where: { document_id: documentId },
       data: {
         content: version.content as Prisma.InputJsonValue,
+        y_state: (yState ?? null) as Prisma.Bytes | null,
         updated_at: new Date(),
       },
     });
@@ -941,30 +1334,233 @@ export class DocumentsService {
     return PERMISSION_LEVELS[permission] >= PERMISSION_LEVELS[requiredPermission];
   }
 
+  /** 批量收藏（跳过无权限项） */
+  async batchStarDocuments(userId: string, documentIds: string[]) {
+    const unique = [...new Set(documentIds.filter(Boolean))];
+    let starred = 0;
+    for (const documentId of unique) {
+      try {
+        await this.toggleStar(documentId, userId, true);
+        starred += 1;
+      } catch {
+        // 无权限或不存在则跳过
+      }
+    }
+    return {
+      code: 200,
+      message: 'success',
+      data: { starred, requested: unique.length },
+      timestamp: Date.now(),
+    };
+  }
+
   /**
-   * 映射文档信息为响应格式
+   * 当前用户是否已在 document_user_star 中收藏该文档
    */
-  private mapDocumentInfo(doc: {
-    document_id: string;
-    title: string;
-    type: string;
-    owner_id: string;
-    parent_id: string | null;
-    is_starred: boolean;
-    sort_order: number;
-    is_deleted: boolean;
-    created_at: Date;
-    updated_at: Date;
-    share_token: string;
-    link_permission: string | null;
-  }) {
+  private async isStarredByUser(documentId: string, userId: string): Promise<boolean> {
+    try {
+      const row = await this.prisma.document_user_star.findUnique({
+        where: {
+          document_id_user_id: {
+            document_id: documentId,
+            user_id: userId,
+          },
+        },
+      });
+      return Boolean(row);
+    } catch (err) {
+      this.logger.warn(
+        `document_user_star 查询失败：${err instanceof Error ? err.message : String(err)}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 写入/删除当前用户对文档的收藏（document_user_star）
+   */
+  private async applyUserStar(documentId: string, userId: string, isStarred: boolean) {
+    try {
+      if (isStarred) {
+        await this.prisma.document_user_star.upsert({
+          where: {
+            document_id_user_id: {
+              document_id: documentId,
+              user_id: userId,
+            },
+          },
+          create: { document_id: documentId, user_id: userId },
+          update: {},
+        });
+      } else {
+        await this.prisma.document_user_star.deleteMany({
+          where: { document_id: documentId, user_id: userId },
+        });
+      }
+    } catch (err) {
+      this.logger.error(
+        `document_user_star 写入失败（请执行迁移）：${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * 列表排序：当前用户收藏优先，其次按原 type / sort_order / updated_at
+   */
+  private async sortDocsByUserStarForUser<
+    T extends {
+      document_id: string;
+      type: string;
+      sort_order: number;
+      updated_at: Date;
+    },
+  >(docs: T[], userId: string): Promise<T[]> {
+    if (docs.length === 0) {
+      return docs;
+    }
+    const ids = docs.map((d) => d.document_id);
+    let starSet = new Set<string>();
+    try {
+      const stars = await this.prisma.document_user_star.findMany({
+        where: { user_id: userId, document_id: { in: ids } },
+        select: { document_id: true },
+      });
+      starSet = new Set(stars.map((s) => s.document_id));
+    } catch (err) {
+      this.logger.warn(
+        `document_user_star 查询失败，将不按收藏排序：${err instanceof Error ? err.message : String(err)}`,
+      );
+      return docs;
+    }
+
+    const typeRank = (t: string) => (t === 'FOLDER' ? 0 : 1);
+
+    return [...docs].sort((a, b) => {
+      const sa = starSet.has(a.document_id) ? 1 : 0;
+      const sb = starSet.has(b.document_id) ? 1 : 0;
+      if (sb !== sa) {
+        return sb - sa;
+      }
+      if (typeRank(a.type) !== typeRank(b.type)) {
+        return typeRank(a.type) - typeRank(b.type);
+      }
+      if (a.sort_order !== b.sort_order) {
+        return a.sort_order - b.sort_order;
+      }
+      return b.updated_at.getTime() - a.updated_at.getTime();
+    });
+  }
+
+  /**
+   * 为列表补充：当前用户的最近访问时间、父文件夹标题
+   */
+  private async enrichDocumentsForUser(
+    docs: {
+      document_id: string;
+      title: string;
+      type: string;
+      owner_id: string;
+      parent_id: string | null;
+      sort_order: number;
+      is_deleted: boolean;
+      created_at: Date;
+      updated_at: Date;
+      share_token: string;
+      link_permission: string | null;
+    }[],
+    userId: string,
+  ) {
+    if (docs.length === 0) {
+      return [];
+    }
+
+    const docIds = docs.map((d) => d.document_id);
+    let accessMap = new Map<
+      string,
+      { document_id: string; user_id: string; last_accessed_at: Date }
+    >();
+    try {
+      const accessRows = await this.prisma.document_user_access.findMany({
+        where: {
+          user_id: userId,
+          document_id: { in: docIds },
+        },
+      });
+      accessMap = new Map(accessRows.map((a) => [a.document_id, a]));
+    } catch (err) {
+      // 常见原因：未执行迁移，表 document_user_access 尚不存在；列表仍应返回
+      this.logger.warn(
+        `document_user_access 查询失败，将不附带最近访问时间（请执行 prisma migrate）。${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    const parentIds = [...new Set(docs.map((d) => d.parent_id).filter(Boolean))] as string[];
+    let parentTitleMap = new Map<string, string>();
+    if (parentIds.length > 0) {
+      const parents = await this.prisma.documents_info.findMany({
+        where: { document_id: { in: parentIds }, type: 'FOLDER' },
+        select: { document_id: true, title: true },
+      });
+      parentTitleMap = new Map(parents.map((p) => [p.document_id, p.title]));
+    }
+
+    let starQueryOk = false;
+    let starSet = new Set<string>();
+    try {
+      const starRows = await this.prisma.document_user_star.findMany({
+        where: {
+          user_id: userId,
+          document_id: { in: docIds },
+        },
+        select: { document_id: true },
+      });
+      starSet = new Set(starRows.map((r) => r.document_id));
+      starQueryOk = true;
+    } catch (err) {
+      this.logger.warn(
+        `document_user_star 查询失败，isStarred 将视为 false：${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return docs.map((doc) => {
+      const isStarredForUser = starQueryOk ? starSet.has(doc.document_id) : false;
+      const base = this.mapDocumentInfo(doc, isStarredForUser);
+      const access = accessMap.get(doc.document_id);
+      return {
+        ...base,
+        lastAccessedAt: access?.last_accessed_at ?? null,
+        parentFolderTitle: doc.parent_id ? (parentTitleMap.get(doc.parent_id) ?? null) : null,
+      };
+    });
+  }
+
+  /**
+   * 映射文档信息为响应格式（isStarred 来自 document_user_star，不再使用 documents_info 列）
+   */
+  private mapDocumentInfo(
+    doc: {
+      document_id: string;
+      title: string;
+      type: string;
+      owner_id: string;
+      parent_id: string | null;
+      sort_order: number;
+      is_deleted: boolean;
+      created_at: Date;
+      updated_at: Date;
+      share_token: string;
+      link_permission: string | null;
+    },
+    isStarred: boolean,
+  ) {
     return {
       documentId: doc.document_id,
       title: doc.title,
       type: doc.type,
       ownerId: doc.owner_id,
       parentId: doc.parent_id,
-      isStarred: doc.is_starred,
+      isStarred,
       sortOrder: doc.sort_order,
       isDeleted: doc.is_deleted,
       createdAt: doc.created_at,
@@ -1063,6 +1659,12 @@ export class DocumentsService {
           where: { document_id: child.document_id },
         }),
         this.prisma.document_principals.deleteMany({
+          where: { document_id: child.document_id },
+        }),
+        this.prisma.document_user_star.deleteMany({
+          where: { document_id: child.document_id },
+        }),
+        this.prisma.document_user_access.deleteMany({
           where: { document_id: child.document_id },
         }),
         this.prisma.documents_info.delete({

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Share2, Download, Copy, Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { Share2, Download, Copy, Pencil, Trash2, MoreVertical, Star } from 'lucide-react';
 
 import type { FileItem } from '@/types/file-system';
 import { cn } from '@/utils';
@@ -14,7 +14,11 @@ interface FileItemMenuProps {
   onRename?: (file: FileItem) => void;
   onDuplicate?: (file: FileItem) => void;
   onDownload?: (file: FileItem) => void;
+  /** 收藏 / 取消收藏（仅文件） */
+  onStar?: (file: FileItem) => void;
   onMenuOpen?: () => void;
+  /** 菜单展开/收起，用于侧栏行高亮 */
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 }
 
@@ -25,13 +29,19 @@ const FileItemMenu = ({
   onRename,
   onDuplicate,
   onDownload,
+  onStar,
   onMenuOpen,
+  onOpenChange,
   className,
 }: FileItemMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
 
   // 点击外部关闭菜单
   useEffect(() => {
@@ -115,6 +125,15 @@ const FileItemMenu = ({
       className: 'text-gray-600 hover:bg-gray-50',
     },
     {
+      icon: Star,
+      label: file.is_starred ? '取消收藏' : '收藏',
+      action: () => onStar?.(file),
+      show: !!onStar && file.type === 'file',
+      className: file.is_starred
+        ? 'text-gray-700 bg-gray-50/90 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700/50'
+        : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/25',
+    },
+    {
       icon: Trash2,
       label: '删除',
       action: () => onDelete?.(file),
@@ -144,13 +163,20 @@ const FileItemMenu = ({
               <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
             )}
             <button
+              type="button"
               className={cn(
                 'w-full text-left px-3 py-2 text-sm flex items-center transition-colors',
                 item.className,
               )}
               onClick={() => handleMenuItemClick(item.action)}
             >
-              <Icon className="h-4 w-4 mr-2" />
+              <Icon
+                className={cn(
+                  'h-4 w-4 mr-2',
+                  item.label === '收藏' && 'fill-amber-400 text-amber-500',
+                  item.label === '取消收藏' && 'text-gray-700 dark:text-gray-300',
+                )}
+              />
               {item.label}
             </button>
           </div>
@@ -162,6 +188,7 @@ const FileItemMenu = ({
   return (
     <div className={cn('relative', className)}>
       <button
+        type="button"
         ref={buttonRef}
         className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         onClick={handleMenuClick}

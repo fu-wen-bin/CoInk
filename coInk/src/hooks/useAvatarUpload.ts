@@ -3,8 +3,11 @@ import { toast } from 'sonner';
 
 import { useUpdateUserMutation, userQueryKeys } from './useUserQuery';
 
+import { formatFileSize } from '@/utils/format/file-size';
 import { uploadService } from '@/services/upload';
 import type { User } from '@/services/users/types';
+
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
 export function useAvatarUpload() {
   const queryClient = useQueryClient();
@@ -17,9 +20,8 @@ export function useAvatarUpload() {
         throw new Error('请上传图片文件');
       }
 
-      // 验证文件大小 (最大 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        throw new Error('图片大小不能超过 2MB');
+      if (file.size > AVATAR_MAX_BYTES) {
+        throw new Error(`头像图片大小不能超过 ${formatFileSize(AVATAR_MAX_BYTES)}`);
       }
 
       // 上传图片获取URL

@@ -1261,8 +1261,21 @@ class ClientRequest {
   }
 }
 
+/**
+ * 浏览器请求 Nest 的基地址。
+ * 未配置 NEXT_PUBLIC_SERVER_URL 时，开发环境默认指向本机 Nest（8888），避免相对路径打到 Next 自身导致 404/500。
+ */
+function resolveClientBaseUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SERVER_URL?.trim() ?? '';
+  if (raw) return raw.replace(/\/$/, '');
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8888';
+  }
+  return '';
+}
+
 // 创建客户端请求实例
-const clientRequest = new ClientRequest(process.env.NEXT_PUBLIC_SERVER_URL || '', {
+const clientRequest = new ClientRequest(resolveClientBaseUrl(), {
   timeout: 15000,
   retries: 1,
   retryDelay: 1000,

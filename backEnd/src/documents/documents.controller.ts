@@ -53,13 +53,14 @@ export class DocumentsController {
     return this.documentsService.findByParent(parentId ?? null, ownerId);
   }
 
-  // 获取星标文档
+  // 获取当前用户的收藏文档（document_user_star）
   @Get('starred')
-  findStarred(@Query('ownerId') ownerId: string) {
-    if (!ownerId) {
-      throw new BadRequestException('ownerId is required');
+  findStarred(@Query('userId') userId: string, @Query('ownerId') ownerId?: string) {
+    const uid = userId || ownerId;
+    if (!uid) {
+      throw new BadRequestException('userId is required');
     }
-    return this.documentsService.findStarred(ownerId);
+    return this.documentsService.findStarred(uid);
   }
 
   // 获取回收站文档
@@ -80,6 +81,36 @@ export class DocumentsController {
     return this.documentsService.findSharedWithMe(userId);
   }
 
+  // 从最近访问列表中批量移除（仅删除访问记录）
+  @Post('recent/remove')
+  removeFromRecent(
+    @Body('userId') userId: string,
+    @Body('documentIds') documentIds: string[],
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    if (!Array.isArray(documentIds)) {
+      throw new BadRequestException('documentIds must be an array');
+    }
+    return this.documentsService.removeFromRecentList(userId, documentIds);
+  }
+
+  /** 批量收藏（我的文档 + 与我共享的文档 ID 列表） */
+  @Post('stars/batch')
+  batchStarDocuments(
+    @Body('userId') userId: string,
+    @Body('documentIds') documentIds: string[],
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    if (!Array.isArray(documentIds)) {
+      throw new BadRequestException('documentIds must be an array');
+    }
+    return this.documentsService.batchStarDocuments(userId, documentIds);
+  }
+
   // 通过分享 token 获取文档
   @Get('share/:shareToken')
   findByShareToken(@Param('shareToken') shareToken: string, @Query('userId') userId?: string) {
@@ -89,10 +120,19 @@ export class DocumentsController {
     return this.documentsService.findByShareToken(shareToken, userId);
   }
 
-  // 获取单个文档详情
+  // 记录用户打开文档（最近访问时间）
+  @Post(':id/access')
+  recordAccess(@Param('id') id: string, @Body('userId') userId: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.recordAccess(id, userId);
+  }
+
+  // 获取单个文档详情（可选 userId 用于返回当前用户是否收藏）
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.documentsService.findOne(id);
+  findOne(@Param('id') id: string, @Query('userId') userId?: string) {
+    return this.documentsService.findOne(id, userId);
   }
 
   // 更新文档元数据（标题、排序、分享权限等）
@@ -123,10 +163,17 @@ export class DocumentsController {
     return this.documentsService.move(id, parentId ?? null, userId);
   }
 
-  // 星标/取消星标文档
+  // 收藏/取消收藏（需有文档访问权限；userId 为执行操作的用户）
   @Patch(':id/star')
-  toggleStar(@Param('id') id: string, @Body('isStarred') isStarred?: boolean) {
-    return this.documentsService.toggleStar(id, Boolean(isStarred));
+  toggleStar(
+    @Param('id') id: string,
+    @Body('isStarred') isStarred: boolean,
+    @Body('userId') userId: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.toggleStar(id, userId, Boolean(isStarred));
   }
 
   // 软删除文档（移动到回收站）
@@ -252,7 +299,7 @@ export class DocumentsController {
     if (Number.isNaN(parsed.getTime())) {
       throw new BadRequestException('versionId is not a valid date');
     }
-    return this.documentsService.findVersion(parsed);
+    return this.documentsService.findVersion(id, parsed);
   }
 
   // 将文档恢复到指定版本

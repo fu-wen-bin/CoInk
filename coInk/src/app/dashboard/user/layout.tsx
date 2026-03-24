@@ -1,5 +1,6 @@
 'use client';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -15,7 +16,6 @@ import {
   Newspaper,
   AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { UserProfileProvider } from './_components/user-profile-context';
@@ -61,7 +61,7 @@ function UserProfileHeader({ user }: { user: User }) {
   const handleAvatarUpload = async (file: File) => {
     avatarUploadMutation.mutate(file, {
       onSuccess: () => {
-        toast.success('头像更新成功');
+        toastSuccess('头像更新成功');
       },
     });
   };

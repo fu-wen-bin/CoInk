@@ -84,7 +84,7 @@ export function SnapshotReadonlyPane({ content, className }: SnapshotReadonlyPan
     >
       <div
         className="notion-like-editor-layout min-h-0 flex-1"
-        data-page-width="default"
+        data-page-width="100%"
         data-sidebar-open="false"
       >
         <EditorContent

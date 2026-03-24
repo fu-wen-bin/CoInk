@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 
 import { userQueryKeys } from './useUserQuery';
 
+import { toastSuccess, toastError, toastWarning } from '@/utils/toast';
 import { authApi } from '@/services/auth';
-import type { AuthResponseData, User, RegisterParams } from '@/services/auth/types';
+import type { AuthResponseData, User} from '@/services/auth/types';
 import { setLoggedInFlag } from '@/utils/auth/cookie';
 
 // 邮箱验证码登录参数（扩展）
@@ -57,7 +57,7 @@ const handleAuthSuccess = async (
     const userId = authData.user?.userId;
     if (!userId) {
       console.error('❌ 无法获取用户ID');
-      toast.warning('无法获取用户ID，但登录成功');
+      toastWarning('无法获取用户ID，但登录成功');
       return;
     }
 
@@ -65,7 +65,7 @@ const handleAuthSuccess = async (
 
     if (error || !userResponse?.data) {
       console.error('❌ 获取用户资料失败:', error);
-      toast.warning('获取用户资料失败，但登录成功');
+      toastWarning('获取用户资料失败，但登录成功');
     } else {
       const user = userResponse.data;
       console.log('✅ 用户资料获取成功:', user);
@@ -81,7 +81,7 @@ const handleAuthSuccess = async (
     }
   } catch (error) {
     console.warn('⚠️ 处理用户资料时出错:', error);
-    toast.warning('获取用户资料失败，但登录成功');
+    toastWarning('获取用户资料失败，但登录成功');
   }
 
   // 5. 跳转到目标页面
@@ -138,15 +138,13 @@ export function useEmailLogin() {
     },
     onSuccess: async ({ authData, redirectUrl }) => {
       console.log('✅ [onSuccess] mutation 成功回调');
-      toast.success('登录成功！', {
-        description: '正在获取用户资料...',
-      });
+      toastSuccess('登录成功！');
 
       await handleAuthSuccess(authData, queryClient, router, redirectUrl);
     },
     onError: (error) => {
       console.error('❌ [onError] mutation 错误回调:', error);
-      toast.error(error instanceof Error ? error.message : '登录失败');
+      toastError(error instanceof Error ? error.message : '登录失败');
     },
     onSettled: (data, error) => {
       console.log('🏁 [onSettled] mutation 完成:', { hasData: !!data, hasError: !!error });
@@ -175,15 +173,13 @@ export function useGitHubLogin() {
       return { authData: data.data, redirectUrl };
     },
     onSuccess: async ({ authData, redirectUrl }) => {
-      toast.success('GitHub登录成功！', {
-        description: '正在获取用户资料...',
-      });
+      toastSuccess('GitHub登录成功！');
 
       await handleAuthSuccess(authData, queryClient, router, redirectUrl);
     },
     onError: (error) => {
       console.error('GitHub登录失败:', error);
-      toast.error(error instanceof Error ? error.message : 'GitHub登录失败');
+      toastError(error instanceof Error ? error.message : 'GitHub登录失败');
     },
   });
 }
@@ -240,15 +236,13 @@ export function useGitHubCallback() {
       return { authData, redirectUrl };
     },
     onSuccess: async ({ authData, redirectUrl }) => {
-      toast.success('GitHub登录成功！', {
-        description: '正在获取用户资料...',
-      });
+      toastSuccess('GitHub登录成功！');
 
       await handleAuthSuccess(authData, queryClient, router, redirectUrl);
     },
     onError: (error: Error) => {
       console.error('GitHub回调处理失败:', error);
-      toast.error(error instanceof Error ? error.message : 'GitHub登录失败');
+      toastError(error.message);
     },
   });
 }
@@ -269,142 +263,13 @@ export function useTokenLogin() {
       return { authData, redirectUrl };
     },
     onSuccess: async ({ authData, redirectUrl }) => {
-      toast.success('登录成功！', {
-        description: '正在获取用户资料...',
-      });
+      toastSuccess('登录成功！');
 
       await handleAuthSuccess(authData, queryClient, router, redirectUrl);
     },
     onError: (error) => {
       console.error('Token登录失败:', error);
-      toast.error(error instanceof Error ? error.message : '登录失败');
-    },
-  });
-}
-
-// 邮箱密码登录参数（扩展）
-interface EmailPasswordLoginParams {
-  email: string;
-  password: string;
-  redirectUrl?: string;
-}
-
-// 邮箱密码登录 hook
-export function useEmailPasswordLogin() {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  console.log('🔧 useEmailPasswordLogin hook 初始化');
-
-  return useMutation({
-    mutationKey: ['password-login'],
-    mutationFn: async (params: EmailPasswordLoginParams) => {
-      console.log('🚀 [mutationFn] 开始执行 - 邮箱密码登录');
-      console.log('🚀 [mutationFn] 接收到的参数:', { ...params, password: '***' });
-
-      const { email, password, redirectUrl } = params;
-      console.log('🔐 邮箱密码登录请求:', {
-        email,
-        password: password ? '***' : undefined,
-        redirectUrl,
-      });
-
-      try {
-        console.log('🌐 开始调用 authApi.login...');
-
-        const { data, error } = await authApi.login({ email, password });
-        console.log('🌐 API 调用完成:', { hasData: !!data, hasError: !!error });
-
-        if (error) {
-          console.error('❌ 邮箱密码登录 API 错误:', error);
-          throw new Error(error);
-        }
-
-        if (!data || data.code !== 200) {
-          console.error('❌ 邮箱密码登录响应错误:', data);
-          throw new Error(data?.message || '登录失败');
-        }
-
-        console.log('✅ 邮箱密码登录成功');
-
-        return { authData: data.data, redirectUrl };
-      } catch (err) {
-        console.error('❌ [mutationFn] 捕获到异常:', err);
-        throw err;
-      }
-    },
-    onMutate: (variables) => {
-      console.log('🔄 [onMutate] mutation 开始执行, 参数:', { ...variables, password: '***' });
-    },
-    onSuccess: async ({ authData, redirectUrl }) => {
-      console.log('✅ [onSuccess] mutation 成功回调');
-      toast.success('登录成功！', { description: '正在获取用户资料...' });
-      await handleAuthSuccess(authData, queryClient, router, redirectUrl);
-    },
-    onError: (error) => {
-      console.error('❌ [onError] mutation 错误回调:', error);
-      toast.error(error instanceof Error ? error.message : '登录失败');
-    },
-    onSettled: (data, error) => {
-      console.log('🏁 [onSettled] mutation 完成:', { hasData: !!data, hasError: !!error });
-    },
-  });
-}
-
-// 邮箱密码注册参数
-interface EmailPasswordRegisterParams {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  redirectUrl?: string;
-}
-
-// 邮箱密码注册 hook
-export function useEmailPasswordRegister() {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  return useMutation({
-    mutationFn: async (params: EmailPasswordRegisterParams) => {
-      const { email, password, confirmPassword, redirectUrl } = params;
-      console.log('👤 邮箱密码注册请求:', {
-        email,
-        password: password ? '***' : undefined,
-        confirmPassword: confirmPassword ? '***' : undefined,
-      });
-
-      // 使用 authApi.register，传入 name（使用邮箱前缀作为默认用户名）
-      const { data, error } = await authApi.register({
-        email,
-        name: email.split('@')[0],
-        password,
-      });
-
-      if (error) {
-        console.error('❌ 邮箱密码注册 API 错误:', error);
-        throw new Error(error);
-      }
-
-      if (!data || data.code !== 200) {
-        console.error('❌ 邮箱密码注册响应错误:', data);
-        throw new Error(data?.message || '注册失败');
-      }
-
-      console.log('✅ 邮箱密码注册成功');
-
-      return { authData: data.data, redirectUrl };
-    },
-    onSuccess: async ({ authData, redirectUrl }) => {
-      if (authData?.accessToken) {
-        toast.success('注册成功，已自动登录！', { description: '正在获取用户资料...' });
-        await handleAuthSuccess(authData, queryClient, router, redirectUrl);
-      } else {
-        toast.success('注册成功！', { description: '请使用邮箱密码进行登录' });
-      }
-    },
-    onError: (error) => {
-      console.error('❌ 邮箱密码注册失败:', error);
-      toast.error(error instanceof Error ? error.message : '注册失败');
+      toastError(error instanceof Error ? error.message : '登录失败');
     },
   });
 }

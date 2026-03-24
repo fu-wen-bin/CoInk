@@ -3,7 +3,7 @@
 import { useState, type ChangeEvent } from 'react';
 import { Layers } from 'lucide-react';
 import { encodeStateAsUpdate, type Doc } from 'yjs';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,12 +56,12 @@ export function CreateVersionPopover({
 
   const handleSubmit = async () => {
     if (!editor || !doc) {
-      toast.error('编辑器未就绪，无法创建版本');
+      toastError('编辑器未就绪，无法创建版本');
       return;
     }
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const finalTitle = title.trim() || defaultTitle;
@@ -79,14 +79,14 @@ export function CreateVersionPopover({
         userId: uid,
       });
       if (error) {
-        toast.error(typeof error === 'string' ? error : '创建版本失败');
+        toastError(typeof error === 'string' ? error : '创建版本失败');
         return;
       }
-      toast.success('已保存版本快照');
+      toastSuccess('已保存版本快照');
       setOpen(false);
     } catch (e) {
       console.error(e);
-      toast.error('创建版本失败');
+      toastError('创建版本失败');
     } finally {
       setSubmitting(false);
     }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Share2, FileText, Folder, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toastSuccess, toastError, toastInfo } from '@/utils/toast';
 
 import FileItemMenu from './folder/FileItemMenu';
 
@@ -140,19 +140,19 @@ export default function SharedDocumentsView({
 
   const handleStar = async (file: FileItem, doc: Document) => {
     if (doc.sharedAccessDenied) {
-      toast.error('当前无访问权限，无法收藏');
+      toastError('当前无访问权限，无法收藏');
       return;
     }
     if (file.type !== 'file') return;
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const next = !file.is_starred;
     const { error } = await documentsApi.star(file.id, { isStarred: next, userId: uid });
     if (error) {
-      toast.error(next ? '收藏失败' : '取消收藏失败');
+      toastError(next ? '收藏失败' : '取消收藏失败');
       return;
     }
     patchDocumentStarred(file.id, next);
@@ -161,7 +161,7 @@ export default function SharedDocumentsView({
         d.documentId === file.id ? { ...d, isStarred: next } : d,
       ),
     );
-    toast.success(next ? '已加入收藏' : '已取消收藏');
+    toastSuccess(next ? '已加入收藏' : '已取消收藏');
     bumpStarredList();
   };
 
@@ -291,7 +291,7 @@ export default function SharedDocumentsView({
               {!sharedBatchMode && (
                 <FileItemMenu
                   file={file}
-                  onShare={() => toast.info('请在文档内使用分享功能')}
+                  onShare={() => toastInfo('请在文档内使用分享功能')}
                   onDownload={undefined}
                   onDuplicate={undefined}
                   onRename={undefined}

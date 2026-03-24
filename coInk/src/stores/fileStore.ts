@@ -34,6 +34,7 @@ interface FileState {
   selectedFileId: string | null;
   isLoading: boolean;
   isRenaming: string | null;
+  isLoadingFiles: boolean;
   newItemFolder: string | null;
   newItemType: 'file' | 'folder' | null;
   newItemName: string;
@@ -87,6 +88,7 @@ export const useFileStore = create<FileState>((set, get) => ({
   expandedGroups: { personal: true },
   selectedFileId: null,
   isLoading: true,
+  isLoadingFiles: false,
   isRenaming: null,
   newItemFolder: null,
   newItemType: null,
@@ -208,12 +210,18 @@ export const useFileStore = create<FileState>((set, get) => ({
       setIsLoading,
     } = get();
 
+    // 防止并发调用
+    if (get().isLoadingFiles) {
+      return;
+    }
+
     const userId = getCurrentUserId();
     if (!userId) {
       setIsLoading(false);
       return;
     }
 
+    set({ isLoadingFiles: true });
     setIsLoading(true);
 
     try {
@@ -260,6 +268,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     } catch (error) {
       console.error('加载文档列表失败:', error);
     } finally {
+      set({ isLoadingFiles: false });
       setIsLoading(false);
     }
   },
@@ -367,12 +376,37 @@ export const useFileStore = create<FileState>((set, get) => ({
   },
 
   batchDelete: async () => {
-    const { selectedItems, loadFiles } = get();
+    const { selectedItems, loadFiles, documentGroups } = get();
     if (selectedItems.length === 0) return;
 
-    // 软删除每个文件
-    for (const id of selectedItems) {
-      await documentsApi.softDelete(id);
+    const userId = getCurrentUserId();
+
+    // 收集所有被选中的文件（包括子文件夹中的文件）
+    const collectSelectedFiles = (items: FileItem[]): FileItem[] => {
+      const result: FileItem[] = [];
+      for (const item of items) {
+        if (selectedItems.includes(item.id)) {
+          result.push(item);
+        }
+        if (item.children) {
+          result.push(...collectSelectedFiles(item.children));
+        }
+      }
+      return result;
+    };
+
+    const allSelectedFiles: FileItem[] = [];
+    for (const group of documentGroups) {
+      allSelectedFiles.push(...collectSelectedFiles(group.files));
+    }
+
+    // 软删除每个文件，如果被收藏则先取消收藏
+    for (const file of allSelectedFiles) {
+      // 如果是文件且被收藏，先取消收藏
+      if (file.type === 'file' && file.is_starred && userId) {
+        await documentsApi.star(file.id, { isStarred: false, userId });
+      }
+      await documentsApi.softDelete(file.id);
     }
 
     // 清空选择并刷新

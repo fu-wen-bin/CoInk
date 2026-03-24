@@ -452,10 +452,10 @@ export class UploadService {
     return map[mimeType] ?? '.jpg';
   }
 
-  // ==================== 头像上传 ====================
+  // ==================== 头像上传（OSS） ====================
 
   /**
-   * 上传头像
+   * 上传头像至阿里云 OSS，返回公网可访问 URL
    */
   async uploadAvatar(
     fileBuffer: Buffer,
@@ -467,34 +467,29 @@ export class UploadService {
     url: string;
     fileName: string;
   }> {
+    if (!this.ossService.isEnabled()) {
+      throw new ServiceUnavailableException(
+        '未配置阿里云 OSS，请在服务端环境变量中填写 OSS_REGION、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_BUCKET',
+      );
+    }
+
     // Validate mime type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(mimeType)) {
       throw new BadRequestException('仅支持 JPEG, PNG, GIF, WebP 格式的图片');
     }
 
-    // Validate file size (max 10MB；与编辑器内嵌图片共用接口时上限一致)
+    // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024;
     if (fileBuffer.length > maxSize) {
       throw new BadRequestException('图片文件大小不能超过 10MB');
     }
 
-    // Create user avatar directory
-    const userAvatarDir = path.join(this.avatarsDir, userId);
-    if (!fs.existsSync(userAvatarDir)) {
-      fs.mkdirSync(userAvatarDir, { recursive: true });
-    }
+    const ext = this.resolveImageExtension(originalName, mimeType);
+    const dateDir = new Date().toISOString().split('T')[0];
+    const objectKey = `avatars/${userId}/${dateDir}/${nanoid()}${ext}`;
 
-    // Generate unique filename
-    const ext = path.extname(originalName) || '.jpg';
-    const fileName = `${Date.now()}${ext}`;
-    const filePath = path.join(userAvatarDir, fileName);
-
-    // Save file
-    fs.writeFileSync(filePath, fileBuffer);
-
-    // Generate URL
-    const url = `/uploads/avatars/${userId}/${fileName}`;
+    const url = await this.ossService.uploadBuffer(objectKey, fileBuffer, mimeType);
 
     // Update user avatar in database
     await this.prisma.users.update({
@@ -505,7 +500,7 @@ export class UploadService {
     return {
       success: true,
       url,
-      fileName,
+      fileName: path.basename(objectKey),
     };
   }
 

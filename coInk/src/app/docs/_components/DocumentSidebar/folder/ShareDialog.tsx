@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import UserSelector from './components/UserSelector';
 
@@ -134,20 +134,13 @@ const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
         // 复制到剪贴板
         await navigator.clipboard.writeText(shareUrl);
 
-        toast.success('分享链接已创建并复制到剪贴板！', {
-          description: '任何人都可以通过此链接访问',
-          duration: 4000,
-        });
+        toastSuccess('分享链接已创建并复制到剪贴板！');
       } else {
-        toast.error('创建分享链接失败', {
-          description: '请检查网络连接或稍后重试',
-        });
+        toastError('创建分享链接失败');
       }
     } catch (error) {
       console.error('创建分享链接失败:', error);
-      toast.error('创建分享链接失败', {
-        description: '请检查网络连接或稍后重试',
-      });
+      toastError('创建分享链接失败');
     } finally {
       setIsLoading(false);
     }
@@ -157,10 +150,10 @@ const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
     if (shareUrl) {
       try {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success('链接已复制到剪贴板！');
+        toastSuccess('链接已复制到剪贴板！');
       } catch (error) {
         console.error('复制失败:', error);
-        toast.error('复制失败，请手动复制链接');
+        toastError('复制失败，请手动复制链接');
       }
     }
   };

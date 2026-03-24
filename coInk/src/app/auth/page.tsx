@@ -4,8 +4,8 @@ import React, { useEffect, Suspense, useState, FormEvent } from 'react';
 import { Sparkles, Github, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import { redirectManager } from '@/utils/redirect-manager';
 import { useSimpleAuthForm } from '@/hooks/use-simple-auth-form';
 import { LoginModeSwitcher, LoginMode } from '@/app/auth/_components/login-mode-switcher';
@@ -102,13 +102,13 @@ function LoginContent() {
         });
 
         if (error) {
-          toast.error(error);
+          toastError(error);
           setIsLoading(false);
           return;
         }
 
         if (!response || response.code !== 200) {
-          toast.error(response?.message || '登录失败，请重试');
+          toastError(response?.message || '登录失败，请重试');
           setIsLoading(false);
           return;
         }
@@ -126,7 +126,7 @@ function LoginContent() {
           console.log('💾 用户资料已缓存:', authData.user);
         }
 
-        toast.success('登录成功！');
+        toastSuccess('登录成功！');
 
         setTimeout(() => {
           router.push(redirectUrl || '/dashboard');
@@ -134,12 +134,12 @@ function LoginContent() {
       } else if (loginMode === 'email') {
         // 验证码登录
         if (!formData.email || !formData.code) {
-          toast.error('请输入邮箱和验证码');
+          toastError('请输入邮箱和验证码');
           setIsLoading(false);
           return;
         }
 
-        toast.error('验证码登录功能暂未开放，请使用密码登录');
+        toastError('验证码登录功能暂未开放，请使用密码登录');
         setIsLoading(false);
       } else {
         // 注册
@@ -159,13 +159,13 @@ function LoginContent() {
         console.log('注册响应：', response, '错误信息：', error);
 
         if (error) {
-          toast.error(error);
+          toastError(error);
           setIsLoading(false);
           return;
         }
 
         if (!response || response.code !== 200) {
-          toast.error(response?.message || '注册失败，请重试');
+          toastError(response?.message || '注册失败，请重试');
           setIsLoading(false);
           return;
         }
@@ -183,18 +183,18 @@ function LoginContent() {
             console.log('💾 注册用户资料已缓存:', response.data.user);
           }
 
-          toast.success('注册成功，已自动登录！');
+          toastSuccess('注册成功，已自动登录！');
 
           setTimeout(() => {
             router.push(redirectUrl || '/dashboard');
           }, 500);
         } else {
-          toast.success('注册成功！请使用邮箱密码登录');
+          toastSuccess('注册成功！请使用邮箱密码登录');
           setIsLoading(false);
         }
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '操作失败，请重试');
+      toastError(error instanceof Error ? error.message : '操作失败，请重试');
       setIsLoading(false);
     }
   };

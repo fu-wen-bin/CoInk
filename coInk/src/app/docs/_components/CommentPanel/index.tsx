@@ -1,9 +1,9 @@
 'use client';
 
+import { toastSuccess, toastError, toastInfo } from '@/utils/toast';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquare, X, Plus } from 'lucide-react';
-import { toast } from 'sonner';
 import type { Editor } from '@tiptap/react';
 
 import { CommentThread } from './comment-thread';
@@ -96,12 +96,12 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
               editor.chain().focus().unsetComment(mark.commentId).run();
             });
 
-            toast.info(`已清理 ${orphanedMarks.length} 个孤立的评论标记`);
+            toastInfo(`已清理 ${orphanedMarks.length} 个孤立的评论标记`);
           }
         }
       } catch (error) {
         console.error('Failed to load comments:', error);
-        toast.error('加载评论失败');
+        toastError('加载评论失败');
       }
     };
 
@@ -111,7 +111,7 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
   // 创建新评论
   const handleCreateComment = async () => {
     if (!editor || !newCommentContent.trim()) {
-      toast.error('请输入评论内容');
+      toastError('请输入评论内容');
 
       return;
     }
@@ -119,7 +119,7 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
     const { selection } = editor.state;
 
     if (selection.empty) {
-      toast.error('请先选择要评论的文本');
+      toastError('请先选择要评论的文本');
 
       return;
     }
@@ -156,10 +156,10 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
       addComment(newThread);
       setNewCommentContent('');
       setIsCreatingNewComment(false);
-      toast.success('评论创建成功');
+      toastSuccess('评论创建成功');
     } catch (error) {
       console.error('Failed to create comment:', error);
-      toast.error('创建评论失败，请重试');
+      toastError('创建评论失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -170,10 +170,10 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
     try {
       await CommentApi.updateComment({ id: threadId, resolved: true });
       updateComment(threadId, { resolved: true });
-      toast.success('评论已标记为解决');
+      toastSuccess('评论已标记为解决');
     } catch (error) {
       console.error('Failed to resolve comment:', error);
-      toast.error('操作失败，请重试');
+      toastError('操作失败，请重试');
     }
   };
 
@@ -197,11 +197,11 @@ export function CommentPanel({ editor, documentId, currentUserId }: CommentPanel
       // 从本地状态删除
       deleteCommentFromStore(thread.id);
 
-      toast.success('评论已删除');
+      toastSuccess('评论已删除');
       console.log('✅ 评论删除完成');
     } catch (error) {
       console.error('❌ 删除失败:', error);
-      toast.error('删除失败，请重试');
+      toastError('删除失败，请重试');
     }
   };
 

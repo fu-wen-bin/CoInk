@@ -3,7 +3,7 @@
  * - 悬浮：灰色底
  * - 选中 / 当前打开：浅蓝底（与此前选中态一致）
  */
-export const SIDEBAR_LIST_ROW_HOVER = 'hover:bg-gray-100 dark:hover:bg-gray-800' as const;
+export const SIDEBAR_LIST_ROW_HOVER = 'hover:bg-gray-200 dark:hover:bg-gray-700' as const;
 
 export const SIDEBAR_LIST_ROW_SELECTED = 'bg-[#EBF2FF] dark:bg-blue-950/35' as const;
 

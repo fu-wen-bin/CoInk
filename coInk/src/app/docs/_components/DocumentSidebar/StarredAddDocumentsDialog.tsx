@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { FileText, Loader2, Search } from 'lucide-react';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -105,27 +105,27 @@ export default function StarredAddDocumentsDialog({
   const handleSubmit = async () => {
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const ids = Array.from(selected);
     if (ids.length === 0) {
-      toast.error('请选择要收藏的文档');
+      toastError('请选择要收藏的文档');
       return;
     }
     setSubmitting(true);
     try {
       const { error } = await documentsApi.batchStarDocuments(uid, ids);
       if (error) {
-        toast.error('批量收藏失败');
+        toastError('批量收藏失败');
         return;
       }
-      toast.success('已添加到收藏');
+      toastSuccess('已添加到收藏');
       onSuccess();
       onOpenChange(false);
     } catch (e) {
       console.error(e);
-      toast.error('批量收藏失败');
+      toastError('批量收藏失败');
     } finally {
       setSubmitting(false);
     }
@@ -136,20 +136,26 @@ export default function StarredAddDocumentsDialog({
     const checked = already ? true : selected.has(id);
     const disabled = already;
     return (
-      <button
+      <div
         key={id}
-        type="button"
-        disabled={disabled}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
         onClick={() => toggleId(id, disabled)}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleId(id, disabled);
+          }
+        }}
         className={cn(
           'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors',
-          disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
+          disabled
+            ? 'cursor-not-allowed opacity-60'
+            : 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20',
         )}
       >
-        <span
-          className="flex h-4 w-4 shrink-0 items-center justify-center"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
           <Checkbox
             checked={checked}
             disabled={disabled}
@@ -166,7 +172,7 @@ export default function StarredAddDocumentsDialog({
             <span className="block truncate text-xs text-gray-400">{subtitle}</span>
           ) : null}
         </span>
-      </button>
+      </div>
     );
   };
 

@@ -1,5 +1,5 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toastError } from '@/utils/toast';
 import { useMutation } from '@tanstack/react-query';
 import { Editor } from '@tiptap/core';
 
@@ -27,7 +27,7 @@ export const useUploader = () => {
           ? (errPayload.response as { data?: { error?: string; message?: string } }).data
               ?.message || (errPayload.response as { data?: { error?: string } }).data?.error
           : undefined;
-      toast.error(message || (errPayload instanceof Error ? errPayload.message : '图片上传失败'));
+      toastError(message || (errPayload instanceof Error ? errPayload.message : '图片上传失败'));
     } finally {
       setLoading(false);
     }
@@ -169,7 +169,7 @@ export const useImgUpload = () => {
     // 上传失败回调
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : '图片上传失败';
-      toast.error(errorMessage);
+      toastError(errorMessage);
       console.error('上传失败:', error);
     },
 
@@ -189,7 +189,7 @@ export const useImgUpload = () => {
       };
 
       reader.onerror = () => {
-        toast.error('文件读取失败');
+        toastError('文件读取失败');
       };
 
       // 开始读取文件为 base64

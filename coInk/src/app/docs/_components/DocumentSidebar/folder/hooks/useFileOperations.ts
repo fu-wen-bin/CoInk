@@ -1,6 +1,6 @@
-import { toast } from 'sonner';
 import { useState } from 'react';
 
+import { toastSuccess, toastError, toastLoading } from '@/utils/toast';
 import type { FileItem } from '@/types/file-system';
 import { documentsApi } from '@/services/documents';
 
@@ -58,11 +58,11 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        toast.success(`文件 "${file.name}" 下载成功`);
+        toastSuccess(`文件 "${file.name}" 下载成功`);
       }
     } catch (error) {
       console.error('下载文件失败:', error);
-      toast.error('下载文件失败，请重试');
+      toastError('下载文件失败，请重试');
     }
   };
 
@@ -71,7 +71,7 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        toast.error('用户未登录，无法复制文件');
+        toastError('用户未登录，无法复制文件');
         return;
       }
 
@@ -85,11 +85,11 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
       if (response?.data) {
         // 刷新文件列表
         await refreshFiles();
-        toast.success(`文件 "${file.name}" 已复制`);
+        toastSuccess(`文件 "${file.name}" 已复制`);
       }
     } catch (error) {
       console.error('复制文件失败:', error);
-      toast.error('复制文件失败，请重试');
+      toastError('复制文件失败，请重试');
     }
   };
 
@@ -102,20 +102,29 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
   const confirmDelete = async () => {
     if (!fileToDelete) return;
 
+    const toastId = toastLoading(`正在删除 "${fileToDelete.name}"...`);
+
     try {
       setShowDeleteDialog(false);
 
       const fileName = fileToDelete.name;
+      const userId = getCurrentUserId();
+
+      // 如果是文件且被收藏，先取消收藏
+      if (fileToDelete.type === 'file' && fileToDelete.is_starred && userId) {
+        await documentsApi.star(fileToDelete.id, { isStarred: false, userId });
+      }
+
       await documentsApi.softDelete(fileToDelete.id);
 
-      toast.success(`文件 "${fileName}" 已删除`);
+      toastSuccess(`文件 "${fileName}" 已删除`, { id: toastId });
       // 先清空状态，再刷新列表
       setFileToDelete(null);
       await refreshFiles();
     } catch (error) {
       console.error('删除文件失败:', error);
-      toast.error('删除文件失败，请重试');
-      setShowDeleteDialog(true);
+      toastError('删除文件失败，请重试', { id: toastId });
+      setFileToDelete(null);
     }
   };
 
@@ -131,10 +140,10 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
 
       // 刷新文件列表
       await refreshFiles();
-      toast.success(`重命名成功`);
+      toastSuccess(`重命名成功`);
     } catch (error) {
       console.error('重命名失败:', error);
-      toast.error('重命名失败，请重试');
+      toastError('重命名失败，请重试');
     }
   };
 
@@ -143,7 +152,7 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        toast.error('用户未登录，无法创建文件');
+        toastError('用户未登录，无法创建文件');
         return false;
       }
 
@@ -157,7 +166,7 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
       if (response?.data) {
         // 刷新文件列表
         await refreshFiles();
-        toast.success(`${type === 'folder' ? '文件夹' : '文件'} "${name}" 创建成功`);
+        toastSuccess(`${type === 'folder' ? '文件夹' : '文件'} "${name}" 创建成功`);
 
         return true;
       }
@@ -165,7 +174,7 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
       return false;
     } catch (error) {
       console.error('创建失败:', error);
-      toast.error(`创建${type === 'folder' ? '文件夹' : '文件'}失败，请重试`);
+      toastError(`创建${type === 'folder' ? '文件夹' : '文件'}失败，请重试`);
 
       return false;
     }

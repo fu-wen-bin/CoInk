@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
+import { toastError, toastSuccess } from '@/utils/toast';
 
 export interface AuthFormData {
   email: string;
@@ -101,17 +101,17 @@ export function useSimpleAuthForm() {
   // 发送验证码
   const handleSendCode = async () => {
     if (!formData.email) {
-      toast.error('请先输入邮箱地址');
+      toastError('请先输入邮箱地址');
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      toast.error('请输入有效的邮箱地址');
+      toastError('请输入有效的邮箱地址');
       return;
     }
 
     setIsSendingCode(true);
-    toast.error('验证码功能暂未开放');
+    toastError('验证码功能暂未开放');
     setIsSendingCode(false);
   };
 

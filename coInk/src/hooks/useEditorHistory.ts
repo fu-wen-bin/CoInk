@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { toast } from 'sonner';
+import { toastError, toastSuccess } from '@/utils/toast';
 
 import { snapshotService, Snapshot } from '@/services/snapshot';
 
@@ -45,7 +45,7 @@ export function useEditorHistory({
       const result = await snapshotService.getSnapshots(documentId);
       setSnapshots(result);
     } catch {
-      toast.error('加载快照失败');
+      toastError('加载快照失败');
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +54,7 @@ export function useEditorHistory({
   const createSnapshot = useCallback(
     async (description?: string) => {
       if (!doc || !documentId) {
-        toast.error('文档未准备好');
+        toastError('文档未准备好');
 
         return null;
       }
@@ -69,7 +69,7 @@ export function useEditorHistory({
 
         return newSnapshot;
       } catch {
-        toast.error('创建快照失败');
+        toastError('创建快照失败');
 
         return null;
       }
@@ -80,7 +80,7 @@ export function useEditorHistory({
   const restoreSnapshot = useCallback(
     async (snapshotId: string) => {
       if (!doc) {
-        toast.error('文档未准备好');
+        toastError('文档未准备好');
 
         return false;
       }
@@ -99,7 +99,7 @@ export function useEditorHistory({
 
         return success;
       } catch {
-        toast.error('恢复快照失败');
+        toastError('恢复快照失败');
 
         return false;
       } finally {
@@ -120,7 +120,7 @@ export function useEditorHistory({
 
         return success;
       } catch {
-        toast.error('删除快照失败');
+        toastError('删除快照失败');
 
         return false;
       }
@@ -140,7 +140,7 @@ export function useEditorHistory({
 
       return success;
     } catch {
-      toast.error('清空快照失败');
+      toastError('清空快照失败');
 
       return false;
     }

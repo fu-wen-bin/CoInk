@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, startTransition } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, startTransition } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { closestCenter, DndContext, MeasuringStrategy, PointerSensor } from '@dnd-kit/core';
 import { useSensor, useSensors } from '@dnd-kit/core';
 import { Folder as FolderIcon } from 'lucide-react';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import ShareDialog from './ShareDialog';
 import GroupedFileTree from './components/GroupedFileTree';
@@ -42,6 +42,7 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   const starredDocumentIds = useSidebar((s) => s.starredDocumentIds);
   const sharedDocumentIds = useSidebar((s) => s.sharedDocumentIds);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasInitialLoadedRef = useRef(false);
 
   // 使用 Zustand stores
   const {
@@ -98,7 +99,7 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   };
 
   // 使用自定义 hooks
-  const refreshFiles = () => loadFiles(false);
+  const refreshFiles = useCallback(() => useFileStore.getState().loadFiles(false), []);
   const fileOperations = useFileOperations(refreshFiles);
   const {
     contextMenuPosition,
@@ -137,16 +138,24 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
     toggleFolder,
   );
 
+  // 初始加载 - 使用 ref 避免重复加载
   useEffect(() => {
-    loadFiles(true);
-  }, [loadFiles]);
+    if (!hasInitialLoadedRef.current) {
+      hasInitialLoadedRef.current = true;
+      // 直接从 store 调用，避免依赖问题
+      void useFileStore.getState().loadFiles(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 监听 refreshTrigger 变化，当从外部触发刷新时重新加载文件列表
   useEffect(() => {
     if (refreshTrigger > 0 && lastOperationSource !== 'side') {
-      loadFiles(true);
+      // 直接从 store 调用，避免依赖问题
+      void useFileStore.getState().loadFiles(true);
     }
-  }, [refreshTrigger, lastOperationSource, loadFiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger, lastOperationSource]);
 
   // URL 选中逻辑：/docs/[room] 的 room 为文档 id（含 UUID；/docs/[id]/snapshot 等同当前文档）
   useEffect(() => {
@@ -259,17 +268,17 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
     if (file.type !== 'file') return;
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const next = !file.is_starred;
     const { error } = await documentsApi.star(file.id, { isStarred: next, userId: uid });
     if (error) {
-      toast.error(next ? '收藏失败' : '取消收藏失败');
+      toastError(next ? '收藏失败' : '取消收藏失败');
       return;
     }
     patchDocumentStarred(file.id, next);
-    toast.success(next ? '已加入收藏' : '已取消收藏');
+    toastSuccess(next ? '已加入收藏' : '已取消收藏');
     bumpStarredList();
   };
 
@@ -337,27 +346,33 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
   const handleConfirm = async () => {
     try {
       await fileOperations.confirmDelete();
-      await triggerRefresh('side');
+      triggerRefresh('side');
 
       // 重新加载文件列表
       await loadFiles(false);
 
+      // 刷新收藏列表（任务3：修复收藏栏同步问题）
+      bumpStarredList();
+
       // 等待状态更新
       await new Promise((resolve) => setTimeout(resolve, 300));
 
+      // 获取最新的文档组（使用更新后的状态）
+      const currentGroups = useFileStore.getState().documentGroups;
+
       // 从更新后的 documentGroups 中查找第一个文件
-      const firstFileId = findFirstFileIdInGroups(documentGroups);
+      const firstFileId = findFirstFileIdInGroups(currentGroups);
 
       if (firstFileId) {
         setSelectedFileId(firstFileId);
         router.push(`/docs/${firstFileId}`);
       } else {
+        // 任务4：当删除最后一个文档后，跳转到主页
         setSelectedFileId(null);
         router.push('/docs');
       }
-    } catch (error) {
-      console.error('删除操作失败:', error);
-    }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {}
   };
 
   return (

@@ -5,7 +5,7 @@ import { EditorContent, EditorContext, useEditor, type Editor } from '@tiptap/re
 import type { Doc as YDoc } from 'yjs';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import { createPortal } from 'react-dom';
-import { toast } from 'sonner';
+import { toastError } from '@/utils/toast';
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit';
 import { Mention } from '@tiptap/extension-mention';
@@ -315,7 +315,7 @@ export function EditorProvider(props: EditorProviderProps) {
         limit: 3,
         upload: handleImageUpload,
         onError: (error) => {
-          toast.error(error.message || '图片上传失败');
+          toastError(error.message || '图片上传失败');
         },
       }),
       UniqueID.configure({

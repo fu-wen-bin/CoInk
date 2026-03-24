@@ -11,7 +11,6 @@ import { DocumentsModule } from './documents/documents.module';
 import { GroupsModule } from './groups/groups.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { TemplatesModule } from './templates/templates.module';
 import { UploadModule } from './upload/upload.module';
 import { UserModule } from './user/user.module';
 import { AiModule } from './ai/ai.module';
@@ -26,7 +25,6 @@ import { AiModule } from './ai/ai.module';
     PrismaModule,
     UserModule,
     DocumentsModule,
-    TemplatesModule,
     AuthModule,
     CommentsModule,
     GroupsModule,

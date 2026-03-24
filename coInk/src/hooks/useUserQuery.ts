@@ -1,6 +1,6 @@
+import { toastError, toastSuccess } from '@/utils/toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 
 import { authApi } from '@/services/auth';
 import UserApi from '@/services/users';
@@ -133,14 +133,14 @@ export function useUpdateUserMutation() {
       }
 
       console.error('更新用户信息失败:', error);
-      toast.error('更新失败，请重试');
+      toastError('更新失败，请重试');
     },
     onSuccess: (_data, variables) => {
       // 成功后重新获取最新数据
       queryClient.invalidateQueries({ queryKey: userQueryKeys.profile() });
 
       const updatedFieldsCount = Object.keys(variables).length;
-      toast.success(`已更新 ${updatedFieldsCount} 个字段`);
+      toastSuccess(`已更新 ${updatedFieldsCount} 个字段`);
     },
   });
 }
@@ -165,14 +165,14 @@ export function useLogoutMutation() {
       // 清理前端登录标记 Cookie
       clearLoggedInFlag();
 
-      toast.success('已成功退出登录');
+      toastSuccess('已成功退出登录');
 
       // 使用 Next.js router 跳转到登录页
       router.push('/auth');
     },
     onError: (error) => {
       console.error('Logout failed:', error);
-      toast.error('退出登录失败，请重试');
+      toastError('退出登录失败，请重试');
     },
   });
 }

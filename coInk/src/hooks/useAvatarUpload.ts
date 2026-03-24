@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toastError } from '@/utils/toast';
 
 import { useUpdateUserMutation, userQueryKeys } from './useUserQuery';
 
@@ -76,7 +76,7 @@ export function useAvatarUpload() {
       }
 
       console.error('头像上传失败:', error);
-      toast.error(error instanceof Error ? error.message : '头像上传失败');
+      toastError(error instanceof Error ? error.message : '头像上传失败');
     },
   });
 }

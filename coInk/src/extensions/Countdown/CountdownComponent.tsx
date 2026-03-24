@@ -5,7 +5,6 @@ import { NodeViewWrapper } from '@tiptap/react';
 import type { ReactNodeViewProps } from '@tiptap/react';
 import { Edit2, Play, Pause } from 'lucide-react';
 import { format, formatISO, parseISO, isBefore, addHours } from 'date-fns';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -172,7 +171,7 @@ const CountdownComponent: React.FC<ReactNodeViewProps> = ({ node, selected, upda
     // console.log('🚀 ~ file: CountdownComponent.tsx:178 ~ editTargetDate:', editTargetDate);
 
     if (!editTargetDate) {
-      toast.error('请选择一个目标日期');
+      toastError('请选择一个目标日期');
 
       return;
     }
@@ -190,7 +189,7 @@ const CountdownComponent: React.FC<ReactNodeViewProps> = ({ node, selected, upda
 
     // 检查是否选择了过去的时间
     if (isBefore(combinedDate, new Date())) {
-      toast.error('选择的时间小于当前时间');
+      toastError('选择的时间小于当前时间');
 
       // 可以在这里添加错误提示
       return;

@@ -20,7 +20,6 @@ import {
   RefreshCw,
   Star,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import Folder from './folder';
 import StarredView from './StarredView';
@@ -31,6 +30,7 @@ import { documentsApi } from '@/services/documents';
 import { useSidebar } from '@/stores/sidebarStore';
 import { cn, getCurrentUserId } from '@/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { toastSuccess, toastError } from '@/utils/toast';
 import {
   collectAllFileItemIds,
   collectSelectedFileIds,
@@ -118,7 +118,7 @@ export default function SidebarContent() {
       router.push('/docs');
     }
     if (navId === 'trash') {
-      router.push('/docs/trash');
+      router.push('/docs/recycle');
     }
   };
 
@@ -179,10 +179,10 @@ export default function SidebarContent() {
     if (!uid || sharedSelectedIds.length === 0) return;
     const { error } = await documentsApi.batchStarDocuments(uid, sharedSelectedIds);
     if (error) {
-      toast.error('收藏失败');
+      toastError('收藏失败');
       return;
     }
-    toast.success('已加入收藏');
+    toastSuccess('已加入收藏');
     for (const id of sharedSelectedIds) {
       patchDocumentStarred(id, true);
     }
@@ -197,7 +197,7 @@ export default function SidebarContent() {
       await documentsApi.star(id, { isStarred: false, userId: uid });
       patchDocumentStarred(id, false);
     }
-    toast.success('已取消收藏');
+    toastSuccess('已取消收藏');
     clearSharedSelection();
     bumpStarredList();
   };
@@ -207,15 +207,15 @@ export default function SidebarContent() {
     if (!uid || selectedItems.length === 0) return;
     const fileIds = collectSelectedFileIds(documentGroups, selectedItems);
     if (fileIds.length === 0) {
-      toast.error('请选择文档文件（无法收藏文件夹）');
+      toastError('请选择文档文件（无法收藏文件夹）');
       return;
     }
     const { error } = await documentsApi.batchStarDocuments(uid, fileIds);
     if (error) {
-      toast.error('收藏失败');
+      toastError('收藏失败');
       return;
     }
-    toast.success('已加入收藏');
+    toastSuccess('已加入收藏');
     bumpStarredList();
   };
 
@@ -227,7 +227,7 @@ export default function SidebarContent() {
       await documentsApi.star(id, { isStarred: false, userId: uid });
       patchDocumentStarred(id, false);
     }
-    toast.success('已取消收藏');
+    toastSuccess('已取消收藏');
     clearStarredSelection();
     bumpStarredList();
   };
@@ -240,7 +240,7 @@ export default function SidebarContent() {
         <button
           type="button"
           onClick={toggle}
-          className="p-2 -ml-2 mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+          className="p-2 -ml-2 mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
           aria-label="隐藏侧边栏"
         >
           <PanelLeftClose className="w-5 h-5" />
@@ -292,7 +292,7 @@ export default function SidebarContent() {
                 'flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-normal transition-colors',
                 isActive
                   ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800',
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
               )}
             >
               <Icon className={cn('w-4 h-4', isActive ? 'text-blue-500' : 'text-gray-500')} />
@@ -340,7 +340,7 @@ export default function SidebarContent() {
                     e.stopPropagation();
                     bumpSharedList();
                   }}
-                  className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                  className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                   title="刷新列表"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
@@ -355,7 +355,7 @@ export default function SidebarContent() {
                     'p-1.5 rounded transition-colors',
                     sharedBatchMode
                       ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600',
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600',
                   )}
                   title={sharedBatchMode ? '退出批量操作' : '批量操作'}
                 >
@@ -417,7 +417,7 @@ export default function SidebarContent() {
                     'p-1.5 rounded transition-colors',
                     batchMode
                       ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600',
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600',
                   )}
                   title={batchMode ? '退出批量操作' : '批量操作'}
                 >
@@ -433,7 +433,7 @@ export default function SidebarContent() {
                   <button
                     type="button"
                     onClick={() => setShowCreateMenu(!showCreateMenu)}
-                    className="rounded p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="rounded p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition-colors"
                     title="新建"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -450,7 +450,7 @@ export default function SidebarContent() {
                       <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[140px]">
                         <button
                           type="button"
-                          className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                           onClick={() => startCreateNewItem('file')}
                         >
                           <FilePlus className="mr-2 h-4 w-4 text-blue-500" />
@@ -458,7 +458,7 @@ export default function SidebarContent() {
                         </button>
                         <button
                           type="button"
-                          className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                           onClick={() => startCreateNewItem('folder')}
                         >
                           <FolderPlus className="mr-2 h-4 w-4 text-amber-500" />
@@ -612,10 +612,8 @@ export default function SidebarContent() {
             type="button"
             onClick={() => handleNavClick('trash')}
             className={cn(
-              'flex w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors',
-              activeTab === 'trash'
-                ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
+              'flex w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20',
+              activeTab === 'trash' && 'bg-red-50 dark:bg-red-900/20',
             )}
           >
             <Trash2 className="w-4 h-4" />

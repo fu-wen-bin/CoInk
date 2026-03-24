@@ -12,6 +12,8 @@ interface SidebarState {
   starredListVersion: number;
   /** 「与我共享」列表刷新计数 */
   sharedListVersion: number;
+  /** 「我的文档库」刷新计数 */
+  libraryListVersion: number;
   /** 侧边栏「收藏的文档」批量选择模式（与文档库批量互斥） */
   starredBatchMode: boolean;
   starredSelectedIds: string[];
@@ -30,6 +32,7 @@ interface SidebarState {
   triggerRefresh: (source: string) => void;
   bumpStarredList: () => void;
   bumpSharedList: () => void;
+  bumpLibraryList: () => void;
   setStarredBatchMode: (v: boolean) => void;
   toggleStarredSelection: (id: string) => void;
   setStarredSelectedIds: (ids: string[]) => void;
@@ -56,6 +59,7 @@ export const useSidebar = create<SidebarState>()(
       refreshTrigger: 0,
       starredListVersion: 0,
       sharedListVersion: 0,
+      libraryListVersion: 0,
       starredBatchMode: false,
       starredSelectedIds: [] as string[],
       sharedBatchMode: false,
@@ -75,6 +79,7 @@ export const useSidebar = create<SidebarState>()(
         })),
       bumpStarredList: () => set((state) => ({ starredListVersion: state.starredListVersion + 1 })),
       bumpSharedList: () => set((state) => ({ sharedListVersion: state.sharedListVersion + 1 })),
+      bumpLibraryList: () => set((state) => ({ libraryListVersion: state.libraryListVersion + 1 })),
       setStarredBatchMode: (v) =>
         set((state) => ({
           starredBatchMode: v,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, MessageSquare, Send, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import { CommentItem } from './comment-item';
 
@@ -43,7 +43,7 @@ export function CommentThread({
 
   const handleReply = async () => {
     if (!replyContent.trim()) {
-      toast.error('回复内容不能为空');
+      toastError('回复内容不能为空');
 
       return;
     }
@@ -64,10 +64,10 @@ export function CommentThread({
 
       setReplyContent('');
       setIsReplying(false);
-      toast.success('回复成功');
+      toastSuccess('回复成功');
     } catch (error) {
       console.error('Failed to create reply:', error);
-      toast.error('回复失败，请重试');
+      toastError('回复失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -82,10 +82,10 @@ export function CommentThread({
         replies: thread.replies.filter((r) => r.id !== replyId),
       });
 
-      toast.success('删除成功');
+      toastSuccess('删除成功');
     } catch (error) {
       console.error('Failed to delete reply:', error);
-      toast.error('删除失败，请重试');
+      toastError('删除失败，请重试');
     }
   };
 

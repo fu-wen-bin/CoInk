@@ -1,5 +1,5 @@
 import { UseFormRegister, FieldErrors } from 'react-hook-form';
-import { toast } from 'sonner';
+import { toastError, toastInfo } from '@/utils/toast';
 
 import { InputField } from '@/components/ui/input-field';
 import { LoginFormData } from '@/utils/auth-schemas';
@@ -52,7 +52,7 @@ export const PasswordLoginForm = ({
         </label>
         <button
           type="button"
-          onClick={() => toast.info('密码重置功能开发中')}
+          onClick={() => toastInfo('密码重置功能开发中')}
           className="text-violet-600 hover:text-violet-700 transition-colors hover:underline"
         >
           忘记密码？

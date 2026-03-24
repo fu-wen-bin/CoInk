@@ -1,8 +1,8 @@
 'use client';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import { useEffect, useState } from 'react';
 import { History, Clock, Trash2, RotateCcw, Plus } from 'lucide-react';
-import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import * as Y from 'yjs';
@@ -68,7 +68,7 @@ export default function HistoryPanel({
 
   const handleCreateSnapshot = async () => {
     if (!description.trim()) {
-      toast.error('请输入快照描述');
+      toastError('请输入快照描述');
 
       return;
     }
@@ -76,11 +76,11 @@ export default function HistoryPanel({
     const newSnapshot = await createSnapshot(description);
 
     if (newSnapshot) {
-      toast.success('快照创建成功');
+      toastSuccess('快照创建成功');
       setDescription('');
       setShowCreateDialog(false);
     } else {
-      toast.error('快照创建失败');
+      toastError('快照创建失败');
     }
   };
 
@@ -97,10 +97,10 @@ export default function HistoryPanel({
     setIsRestoring(null);
 
     if (success) {
-      toast.success('快照恢复成功');
+      toastSuccess('快照恢复成功');
       // setIsOpen(false);
     } else {
-      toast.error('快照恢复失败');
+      toastError('快照恢复失败');
     }
 
     setShowRestoreConfirm(null);
@@ -119,9 +119,9 @@ export default function HistoryPanel({
     setIsDeleting(null);
 
     if (success) {
-      toast.success('快照删除成功');
+      toastSuccess('快照删除成功');
     } else {
-      toast.error('快照删除失败');
+      toastError('快照删除失败');
     }
 
     setShowDeleteConfirm(null);
@@ -137,9 +137,9 @@ export default function HistoryPanel({
     const success = await clearSnapshots();
 
     if (success) {
-      toast.success('所有快照已删除');
+      toastSuccess('所有快照已删除');
     } else {
-      toast.error('删除快照失败');
+      toastError('删除快照失败');
     }
 
     setShowClearConfirm(false);

@@ -50,16 +50,15 @@ export class OssService {
     const endpoint = this.config.get<string>('OSS_ENDPOINT')?.trim();
 
     // ali-oss 默认导出类型在部分 TS 版本下推断为 error
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const instance = new OSS({
+    this.client = new OSS({
       region,
       accessKeyId,
       accessKeySecret,
       bucket,
       ...(endpoint ? { endpoint } : {}),
     }) as OssPutClient;
-
-    this.client = instance;
     return this.client;
   }
 
@@ -87,5 +86,16 @@ export class OssService {
 
     this.logger.error('OSS put 成功但未返回 url，请检查 bucket 与 endpoint 配置');
     throw new Error('OSS 上传成功但未获得访问地址');
+  }
+
+  /**
+   * 从 OSS 删除文件
+   */
+  async deleteFile(objectKey: string): Promise<void> {
+    const client = this.getClient();
+    // ali-oss delete 方法不在我们定义的简化类型中，使用 any 绕过类型检查
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+    await (client as any).delete(objectKey);
   }
 }

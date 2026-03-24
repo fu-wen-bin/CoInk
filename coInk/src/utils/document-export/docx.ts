@@ -2,7 +2,7 @@
  * DOCX export utilities
  */
 
-import { toast } from 'sonner';
+import { toastWarning, toastError, toastSuccess } from '@/utils/toast';
 import { Editor } from '@tiptap/core';
 
 import { generateDOCX } from '../export-doc';
@@ -15,7 +15,7 @@ import { generateDOCX } from '../export-doc';
 export async function handleExportDOCX(name: string, editor: Editor): Promise<void> {
   try {
     if (!editor) {
-      toast.warning('请先打开文档后再导出DOCX');
+      toastWarning('请先打开文档后再导出DOCX');
 
       return;
     }
@@ -24,7 +24,7 @@ export async function handleExportDOCX(name: string, editor: Editor): Promise<vo
     console.log('🚀 ~ Exporting DOCX ~ json:', json);
 
     if (!json?.content?.length) {
-      toast.warning('文档内容为空');
+      toastWarning('文档内容为空');
 
       return;
     }
@@ -84,6 +84,6 @@ export async function handleExportDOCX(name: string, editor: Editor): Promise<vo
       URL.revokeObjectURL(url);
     }, 100);
   } catch (error: any) {
-    toast.error(`导出DOCX失败: ${error.message || '未知错误'}`);
+    toastError(`导出DOCX失败: ${error.message || '未知错误'}`);
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+import { toastError, toastSuccess } from '@/utils/toast';
 import { z } from 'zod';
 
 import authApi from '@/services/auth';
@@ -70,7 +70,7 @@ export const useAuthForm = (loginMode: LoginMode) => {
     const email = getValues('email');
 
     if (!email) {
-      toast.error('请先输入邮箱地址');
+      toastError('请先输入邮箱地址');
 
       return;
     }
@@ -79,7 +79,7 @@ export const useAuthForm = (loginMode: LoginMode) => {
     const emailValidation = emailSchema.safeParse(email);
 
     if (!emailValidation.success) {
-      toast.error('请输入有效的邮箱地址');
+      toastError('请输入有效的邮箱地址');
 
       return;
     }
@@ -88,7 +88,7 @@ export const useAuthForm = (loginMode: LoginMode) => {
 
     try {
       // 注意：后端暂无发送验证码接口，暂时提示用户
-      toast.error('验证码功能暂未开放');
+      toastError('验证码功能暂未开放');
       setIsSendingCode(false);
       return;
 
@@ -98,18 +98,18 @@ export const useAuthForm = (loginMode: LoginMode) => {
       setIsSendingCode(false);
 
       if (error) {
-        toast.error(error);
+        toastError(error);
 
         return;
       }
 
       if (!data || data.code !== 200) {
-        toast.error(data?.message || '发送验证码失败');
+        toastError(data?.message || '发送验证码失败');
 
         return;
       }
 
-      toast.success('验证码已发送', {
+      toastSuccess('验证码已发送', {
         description: '请查收您的邮箱，验证码有效期为10分钟',
       });
 
@@ -117,7 +117,7 @@ export const useAuthForm = (loginMode: LoginMode) => {
       */
     } catch (error) {
       setIsSendingCode(false);
-      toast.error(error instanceof Error ? error.message : '发送验证码失败，请稍后重试');
+      toastError(error instanceof Error ? error.message : '发送验证码失败，请稍后重试');
     }
   };
 

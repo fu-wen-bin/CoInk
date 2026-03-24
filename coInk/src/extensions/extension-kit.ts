@@ -4,7 +4,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import Mathematics, { migrateMathStrings } from '@tiptap/extension-mathematics';
 import { Extension } from '@tiptap/core';
-import { toast } from 'sonner';
+import { toastError } from '@/utils/toast';
 
 import {
   CharacterCount,
@@ -193,7 +193,7 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
               currentEditor.chain().setImageBlockAt({ pos, src: url }).focus().run();
             }
           } catch (error) {
-            toast.error(uploadErrorMessage(error));
+            toastError(uploadErrorMessage(error));
           }
         })();
       });
@@ -261,7 +261,7 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
             }
           }
         } catch (error) {
-          toast.error(uploadErrorMessage(error));
+          toastError(uploadErrorMessage(error));
         }
       });
 

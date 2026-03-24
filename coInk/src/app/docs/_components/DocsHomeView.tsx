@@ -8,7 +8,6 @@ import {
   FilePlus,
   FileText,
   Folder,
-  LayoutTemplate,
   Loader2,
   LogOut,
   MoreHorizontal,
@@ -20,7 +19,7 @@ import {
   User,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { toastSuccess, toastError, toastLoading, toastInfo } from '@/utils/toast';
 
 import { useSidebar } from '@/stores/sidebarStore';
 import { documentsApi } from '@/services/documents';
@@ -243,12 +242,18 @@ export default function DocsHomeView() {
   const handleSoftDelete = async (doc: Document, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(`将「${doc.title}」移入回收站？`)) return;
+    const toastId = toastLoading('正在删除...');
+    const userId = getCurrentUserId();
+    // 如果被收藏，先取消收藏
+    if (doc.isStarred && userId) {
+      await documentsApi.star(doc.documentId, { isStarred: false, userId });
+    }
     const { error } = await documentsApi.softDelete(doc.documentId);
     if (error) {
-      toast.error(error);
+      toastError(error, { id: toastId });
       return;
     }
-    toast.success('已移入回收站');
+    toastSuccess('已移入回收站', { id: toastId });
     void loadRows();
   };
 
@@ -294,10 +299,10 @@ export default function DocsHomeView() {
     if (!window.confirm(`将选中的 ${ids.length} 个文档从「最近访问」记录中移除？`)) return;
     const { error } = await documentsApi.removeFromRecent({ userId, documentIds: ids });
     if (error) {
-      toast.error(error);
+      toastError(error);
       return;
     }
-    toast.success('已从最近列表移除');
+    toastSuccess('已从最近列表移除');
     clearSelection();
     void loadRows();
   };
@@ -311,7 +316,7 @@ export default function DocsHomeView() {
     if (!singleSelectedDoc) return;
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const { error } = await documentsApi.star(singleSelectedDoc.documentId, {
@@ -319,10 +324,10 @@ export default function DocsHomeView() {
       userId: uid,
     });
     if (error) {
-      toast.error(error);
+      toastError(error);
       return;
     }
-    toast.success(singleSelectedDoc.isStarred ? '已取消收藏' : '已收藏');
+    toastSuccess(singleSelectedDoc.isStarred ? '已取消收藏' : '已收藏');
     bumpStarredList();
     clearSelection();
     void loadRows();
@@ -331,12 +336,18 @@ export default function DocsHomeView() {
   const handleToolbarDelete = async () => {
     if (!singleSelectedDoc) return;
     if (!window.confirm(`将「${singleSelectedDoc.title}」移入回收站？`)) return;
+    const toastId = toastLoading('正在删除...');
+    const userId = getCurrentUserId();
+    // 如果被收藏，先取消收藏
+    if (singleSelectedDoc.isStarred && userId) {
+      await documentsApi.star(singleSelectedDoc.documentId, { isStarred: false, userId });
+    }
     const { error } = await documentsApi.softDelete(singleSelectedDoc.documentId);
     if (error) {
-      toast.error(error);
+      toastError(error, { id: toastId });
       return;
     }
-    toast.success('已移入回收站');
+    toastSuccess('已移入回收站', { id: toastId });
     clearSelection();
     void loadRows();
   };
@@ -345,7 +356,7 @@ export default function DocsHomeView() {
     e.stopPropagation();
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     const { error } = await documentsApi.star(doc.documentId, {
@@ -353,10 +364,10 @@ export default function DocsHomeView() {
       userId: uid,
     });
     if (error) {
-      toast.error(error);
+      toastError(error);
       return;
     }
-    toast.success(doc.isStarred ? '已取消收藏' : '已收藏');
+    toastSuccess(doc.isStarred ? '已取消收藏' : '已收藏');
     bumpStarredList();
     void loadRows();
   };
@@ -437,7 +448,7 @@ export default function DocsHomeView() {
       </header>
 
       <section className="relative z-30 shrink-0 px-6 py-4">
-        <div className="mx-auto flex max-w-5xl flex-wrap gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {/* 1. 新建（Radix 在 SSR 与客户端会生成不同 id，需挂载后再渲染 DropdownMenu 避免水合报错） */}
           {mounted ? (
             <DropdownMenu>
@@ -499,30 +510,12 @@ export default function DocsHomeView() {
             </button>
           )}
 
-          {/* 2. 从模板库新建 */}
+          {/* 2. 上传 */}
           <button
             type="button"
             title="即将支持"
             className="flex min-w-[160px] flex-1 items-center gap-3 rounded-md border border-dashed border-slate-200 px-4 py-3 text-left opacity-90 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50"
-            onClick={() => toast.info('从模板库新建功能即将上线')}
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-violet-500/90 text-white">
-              <LayoutTemplate className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                从模板库新建
-              </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">即将支持</div>
-            </div>
-          </button>
-
-          {/* 3. 上传 */}
-          <button
-            type="button"
-            title="即将支持"
-            className="flex min-w-[160px] flex-1 items-center gap-3 rounded-md border border-dashed border-slate-200 px-4 py-3 text-left opacity-90 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50"
-            onClick={() => toast.info('上传本地文件功能即将上线')}
+            onClick={() => toastInfo('上传本地文件功能即将上线')}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white">
               <Upload className="h-4 w-4" />
@@ -538,7 +531,7 @@ export default function DocsHomeView() {
       </section>
 
       <div className="relative z-0 shrink-0 pl-3 pr-6 sm:pl-4">
-        <div className="mx-auto flex max-w-6xl gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -559,7 +552,7 @@ export default function DocsHomeView() {
 
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-auto py-4 pl-3 pr-6 sm:pl-4">
-          <div className="mx-auto max-w-6xl">
+          <div>
             {loading ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -606,7 +599,7 @@ export default function DocsHomeView() {
                       <th className="align-middle py-3 pl-0 pr-4 text-sm font-medium leading-none text-slate-600 dark:text-slate-300">
                         最近访问
                       </th>
-                      <th className="w-12 align-middle py-3 pl-0 pr-0" aria-label="操作" />
+                      <th className="w-12 py-3 pl-0 pr-0 align-middle" aria-label="操作" />
                     </tr>
                   </thead>
                   <tbody>
@@ -688,7 +681,7 @@ export default function DocsHomeView() {
                             {formatDateTime(doc.lastAccessedAt)}
                           </td>
                           <td
-                            className={cn(rowCellClasses(isSelected), 'py-3 pl-0 pr-0 text-right')}
+                            className={cn(rowCellClasses(isSelected), 'py-3 pl-0 pr-2 text-right')}
                           >
                             {mounted ? (
                               <DropdownMenu>
@@ -763,7 +756,7 @@ export default function DocsHomeView() {
 
         {selectedIds.size > 0 ? (
           <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 已选 {selectedIds.size} 项
               </span>

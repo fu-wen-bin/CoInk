@@ -28,12 +28,22 @@ export default function RootLayout({
           <main className="h-full">{children}</main>
         </QueryProvider>
         <Toaster
-          position="bottom-right"
+          position="top-center"
+          duration={4000}
+          style={{
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
+          }}
           toastOptions={{
-            duration: 4000,
             style: {
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              color: '#374151',
+              width: 'auto',
+              minWidth: 'unset',
+              maxWidth: 'none',
+              display: 'flex',
+              alignItems: 'center',
             },
           }}
         />

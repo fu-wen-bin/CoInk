@@ -2,9 +2,10 @@
  * PDF export utilities
  */
 
-import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import { snapdom } from '@zumer/snapdom';
+
+import { toastSuccess, toastError, toastLoading } from '@/utils/toast';
 
 /**
  * Export document as PDF
@@ -35,7 +36,7 @@ export async function handleExportPDF(name: string): Promise<void> {
     }
 
     // Show loading toast
-    toastId = toast.loading('正在利用 snapdom 生成高清文档...');
+    toastId = toastLoading('正在利用 snapdom 生成高清文档...');
 
     // Timeout after 60 seconds
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -89,7 +90,7 @@ export async function handleExportPDF(name: string): Promise<void> {
     await Promise.race([pdfPromise, timeoutPromise]);
 
     if (timeoutId) clearTimeout(timeoutId);
-    toast.success('PDF 导出成功', { id: toastId });
+    toastSuccess('PDF 导出成功', { id: toastId });
   } catch (error: any) {
     if (timeoutId) clearTimeout(timeoutId);
     console.error('PDF Export Error:', error);
@@ -97,9 +98,9 @@ export async function handleExportPDF(name: string): Promise<void> {
     const msg = error.message || '导出失败';
 
     if (toastId) {
-      toast.error(msg, { id: toastId });
+      toastError(msg, { id: toastId });
     } else {
-      toast.error(msg);
+      toastError(msg);
     }
   }
 }

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { toastSuccess } from '@/utils/toast';
 
 import StarredAddDocumentsDialog from './StarredAddDocumentsDialog';
 
@@ -144,7 +144,7 @@ export default function StarredView({
           await documentsApi.star(id, { isStarred: false, userId: uid });
           patchDocumentStarred(id, false);
         }
-        toast.success('已取消收藏');
+        toastSuccess('已取消收藏');
         clearStarredSelection();
         await loadStarredDocs();
         bumpStarredList();
@@ -164,7 +164,7 @@ export default function StarredView({
       if (!uid) return;
       await documentsApi.star(docId, { isStarred: false, userId: uid });
       patchDocumentStarred(docId, false);
-      toast.success('已取消收藏');
+      toastSuccess('已取消收藏');
       toggleStarredSelection(docId);
       await loadStarredDocs();
       bumpStarredList();
@@ -304,7 +304,7 @@ export default function StarredView({
                 <button
                   type="button"
                   onClick={(e) => handleUnstar(e, doc.documentId)}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
                   title="取消收藏"
                 >
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
@@ -341,7 +341,7 @@ export default function StarredView({
                   e.stopPropagation();
                   void loadStarredDocs();
                 }}
-                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 title="刷新列表"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -353,7 +353,7 @@ export default function StarredView({
                   'p-1.5 rounded transition-colors',
                   starredBatchMode
                     ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600',
+                    : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600',
                 )}
                 title={starredBatchMode ? '退出批量' : '批量'}
               >
@@ -366,7 +366,7 @@ export default function StarredView({
               <button
                 type="button"
                 onClick={() => setAddOpen(true)}
-                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 title="添加收藏"
               >
                 <Plus className="h-3.5 w-3.5" />

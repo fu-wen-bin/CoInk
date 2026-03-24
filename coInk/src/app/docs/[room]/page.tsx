@@ -34,7 +34,6 @@ import type { PermissionLevel } from '@/services/documents/types';
 import { useCommentStore } from '@/stores/commentStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
-import { storage, STORAGE_KEYS } from '@/utils/storage/local-storage';
 import { useSidebar } from '@/stores/sidebarStore';
 
 // 类型定义
@@ -566,59 +565,6 @@ export default function DocumentPage() {
 
     return () => dom.removeEventListener('copy', handleCopy);
   }, [editor]);
-
-  // 自动插入模板内容
-  useEffect(() => {
-    if (!editor || !documentId || !isIndexedDBReady || isReadOnly) {
-      return;
-    }
-
-    const templateContents = storage.get(STORAGE_KEYS.TEMPLATE_CONTENT) || {};
-    const docIdString = String(documentId);
-    const templateContent = templateContents[docIdString];
-
-    if (templateContent) {
-      const timer = setTimeout(() => {
-        try {
-          if (!editor || editor.isDestroyed) {
-            return;
-          }
-
-          const currentContent = editor.getText().trim();
-
-          if (currentContent.length > 0) {
-            const updatedContents = { ...templateContents };
-            delete updatedContents[docIdString];
-            storage.set(STORAGE_KEYS.TEMPLATE_CONTENT, updatedContents);
-
-            return;
-          }
-
-          if (!editor.commands.pasteMarkdown) {
-            return;
-          }
-
-          editor.commands.clearContent();
-
-          const result = editor.commands.pasteMarkdown(templateContent);
-
-          if (result) {
-            const updatedContents = { ...templateContents };
-            delete updatedContents[docIdString];
-            storage.set(STORAGE_KEYS.TEMPLATE_CONTENT, updatedContents);
-
-            setTimeout(() => {
-              editor.commands.focus('start');
-            }, 100);
-          }
-        } catch {
-          // 静默处理错误
-        }
-      }, 1200);
-
-      return () => clearTimeout(timer);
-    }
-  }, [editor, documentId, isIndexedDBReady, isReadOnly]);
 
   // 组件卸载时清理编辑器实例
   useEffect(() => {

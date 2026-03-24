@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Info, Loader2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 import { SnapshotReadonlyPane } from './snapshot-readonly-pane';
 
@@ -51,14 +51,14 @@ function SnapshotHistoryPageContent() {
         setDocumentTitle(docRes.data.data.title);
       }
       if (verRes.error) {
-        toast.error('加载版本列表失败');
+        toastError('加载版本列表失败');
         setVersions([]);
       } else {
         setVersions(unwrapVersions(verRes.data?.data));
       }
     } catch (e) {
       console.error(e);
-      toast.error('加载失败');
+      toastError('加载失败');
     } finally {
       setLoadingList(false);
     }
@@ -89,7 +89,7 @@ function SnapshotHistoryPageContent() {
       if (cancelled) return;
       if (error || !data?.data) {
         setSelectedVersion(null);
-        toast.error('加载版本详情失败');
+        toastError('加载版本详情失败');
       } else {
         setSelectedVersion(data.data);
       }
@@ -119,7 +119,7 @@ function SnapshotHistoryPageContent() {
     if (!documentId || !selectedVersion) return;
     const uid = getCurrentUserId();
     if (!uid) {
-      toast.error('请先登录');
+      toastError('请先登录');
       return;
     }
     if (
@@ -136,14 +136,14 @@ function SnapshotHistoryPageContent() {
         selectedVersion.versionId,
       );
       if (error) {
-        toast.error('还原失败');
+        toastError('还原失败');
         return;
       }
-      toast.success('已还原，正在进入文档…');
+      toastSuccess('已还原，正在进入文档…');
       window.location.assign(`/docs/${documentId}`);
     } catch (e) {
       console.error(e);
-      toast.error('还原失败');
+      toastError('还原失败');
     } finally {
       setRestoring(false);
     }

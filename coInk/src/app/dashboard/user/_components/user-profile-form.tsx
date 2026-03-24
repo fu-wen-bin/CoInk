@@ -1,7 +1,7 @@
 'use client';
 
+import { toastInfo, toastSuccess, toastError } from '@/utils/toast';
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
 import { z } from 'zod';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -100,7 +100,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
 
       // 如果没有任何修改，直接退出编辑模式
       if (Object.keys(updateData).length === 0) {
-        toast.info('没有检测到任何修改');
+        toastInfo('没有检测到任何修改');
         setIsEditing(false);
 
         return;
@@ -113,7 +113,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
       setIsEditing(false); // 退出编辑模式
     } catch (error) {
       console.error('更新个人信息失败:', error);
-      toast.error('更新失败');
+      toastError('更新失败');
     }
   };
 

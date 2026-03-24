@@ -15,6 +15,8 @@ import { useFileStore } from '@/stores/fileStore';
 import { cn, formatDocumentLastModified } from '@/utils';
 import type { FileItem } from '@/types/file-system';
 import { documentsApi } from '@/services/documents';
+import type { RequestResult } from '@/services/request';
+import type { Document } from '@/services/documents/types';
 import NotificationDropdown from '@/components/notifications/notification-dropdown';
 
 function findFileInTree(items: FileItem[], fileId: string): FileItem | null {
@@ -47,6 +49,17 @@ function CurrentUserMenu({ currentUser }: { currentUser?: CollaborationUser | nu
   const router = useRouter();
 
   if (!currentUser) return null;
+
+  if (currentUser.isAnonymous) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-500">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-gray-200">
+          <User className="h-4 w-4 text-gray-500" />
+        </div>
+        <span className="text-xs font-medium">匿名访客</span>
+      </div>
+    );
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
@@ -162,8 +175,9 @@ export default function DocumentHeader({
       return;
     }
     let cancelled = false;
-    documentsApi.getById(documentId).then(({ data, error }) => {
-      if (cancelled || error || !data?.data) return;
+    documentsApi.getById(documentId).then((result: RequestResult<Document>) => {
+      const { data, error } = result;
+      if (cancelled || error || !data?.data?.updatedAt) return;
       setFetchedUpdatedAt(data.data.updatedAt);
     });
     return () => {

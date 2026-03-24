@@ -8,6 +8,13 @@ export interface Friend {
   addedAt: string;
 }
 
+export interface FriendSearchItem {
+  userId: string;
+  name: string;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
 export interface FriendRequestItem {
   requestId: string;
   requesterId: string;

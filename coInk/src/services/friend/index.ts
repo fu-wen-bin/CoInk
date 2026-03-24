@@ -1,5 +1,6 @@
 import type {
   Friend,
+  FriendSearchItem,
   FriendRequestsResult,
   RespondFriendRequestParams,
   SendFriendRequestParams,
@@ -59,6 +60,17 @@ export class FriendService {
         errorHandler,
       },
     );
+  }
+
+  async searchUsers(
+    userId: string,
+    keyword: string,
+    errorHandler?: ErrorHandler,
+  ): Promise<RequestResult<FriendSearchItem[]>> {
+    return clientRequest.get<FriendSearchItem[]>(`${this.baseUrl}/search`, {
+      params: { userId, keyword },
+      errorHandler,
+    });
   }
 }
 

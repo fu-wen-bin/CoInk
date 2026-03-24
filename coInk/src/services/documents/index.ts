@@ -11,22 +11,25 @@
  */
 
 import type {
-  Document,
+  BatchRemovePermissionsParams,
+  BatchUpsertPermissionsParams,
   CreateDocumentParams,
-  UpdateDocumentParams,
-  RenameDocumentParams,
-  MoveDocumentParams,
-  StarDocumentParams,
-  ShareDocumentParams,
-  SetPermissionParams,
-  RemovePermissionParams,
+  Document,
+  DocumentPrincipalsResponse,
   GetByParentParams,
-  GetStarredParams,
   GetDeletedParams,
-  GetSharedParams,
   GetPermissionParams,
+  GetSharedParams,
+  GetStarredParams,
+  MoveDocumentParams,
   RecordAccessParams,
   RemoveFromRecentParams,
+  RemovePermissionParams,
+  RenameDocumentParams,
+  SetPermissionParams,
+  ShareDocumentParams,
+  StarDocumentParams,
+  UpdateDocumentParams,
 } from './types';
 
 import { clientRequest } from '@/services/request';
@@ -214,6 +217,7 @@ const getSharedWithMe = (
  * 通过分享链接获取文档
  *
  * @param shareToken - 分享令牌
+ * @param params - 可选查询参数（userId）
  * @param errorHandler - 可选的错误处理函数
  * @returns 文档详情
  *
@@ -229,9 +233,11 @@ const getSharedWithMe = (
  */
 const getByShareToken = (
   shareToken: string,
+  params?: { userId?: string },
   errorHandler?: ErrorHandler,
 ): Promise<RequestResult<Document>> =>
   clientRequest.get<Document>(`/documents/share/${shareToken}`, {
+    params,
     errorHandler,
   });
 
@@ -618,63 +624,79 @@ const removePermission = (
     errorHandler,
   });
 
+/**
+ * 获取文档协作者 ACL 列表（用户 + 用户组）
+ */
 const getPrincipals = (
   id: string,
   userId: string,
   errorHandler?: ErrorHandler,
+): Promise<RequestResult<DocumentPrincipalsResponse>> =>
+  clientRequest.get<DocumentPrincipalsResponse>(`/documents/${id}/principals`, {
+    params: { userId },
+    errorHandler,
+  });
+
+/**
+ * 批量新增/更新文档协作者权限
+ */
+const batchUpsertPermissions = (
+  id: string,
+  params: BatchUpsertPermissionsParams,
+  errorHandler?: ErrorHandler,
+): Promise<RequestResult<{ success: boolean; upsertedUsers: number; upsertedGroups: number }>> =>
+  clientRequest.post<{ success: boolean; upsertedUsers: number; upsertedGroups: number }>(
+    `/documents/${id}/permissions/batch-upsert`,
+    {
+      params,
+      errorHandler,
+    },
+  );
+
+/**
+ * 批量移除文档协作者权限
+ */
+const batchRemovePermissions = (
+  id: string,
+  params: BatchRemovePermissionsParams,
+  errorHandler?: ErrorHandler,
+): Promise<RequestResult<{ success: boolean; removedUsers: number; removedGroups: number }>> =>
+  clientRequest.delete<{ success: boolean; removedUsers: number; removedGroups: number }>(
+    `/documents/${id}/permissions/batch`,
+    {
+      params,
+      errorHandler,
+    },
+  );
+
+export const documentsApi = {
+  create,
   getMyDocuments,
-  /** 按父目录获取文档 */
   getByParent,
-  /** 获取星标文档 */
   getStarred,
-  /** 获取回收站文档 */
   getDeleted,
-  /** 获取与我共享的文档 */
   getSharedWithMe,
-  /** 通过分享链接获取文档 */
   getByShareToken,
-  /** 获取单个文档详情 */
   getById,
-  /** 记录打开文档（最近访问） */
   recordAccess,
-  /** 从最近访问列表移除 */
   removeFromRecent,
-  /** 更新文档 */
   update,
-  /** 重命名文档 */
   rename,
-  /** 移动文档 */
   move,
-  /** 星标/取消星标文档 */
   star,
-  /** 软删除文档（移动到回收站） */
   softDelete,
-  /** 恢复回收站文档 */
   restore,
-  /** 永久删除文档 */
   permanentDelete,
-  /** 生成分享链接 */
   share,
-  /** 关闭分享链接 */
   closeShare,
-  /** 获取当前用户对文档的权限 */
   getCurrentPermission,
-  /** 设置用户权限 */
   setPermission,
-  /** 移除用户权限 */
   removePermission,
-  /** 获取文档协作者 ACL 列表（用户 + 用户组） */
   getPrincipals,
-  /** 批量新增/更新文档协作者权限 */
   batchUpsertPermissions,
-  /** 批量移除文档协作者权限 */
   batchRemovePermissions,
-  /** 批量收藏 */
   batchStarDocuments,
 };
 
-/** 默认导出 */
 export default documentsApi;
-
-/** 类型导出 */
 export * from './types';

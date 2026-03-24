@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useRef, Activity } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import type { Editor } from '@tiptap/react';
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
@@ -42,6 +42,7 @@ interface CollaborationUser {
   name: string;
   color: string;
   avatar: string;
+  isAnonymous?: boolean;
 }
 
 interface DocumentPermissionData {
@@ -57,7 +58,6 @@ interface DocumentPermissionData {
 
 export default function DocumentPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const documentId = params?.room as string;
   const groupRef = useRef<GroupImperativeHandle>(null);
   const collabSyncedRef = useRef(false);
@@ -65,9 +65,6 @@ export default function DocumentPage() {
   const cloudSaveSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** onSynced 后短窗口内忽略 Yjs update，减少 IDB 合并/初始同步误触发「正在保存」 */
   const ignoreCloudSaveHintsUntilRef = useRef(0);
-
-  // 获取URL参数中的只读模式设置
-  const forceReadOnly = searchParams?.get('readonly') === 'true';
 
   const { documentGroups, patchDocumentUpdatedAt } = useFileStore();
   const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
@@ -240,13 +237,20 @@ export default function DocumentPage() {
         return;
       }
 
-      // 初始化编辑器和用户信息
+      // 初始化编辑器和用户信息（匿名访客使用灰色访客身份）
+      const isAnonymous = !userId;
+      const displayName = name || (isAnonymous ? '匿名访客' : '用户');
+      const runtimeUserId = isAnonymous
+        ? `guest_${Math.random().toString(36).slice(2, 10)}`
+        : userId;
+
       setDoc(new Y.Doc());
       setCurrentUser({
-        id: userId,
-        name: name,
-        color: getCursorColorByUserId(userId),
+        id: runtimeUserId,
+        name: displayName,
+        color: isAnonymous ? '#9ca3af' : getCursorColorByUserId(userId),
         avatar: avatarUrl,
+        isAnonymous,
       });
       setIsMounted(true);
     }
@@ -359,7 +363,7 @@ export default function DocumentPage() {
       }
       hocuspocusProvider.destroy();
     };
-  }, [documentId, doc, permissionData, isIndexedDBReady, patchDocumentUpdatedAt]);
+  }, [documentId, doc, permissionData, isIndexedDBReady, patchDocumentUpdatedAt, currentUser]);
 
   // 设置用户awareness信息
   useEffect(() => {
@@ -374,16 +378,16 @@ export default function DocumentPage() {
 
     const handleAwarenessUpdate = () => {
       const states = provider.awareness!.getStates();
-      const users: CollaborationUser[] = [];
+      const userMap = new Map<string, CollaborationUser>();
 
       states.forEach((state, clientId) => {
         if (state?.user) {
-          const userData = state.user;
+          const userData = state.user as Partial<CollaborationUser>;
           const userId = userData.id || clientId.toString();
 
-          // 只添加其他用户，排除当前用户
-          if (userId && userId !== currentUser.id) {
-            users.push({
+          // 只添加其他用户，排除当前用户，并按 userId 去重
+          if (userId && userId !== currentUser.id && !userMap.has(userId)) {
+            userMap.set(userId, {
               id: userId,
               name: userData.name || '未知用户',
               color: userData.color || getCursorColorByUserId(userId),
@@ -393,7 +397,7 @@ export default function DocumentPage() {
         }
       });
 
-      setConnectedUsers(users);
+      setConnectedUsers(Array.from(userMap.values()));
     };
 
     provider.awareness.on('update', handleAwarenessUpdate);
@@ -403,8 +407,8 @@ export default function DocumentPage() {
     return () => provider.awareness?.off('update', handleAwarenessUpdate);
   }, [provider, currentUser]);
 
-  // 判断是否为只读模式
-  const isReadOnly = forceReadOnly || permissionData?.permission === 'view';
+  // 判断是否为只读模式（匿名访客恒只读）
+  const isReadOnly = Boolean(currentUser?.isAnonymous) || permissionData?.permission === 'view';
 
   const CLOUD_SAVE_DEBOUNCE_MS = 400;
   const CLOUD_SAVE_SAFETY_MS = 20_000;
@@ -606,13 +610,19 @@ export default function DocumentPage() {
   }
 
   // 编辑器初始化中
-  if (!isMounted || !doc || !currentUser || !isIndexedDBReady || !provider) {
+  if (
+    !isMounted ||
+    !doc ||
+    !currentUser ||
+    !isIndexedDBReady ||
+    (!provider && !currentUser.isAnonymous)
+  ) {
     const getSubtitle = () => {
       if (!isMounted) return '等待挂载...';
       if (!doc) return '创建文档...';
       if (!currentUser) return '加载用户信息...';
       if (!isIndexedDBReady) return '加载数据...';
-      if (!provider) return '连接协作服务...';
+      if (!provider && !currentUser.isAnonymous) return '连接协作服务...';
 
       return '';
     };
@@ -627,8 +637,8 @@ export default function DocumentPage() {
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-center gap-2 text-amber-800 dark:text-amber-200">
           <Eye className="w-4 h-4" />
           <span className="text-sm font-medium">
-            {forceReadOnly
-              ? '只读模式 - 当前以只读模式查看文档'
+            {currentUser?.isAnonymous
+              ? '匿名访问 - 当前为只读模式'
               : '只读模式 - 您只能查看此文档，无法编辑'}
           </span>
         </div>

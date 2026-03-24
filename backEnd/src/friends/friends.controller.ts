@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 
 import { CreateFriendRequestDto } from './dto/create-friend-request.dto';
 import { RespondFriendRequestDto } from './dto/respond-friend-request.dto';
@@ -14,10 +23,7 @@ export class FriendsController {
   }
 
   @Patch('requests/:requestId/respond')
-  respond(
-    @Param('requestId') requestId: string,
-    @Body() dto: RespondFriendRequestDto,
-  ) {
+  respond(@Param('requestId') requestId: string, @Body() dto: RespondFriendRequestDto) {
     return this.friendsService.respondRequest(BigInt(requestId), dto.receiverId, dto.action);
   }
 
@@ -29,6 +35,14 @@ export class FriendsController {
   @Get('requests')
   findRequests(@Query('userId') userId: string) {
     return this.friendsService.findRequests(userId);
+  }
+
+  @Get('search')
+  searchUsers(@Query('userId') userId: string, @Query('keyword') keyword: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.friendsService.searchUsers(userId, keyword ?? '');
   }
 }
 

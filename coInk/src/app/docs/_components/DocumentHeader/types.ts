@@ -6,6 +6,7 @@ export interface CollaborationUser {
   name: string;
   color: string;
   avatar: string;
+  isAnonymous?: boolean;
 }
 
 export interface DocumentHeaderProps {

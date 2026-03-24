@@ -15,9 +15,40 @@ export function useAppRealtime(
   handlers?: Record<string, (payload: unknown) => void>,
 ) {
   const socketRef = useRef<Socket | null>(null);
+  const handlersRef = useRef<Record<string, (payload: unknown) => void>>({});
 
   useEffect(() => {
-    if (!userId) return;
+    const socket = socketRef.current;
+    const nextHandlers = handlers ?? {};
+    const prevHandlers = handlersRef.current;
+
+    if (socket) {
+      Object.entries(prevHandlers).forEach(([event, handler]) => {
+        const nextHandler = nextHandlers[event];
+        if (!nextHandler || nextHandler !== handler) {
+          socket.off(event, handler);
+        }
+      });
+
+      Object.entries(nextHandlers).forEach(([event, handler]) => {
+        const prevHandler = prevHandlers[event];
+        if (!prevHandler || prevHandler !== handler) {
+          socket.on(event, handler);
+        }
+      });
+    }
+
+    handlersRef.current = nextHandlers;
+  }, [handlers]);
+
+  useEffect(() => {
+    if (!userId) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
 
     const socket = io(resolveServerOrigin(), {
       path: '/ws/app',
@@ -32,23 +63,20 @@ export function useAppRealtime(
       socket.emit('subscribe', { userId });
     });
 
-    if (handlers) {
-      Object.entries(handlers).forEach(([event, handler]) => {
-        socket.on(event, handler);
-      });
-    }
+    Object.entries(handlersRef.current).forEach(([event, handler]) => {
+      socket.on(event, handler);
+    });
 
     return () => {
-      if (handlers) {
-        Object.entries(handlers).forEach(([event, handler]) => {
-          socket.off(event, handler);
-        });
-      }
+      Object.entries(handlersRef.current).forEach(([event, handler]) => {
+        socket.off(event, handler);
+      });
       socket.disconnect();
-      socketRef.current = null;
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
     };
-  }, [handlers, userId]);
+  }, [userId]);
 
   return socketRef;
 }
-

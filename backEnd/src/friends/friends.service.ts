@@ -245,5 +245,39 @@ export class FriendsService {
       })),
     };
   }
+
+  async searchUsers(userId: string, keyword: string) {
+    const q = keyword.trim();
+    if (!q) return [];
+
+    const existing = await this.prisma.friends.findMany({
+      where: { user_id: userId },
+      select: { friend_id: true },
+    });
+    const excludedIds = new Set(existing.map((row) => row.friend_id));
+    excludedIds.add(userId);
+
+    const users = await this.prisma.users.findMany({
+      where: {
+        user_id: { notIn: Array.from(excludedIds) },
+        OR: [{ user_id: { contains: q } }, { name: { contains: q } }, { email: { contains: q } }],
+      },
+      select: {
+        user_id: true,
+        name: true,
+        email: true,
+        avatar_url: true,
+      },
+      take: 20,
+      orderBy: { updated_at: 'desc' },
+    });
+
+    return users.map((user) => ({
+      userId: user.user_id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatar_url,
+    }));
+  }
 }
 

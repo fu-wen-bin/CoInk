@@ -1185,6 +1185,15 @@ export class DocumentsService {
       throw new NotFoundException('文档不存在');
     }
 
+    const isAnonymous = !userId;
+
+    if (isAnonymous) {
+      if (doc.link_permission && doc.link_permission !== 'close') {
+        return { permission: doc.link_permission, source: 'link' };
+      }
+      return { permission: null, source: null };
+    }
+
     // 所有者拥有 full 权限
     if (doc.owner_id === userId) {
       return { permission: 'full' as const, source: 'owner' };

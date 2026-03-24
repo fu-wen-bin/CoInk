@@ -1,15 +1,25 @@
+import { User } from 'lucide-react';
+
 import type { UserAvatarProps } from '../types';
 
 export function UserAvatar({ user, currentUser, index, total }: UserAvatarProps) {
+  const isAnonymous = Boolean(user.isAnonymous);
+
   return (
     <div className="relative group" style={{ zIndex: 50 + (total - index) }}>
       <div
         className="relative w-8 h-8 rounded-full border-2 shadow-sm hover:scale-110 transition-all duration-200 cursor-pointer bg-white dark:bg-gray-800"
         style={{
-          borderColor: user.color || '#3B82F6',
+          borderColor: isAnonymous ? '#9ca3af' : user.color || '#3B82F6',
           borderWidth: user.id === currentUser?.id ? '2.5px' : '2px',
         }}
       >
+        {isAnonymous ? (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+            <User className="h-4 w-4" />
+          </div>
+        ) : null}
+
         {user.avatar ? (
           <img
             src={user.avatar}
@@ -28,7 +38,7 @@ export function UserAvatar({ user, currentUser, index, total }: UserAvatarProps)
 
         <div
           className={`absolute inset-0 flex items-center justify-center text-white font-semibold text-xs rounded-full ${
-            user.avatar ? 'hidden' : 'flex'
+            user.avatar || isAnonymous ? 'hidden' : 'flex'
           }`}
           style={{ backgroundColor: user.color || '#3B82F6' }}
         >

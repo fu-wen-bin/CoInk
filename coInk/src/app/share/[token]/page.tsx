@@ -2,15 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import { documentsApi } from '@/services/documents';
-
-type PageProps = {
-  params: {
-    token: string;
-  };
-};
 
 const getCurrentUserId = (): string => {
   if (typeof window === 'undefined') return '';
@@ -23,9 +17,24 @@ const getCurrentUserId = (): string => {
   }
 };
 
-export default function ShareTokenPage({ params }: PageProps) {
+const resolveShareErrorMessage = (status?: number, fallback?: string | null): string => {
+  if (status === 404) return '分享链接不存在或已失效';
+  if (status === 401 || status === 403) return '分享链接已关闭或您暂无访问权限';
+  if (status === 410) return '分享链接已失效';
+  return fallback || '分享链接已失效或您无权访问该文档';
+};
+
+export default function ShareTokenPage() {
   const router = useRouter();
-  const token = useMemo(() => decodeURIComponent(params.token ?? '').trim(), [params.token]);
+  const params = useParams<{ token?: string | string[] }>();
+  const rawToken = Array.isArray(params?.token) ? params.token[0] : params?.token;
+  const token = useMemo(() => {
+    try {
+      return decodeURIComponent(rawToken ?? '').trim();
+    } catch {
+      return '';
+    }
+  }, [rawToken]);
 
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -42,29 +51,28 @@ export default function ShareTokenPage({ params }: PageProps) {
     const run = async () => {
       setStatus('loading');
 
-      const userId = getCurrentUserId();
-      const { data, error } = await documentsApi.getByShareToken(token, { userId }, (err) => {
-        // 这里交由页面统一展示错误
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('share redirect error:', err);
+      try {
+        const userId = getCurrentUserId();
+        const { data, error, status } = await documentsApi.getByShareToken(token, { userId });
+
+        if (cancelled) return;
+
+        if (error || !data?.data?.documentId) {
+          setStatus('error');
+          setErrorMessage(resolveShareErrorMessage(status, error));
+          return;
         }
-      });
 
-      if (cancelled) return;
+        const doc = data.data;
+        router.replace(`/docs/${doc.documentId}`);
+      } catch (error) {
+        if (cancelled) return;
 
-      if (error || !data?.data?.documentId) {
         setStatus('error');
-        setErrorMessage(error || '分享链接已失效或您无权访问该文档');
-        return;
+        setErrorMessage(
+          error instanceof Error ? error.message : '分享链接已失效或您无权访问该文档',
+        );
       }
-
-      const doc = data.data;
-      const nextUrl =
-        doc.linkPermission === 'view'
-          ? `/docs/${doc.documentId}?readonly=true`
-          : `/docs/${doc.documentId}`;
-
-      router.replace(nextUrl);
     };
 
     void run();
@@ -109,6 +117,3 @@ export default function ShareTokenPage({ params }: PageProps) {
     </div>
   );
 }
-
-
-

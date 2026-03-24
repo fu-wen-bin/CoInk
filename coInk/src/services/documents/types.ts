@@ -369,8 +369,8 @@ export interface GetSharedParams {
  * 获取当前用户对文档权限参数
  */
 export interface GetPermissionParams {
-  /** 用户ID（必填） */
-  userId: string;
+  /** 用户ID（可选，匿名访问时可不传） */
+  userId?: string;
 }
 
 /**

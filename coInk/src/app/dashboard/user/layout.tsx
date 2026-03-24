@@ -1,6 +1,5 @@
 'use client';
 
-import { toastError, toastSuccess } from '@/utils/toast';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -24,6 +23,7 @@ import { User } from '@/services/users/types';
 import UserAvatar from '@/components/ui/user-avatar';
 import { useUserQuery, getLocalUserData } from '@/hooks/useUserQuery';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
+import { toastSuccess } from '@/utils/toast';
 
 // 导航菜单配置
 const navigationItems = [
@@ -34,10 +34,10 @@ const navigationItems = [
     description: '管理个人信息和设置',
   },
   {
-    key: '/dashboard/user/friend',
-    label: '朋友',
+    key: '/dashboard/contacts',
+    label: '通讯录',
     icon: Users,
-    description: '管理朋友列表和关系',
+    description: '管理好友列表和添加好友',
   },
   {
     key: '/dashboard/user/docs',

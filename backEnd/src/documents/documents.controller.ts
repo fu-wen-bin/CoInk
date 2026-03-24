@@ -210,11 +210,8 @@ export class DocumentsController {
 
   // 获取当前用户对文档的权限
   @Get(':id/permission')
-  getUserPermission(@Param('id') id: string, @Query('userId') userId: string) {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
-    }
-    return this.documentsService.getUserPermission(id, userId);
+  getUserPermission(@Param('id') id: string, @Query('userId') userId?: string) {
+    return this.documentsService.getUserPermission(id, userId ?? '');
   }
 
   @Get(':id/principals')
@@ -270,11 +267,17 @@ export class DocumentsController {
   }
 
   @Delete(':id/permissions/batch')
-  batchRemovePermissions(@Param('id') id: string, @Body() dto: BatchRemovePermissionsDto) {
-    if (!dto.grantedBy) {
+  batchRemovePermissions(
+    @Param('id') id: string,
+    @Body() dto: BatchRemovePermissionsDto,
+    @Query('grantedBy') grantedByQuery?: string,
+  ) {
+    // 优先从查询参数获取 grantedBy，否则从 body 获取
+    const grantedBy = grantedByQuery || dto.grantedBy;
+    if (!grantedBy) {
       throw new BadRequestException('grantedBy is required');
     }
-    return this.documentsService.batchRemovePermissions(id, dto);
+    return this.documentsService.batchRemovePermissions(id, { ...dto, grantedBy });
   }
 
   // ==================== 文档内容 ====================

@@ -1,7 +1,6 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { TiptapTransformer } from '@hocuspocus/transformer';
 import { Server } from '@hocuspocus/server';
-import { Logger } from '@hocuspocus/extension-logger';
 import { encodeStateAsUpdate } from 'yjs';
 
 import { Prisma } from '../../generated/prisma/client';
@@ -18,6 +17,7 @@ import { applyStoredDocumentToYdoc, TIPTAP_COLLABORATION_FIELD } from './documen
  */
 @Injectable()
 export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(HocuspocusService.name);
   private server: Server;
 
   constructor(private readonly prisma: PrismaService) {}
@@ -26,7 +26,6 @@ export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
     this.server = new Server({
       port: 9999,
       debounce: 3000,
-      extensions: [new Logger()],
       onLoadDocument: async ({ documentName, document }) => {
         try {
           const row = await this.prisma.document_contents.findUnique({
@@ -36,7 +35,7 @@ export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
             applyStoredDocumentToYdoc(document, row);
           }
         } catch (error) {
-          console.error('Error loading document:', error);
+          this.logger.error(`加载协作文档失败: ${documentName}`, error);
         }
       },
       onStoreDocument: async ({ documentName, document }) => {
@@ -67,9 +66,7 @@ export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
               data: { updated_at: now },
             }),
           ]);
-          console.log(
-            `Document ${documentName} saved (y_state + Tiptap JSON, documents_info.updated_at synced)`,
-          );
+          this.logger.debug(`文档已保存: ${documentName}（y_state + Tiptap JSON）`);
 
           document.broadcastStateless(
             JSON.stringify({
@@ -79,26 +76,26 @@ export class HocuspocusService implements OnModuleInit, OnModuleDestroy {
             }),
           );
         } catch (error) {
-          console.error('Error storing document:', error);
+          this.logger.error(`保存协作文档失败: ${documentName}`, error);
         }
       },
       onConnect: async ({ requestParameters }) => {
         const token = requestParameters.get('token');
-        console.log('Client connected, token:', token ? 'present' : 'missing');
+        this.logger.debug(`客户端已连接，鉴权令牌: ${token ? '已携带' : '缺失'}`);
         await Promise.resolve();
       },
       onDisconnect: async () => {
-        console.log('Client disconnected');
+        this.logger.debug('客户端已断开连接');
         await Promise.resolve();
       },
     });
 
     void this.server.listen();
-    console.log('Hocuspocus server started on ws://localhost:9999');
+    this.logger.log('协作服务已启动: ws://localhost:9999');
   }
 
   onModuleDestroy() {
     void this.server?.destroy();
-    console.log('Hocuspocus server stopped');
+    this.logger.log('协作服务已停止');
   }
 }

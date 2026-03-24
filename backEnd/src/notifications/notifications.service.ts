@@ -1,12 +1,48 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { QueryNotificationDto } from './dto/query-notification.dto';
 import { Notification } from './entities/notification.entity';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
+
+  async createAndPush(params: {
+    userId: string;
+    requestId: bigint;
+    type: string;
+    payload?: Record<string, unknown>;
+    event?: string;
+  }): Promise<Notification> {
+    const created = await this.prisma.notifications.create({
+      data: {
+        request_id: params.requestId,
+        user_id: params.userId,
+        type: params.type,
+        payload:
+          params.payload === undefined ? undefined : (params.payload as Prisma.InputJsonValue),
+      },
+    });
+
+    const entity = this.mapToEntity(created);
+    this.realtimeService.emitToUser(params.userId, 'notification.new', {
+      notification: entity,
+    });
+
+    if (params.event) {
+      this.realtimeService.emitToUser(params.userId, params.event, {
+        notification: entity,
+      });
+    }
+
+    return entity;
+  }
 
   // ==================== 通知查询 ====================
 
@@ -197,8 +233,8 @@ export class NotificationsService {
     created_at: Date;
   }): Notification {
     return {
-      notificationId: notification.notifications_id,
-      requestId: notification.request_id,
+      notificationId: notification.notifications_id.toString(),
+      requestId: notification.request_id.toString(),
       userId: notification.user_id,
       type: notification.type,
       payload: notification.payload as Record<string, unknown> | undefined,

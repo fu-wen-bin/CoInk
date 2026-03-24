@@ -44,8 +44,8 @@ export interface SlashMenuConfig {
 const texts = {
   // AI
   continue_writing: {
-    title: '继续写作',
-    subtext: '从当前位置继续写作',
+    title: '续写',
+    subtext: '从当前位置续写',
     keywords: ['continue', 'write', 'continue writing', 'ai'],
     badge: AiSparklesIcon,
     group: 'AI',
@@ -200,7 +200,7 @@ const getItemImplementations = () => {
           const snippet = content.length > 500 ? `...${content.slice(-500)}` : content;
 
           const prompt = hasContent
-            ? `上下文：${snippet}\n\n请从上文结束处继续写作，仅输出一句话，不要重复已有文本。`
+            ? `上下文：${snippet}\n\n请从上文结束处续写，100字左右，不要重复已有文本。`
             : '请开始写一个新段落，仅输出一句话。';
 
           editor

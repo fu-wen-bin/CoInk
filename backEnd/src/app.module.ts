@@ -10,10 +10,13 @@ import { CommentsModule } from './comments/comments.module';
 import { DocumentsModule } from './documents/documents.module';
 import { GroupsModule } from './groups/groups.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PermissionRequestsModule } from './permission-requests/permission-requests.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { UploadModule } from './upload/upload.module';
 import { UserModule } from './user/user.module';
 import { AiModule } from './ai/ai.module';
+import { FriendsModule } from './friends/friends.module';
 
 @Module({
   imports: [
@@ -22,6 +25,7 @@ import { AiModule } from './ai/ai.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    RealtimeModule,
     PrismaModule,
     UserModule,
     DocumentsModule,
@@ -30,6 +34,8 @@ import { AiModule } from './ai/ai.module';
     GroupsModule,
     BlogsModule,
     NotificationsModule,
+    PermissionRequestsModule,
+    FriendsModule,
     UploadModule,
     CollaborationModule,
     AiModule,

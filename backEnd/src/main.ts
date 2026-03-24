@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { RealtimeService } from './realtime/realtime.service';
 
 /** JSON / urlencoded 体积上限（文档版本含 TipTap JSON + yState Base64 时易超过默认 100kb） */
 const BODY_PARSER_LIMIT = process.env.BODY_PARSER_LIMIT ?? '32mb';
@@ -45,7 +46,9 @@ async function bootstrap() {
   // 全局统一响应与异常处理
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
+
   await app.listen(process.env.PORT ?? 8888);
+  app.get(RealtimeService).attach(app);
   console.log('服务器启动在 http://localhost:' + (process.env.PORT ?? 8888));
 }
 

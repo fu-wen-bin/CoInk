@@ -16,6 +16,7 @@ import {
   CreateDocumentDto,
   CreateDocumentVersionDto,
 } from './dto/create-document.dto';
+import { BatchRemovePermissionsDto, BatchUpsertPermissionsDto } from './dto/permission.dto';
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
 import { document_principals_permission } from '../../generated/prisma/enums';
 
@@ -83,10 +84,7 @@ export class DocumentsController {
 
   // 从最近访问列表中批量移除（仅删除访问记录）
   @Post('recent/remove')
-  removeFromRecent(
-    @Body('userId') userId: string,
-    @Body('documentIds') documentIds: string[],
-  ) {
+  removeFromRecent(@Body('userId') userId: string, @Body('documentIds') documentIds: string[]) {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
@@ -98,10 +96,7 @@ export class DocumentsController {
 
   /** 批量收藏（我的文档 + 与我共享的文档 ID 列表） */
   @Post('stars/batch')
-  batchStarDocuments(
-    @Body('userId') userId: string,
-    @Body('documentIds') documentIds: string[],
-  ) {
+  batchStarDocuments(@Body('userId') userId: string, @Body('documentIds') documentIds: string[]) {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
@@ -222,6 +217,14 @@ export class DocumentsController {
     return this.documentsService.getUserPermission(id, userId);
   }
 
+  @Get(':id/principals')
+  listPrincipals(@Param('id') id: string, @Query('userId') userId: string) {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.documentsService.listPrincipals(id, userId);
+  }
+
   // 设置用户权限
   @Post(':id/permissions')
   setUserPermission(
@@ -256,6 +259,22 @@ export class DocumentsController {
       throw new BadRequestException('grantedBy is required');
     }
     return this.documentsService.removeUserPermission(id, targetUserId, grantedBy);
+  }
+
+  @Post(':id/permissions/batch-upsert')
+  batchUpsertPermissions(@Param('id') id: string, @Body() dto: BatchUpsertPermissionsDto) {
+    if (!dto.grantedBy) {
+      throw new BadRequestException('grantedBy is required');
+    }
+    return this.documentsService.batchUpsertPermissions(id, dto);
+  }
+
+  @Delete(':id/permissions/batch')
+  batchRemovePermissions(@Param('id') id: string, @Body() dto: BatchRemovePermissionsDto) {
+    if (!dto.grantedBy) {
+      throw new BadRequestException('grantedBy is required');
+    }
+    return this.documentsService.batchRemovePermissions(id, dto);
   }
 
   // ==================== 文档内容 ====================

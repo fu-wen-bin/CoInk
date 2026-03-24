@@ -69,5 +69,6 @@ export type {
   SearchAndReplaceStorage,
   SearchResult,
 } from './SearchAndReplace';
+export { FixBackspaceAfterImage } from './FixBackspaceAfterImage';
 export { MathLiveExtension } from './MathLiveEditor';
 export type { MathLiveExtensionOptions } from './MathLiveEditor';

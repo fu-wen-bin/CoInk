@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { type Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
+import { ImageDown } from 'lucide-react';
 
 // --- Hooks ---
 import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
@@ -11,9 +12,6 @@ import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
 
 // --- Lib ---
 import { isExtensionAvailable, isNodeTypeSelected, sanitizeUrl } from '@/lib/tiptap-utils';
-
-// --- Icons ---
-import { ArrowDownToLineIcon } from '@/components/tiptap-icons/arrow-down-to-line-icon';
 
 export const IMAGE_DOWNLOAD_SHORTCUT_KEY = 'mod+shift+d';
 
@@ -331,6 +329,6 @@ export function useImageDownload(config?: UseImageDownloadConfig) {
     handleDownload,
     label: '下载图片',
     shortcutKeys: IMAGE_DOWNLOAD_SHORTCUT_KEY,
-    Icon: ArrowDownToLineIcon,
+    Icon: ImageDown,
   };
 }

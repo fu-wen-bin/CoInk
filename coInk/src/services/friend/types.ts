@@ -1,32 +1,35 @@
-/**
- * 好友关系状态
- */
-export enum FriendshipStatus {
-  ACTIVE = 'ACTIVE',
-  BLOCKED = 'BLOCKED',
-  PENDING = 'PENDING',
-}
+export type FriendRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
-/**
- * 好友信息
- */
 export interface Friend {
-  id: number;
+  userId: string;
   name: string;
-  email: string;
-  avatar: string;
-  last_active_at: string;
-  friend_ship_id: number;
-  friends_since: string;
-  is_initiator: boolean;
-  relationship_status: FriendshipStatus;
-  is_online: boolean;
+  email: string | null;
+  avatarUrl: string | null;
+  addedAt: string;
 }
 
-/**
- * 好友列表响应
- */
-export interface FriendListData {
-  friends: Friend[];
-  total: number;
+export interface FriendRequestItem {
+  requestId: string;
+  requesterId: string;
+  receiverId: string;
+  status: FriendRequestStatus;
+  message: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FriendRequestsResult {
+  incoming: FriendRequestItem[];
+  outgoing: FriendRequestItem[];
+}
+
+export interface SendFriendRequestParams {
+  requesterId: string;
+  receiverId: string;
+  message?: string;
+}
+
+export interface RespondFriendRequestParams {
+  receiverId: string;
+  action: 'approve' | 'reject';
 }

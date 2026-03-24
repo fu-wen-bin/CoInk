@@ -73,6 +73,7 @@ import {
   Details,
   DetailsContent,
   DetailsSummary,
+  FixBackspaceAfterImage,
   FontFamily,
   FontSize,
   JsonPaste,
@@ -308,6 +309,7 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       TableHandleExtension,
       ListNormalizationExtension,
+      FixBackspaceAfterImage,
       ClearEmptyHeadingOnBackspace,
       ImageUploadNode.configure({
         accept: 'image/*',

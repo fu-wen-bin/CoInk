@@ -1,403 +1,529 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Eye, EyeOff } from 'lucide-react';
-import { toastSuccess, toastError } from '@/utils/toast';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { Copy, X } from 'lucide-react';
 
-import UserSelector from './components/UserSelector';
-
-import type { FileItem } from '@/types/file-system';
-import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
 import { documentsApi } from '@/services/documents';
-import type { User } from '@/services/users/types';
+import type { DocumentPrincipalItem, PermissionLevel } from '@/services/documents/types';
+import { friendService } from '@/services/friend';
+import { groupsApi } from '@/services/groups';
+import type { FileItem } from '@/types/file-system';
+import { toastError, toastSuccess } from '@/utils/toast';
 
-// 表单验证 schema
-const shareFormSchema = z.object({
-  permission: z.enum(['VIEW', 'COMMENT', 'EDIT', 'MANAGE', 'FULL']),
-  password: z.string().optional(),
-  expiresAt: z.date().optional(),
-  selectedUsers: z
-    .array(
-      z.object({
-        userId: z.string(),
-        name: z.string(),
-        email: z.string().nullable().optional(),
-        avatarUrl: z.string().nullable().optional(),
-      }),
-    )
-    .optional(),
-});
+type ShareDialogVariant = 'dropdown' | 'modal';
 
-type ShareFormData = z.infer<typeof shareFormSchema>;
+type GroupOption = {
+  groupId: string;
+  name: string;
+};
 
 interface ShareDialogProps {
   file: FileItem;
   isOpen: boolean;
   onClose: () => void;
+  variant?: ShareDialogVariant;
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
-const ShareDialog = ({ file, isOpen, onClose }: ShareDialogProps) => {
-  const [shareUrl, setShareUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+const PERMISSIONS: PermissionLevel[] = ['view', 'comment', 'edit', 'manage', 'full'];
 
-  const calendarRef = useRef<HTMLDivElement>(null);
-
-  const form = useForm<ShareFormData>({
-    resolver: zodResolver(shareFormSchema),
-    defaultValues: {
-      permission: 'VIEW',
-      password: '',
-      expiresAt: undefined,
-      selectedUsers: [],
-    },
-  });
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = form;
-  const watchedValues = watch();
-
-  // 点击外部关闭日历
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-
-    if (showCalendar) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCalendar]);
-
-  // 处理用户选择变化
-  const handleUserSelectionChange = (users: User[]) => {
-    setSelectedUsers(users);
-    setValue('selectedUsers', users);
-  };
-
-  const onSubmit = async (data: ShareFormData) => {
-    setIsLoading(true);
-
-    try {
-      const response = await documentsApi.share(file.id, {
-        permission: data.permission === 'VIEW' ? 'view' : 'edit',
-      });
-
-      if (response?.data) {
-        // 根据实际返回的数据结构构建分享链接
-        const shareToken = response.data.shareToken;
-        let shareUrl = `${window.location.origin}/share/${shareToken}`;
-
-        // 如果有密码，添加密码参数到URL中
-        if (data.password) {
-          const urlParams = new URLSearchParams();
-          urlParams.set('password', data.password);
-          shareUrl += `?${urlParams.toString()}`;
-        }
-
-        setShareUrl(shareUrl);
-
-        // 复制到剪贴板
-        await navigator.clipboard.writeText(shareUrl);
-
-        toastSuccess('分享链接已创建并复制到剪贴板！');
-      } else {
-        toastError('创建分享链接失败');
-      }
-    } catch (error) {
-      console.error('创建分享链接失败:', error);
-      toastError('创建分享链接失败');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCopyLink = async () => {
-    if (shareUrl) {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        toastSuccess('链接已复制到剪贴板！');
-      } catch (error) {
-        console.error('复制失败:', error);
-        toastError('复制失败，请手动复制链接');
-      }
-    }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setValue('expiresAt', date);
-    setShowCalendar(false);
-  };
-
-  const getPermissionLabel = (value: string) => {
-    switch (value) {
-      case 'VIEW':
-        return '仅查看';
-      case 'COMMENT':
-        return '可评论';
-      case 'EDIT':
-        return '可编辑';
-      case 'MANAGE':
-        return '可管理';
-      case 'FULL':
-        return '完全控制';
-      default:
-        return '选择权限';
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>分享文档</DialogTitle>
-          <DialogDescription>创建分享链接，让其他人可以访问您的文档</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* 文件信息 */}
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-            <Icon
-              name={file.type === 'folder' ? 'Folder' : 'FileText'}
-              className={cn(
-                'h-8 w-8',
-                file.type === 'folder' ? 'text-yellow-500' : 'text-blue-500',
-              )}
-            />
-            <div>
-              <p className="font-medium text-gray-900">{file.name}</p>
-              <p className="text-sm text-gray-500">{file.type === 'folder' ? '文件夹' : '文档'}</p>
-            </div>
-          </div>
-
-          {/* 权限选择 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">访问权限</label>
-            <Select
-              value={watchedValues.permission}
-              onValueChange={(value) => setValue('permission', value as any)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="选择权限">
-                  {getPermissionLabel(watchedValues.permission)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="VIEW">仅查看</SelectItem>
-                <SelectItem value="COMMENT">可评论</SelectItem>
-                <SelectItem value="EDIT">可编辑</SelectItem>
-                <SelectItem value="MANAGE">可管理</SelectItem>
-                <SelectItem value="FULL">完全控制</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.permission && (
-              <p className="text-sm text-red-600">{errors.permission.message}</p>
-            )}
-          </div>
-
-          {/* 高级选项 */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <Icon name={showAdvanced ? 'ChevronDown' : 'ChevronRight'} className="h-4 w-4 mr-1" />
-              高级选项
-            </button>
-
-            {showAdvanced && (
-              <div className="space-y-4 pl-5 border-l-2 border-gray-100">
-                {/* 密码保护 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">密码保护（可选）</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      {...register('password')}
-                      placeholder="设置访问密码"
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-sm text-red-600">{errors.password.message}</p>
-                  )}
-                </div>
-
-                {/* 过期时间 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">过期时间（可选）</label>
-                  <div className="relative" ref={calendarRef}>
-                    <button
-                      type="button"
-                      onClick={() => setShowCalendar(!showCalendar)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-left flex items-center justify-between"
-                    >
-                      <span className={watchedValues.expiresAt ? 'text-gray-900' : 'text-gray-500'}>
-                        {watchedValues.expiresAt
-                          ? format(watchedValues.expiresAt, 'yyyy年MM月dd日')
-                          : '选择过期日期'}
-                      </span>
-                      <CalendarIcon className="h-4 w-4 text-gray-400" />
-                    </button>
-
-                    {showCalendar && (
-                      <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg">
-                        <Calendar
-                          mode="single"
-                          selected={watchedValues.expiresAt}
-                          onSelect={handleDateSelect}
-                          disabled={(date: Date) => date < new Date()}
-                          initialFocus
-                        />
-                        <div className="p-3 border-t border-gray-200">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setValue('expiresAt', undefined);
-                              setShowCalendar(false);
-                            }}
-                            className="w-full px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                          >
-                            清除日期
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {errors.expiresAt && (
-                    <p className="text-sm text-red-600">{errors.expiresAt.message}</p>
-                  )}
-                </div>
-
-                {/* 用户选择器 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    分享给特定用户（可选）
-                  </label>
-                  <UserSelector
-                    selectedUsers={selectedUsers}
-                    onSelectionChange={handleUserSelectionChange}
-                    placeholder="搜索用户姓名或邮箱..."
-                    maxSelections={10}
-                  />
-                  <p className="text-xs text-gray-500">
-                    搜索并选择要分享的用户，最多可选择10个用户
-                  </p>
-                  {errors.selectedUsers && (
-                    <p className="text-sm text-red-600">{errors.selectedUsers.message}</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 分享链接显示 */}
-          {shareUrl && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 mr-3">
-                  <p className="text-sm font-medium text-green-800 mb-1">分享链接已生成</p>
-                  <p className="text-xs text-green-600 break-all font-mono bg-green-100 p-2 rounded">
-                    {shareUrl}
-                  </p>
-                  {selectedUsers.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs text-green-700 mb-1">已分享给以下用户：</p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedUsers.map((user) => (
-                          <span
-                            key={user.userId}
-                            className="inline-flex items-center gap-1 bg-green-200 text-green-800 px-2 py-1 rounded text-xs"
-                          >
-                            {user.avatarUrl && (
-                              <img
-                                src={user.avatarUrl}
-                                alt={user.name}
-                                className="w-3 h-3 rounded-full"
-                              />
-                            )}
-                            {user.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center"
-                >
-                  <Icon name="Copy" className="h-3 w-3 mr-1" />
-                  复制
-                </button>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
-            >
-              {isLoading && <Icon name="Loader" className="h-4 w-4 mr-2 animate-spin" />}
-              {shareUrl ? '重新生成链接' : '创建分享链接'}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+const getCurrentUserId = (): string => {
+  if (typeof window === 'undefined') return '';
+  try {
+    const cached = localStorage.getItem('cached_user_profile');
+    const parsed = cached ? (JSON.parse(cached) as { userId?: string }) : null;
+    return parsed?.userId ?? '';
+  } catch {
+    return '';
+  }
 };
 
-export default ShareDialog;
+export default function ShareDialog({
+  file,
+  isOpen,
+  onClose,
+  variant = 'modal',
+  anchorRef,
+}: ShareDialogProps) {
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [linkPermission, setLinkPermission] = useState<'close' | 'view' | 'edit'>('close');
+  const [shareUrl, setShareUrl] = useState('');
+  const [selectedPermission, setSelectedPermission] = useState<PermissionLevel>('view');
+  const [sendNotification, setSendNotification] = useState(true);
+  const [userInput, setUserInput] = useState('');
+  const [groupInput, setGroupInput] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [friends, setFriends] = useState<Array<{ userId: string; name: string }>>([]);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [principals, setPrincipals] = useState<DocumentPrincipalItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const selectedCount = selectedUserIds.length + selectedGroupIds.length;
+  const availableFriendIds = useMemo(() => friends.map((item) => item.userId), [friends]);
+  const availableGroupIds = useMemo(() => groups.map((item) => item.groupId), [groups]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const uid = getCurrentUserId();
+    setCurrentUserId(uid);
+
+    const load = async () => {
+      if (!uid) return;
+
+      setLoading(true);
+      const docId = String(file.id);
+      const [principalRes, docRes, friendRes, myGroupsRes, ownedGroupsRes] = await Promise.all([
+        documentsApi.getPrincipals(docId, uid),
+        documentsApi.getById(docId),
+        friendService.getFriendList(uid),
+        groupsApi.getMyGroups(uid),
+        groupsApi.getOwnedGroups(uid),
+      ]);
+
+      if (principalRes.error) {
+        toastError(principalRes.error);
+      } else {
+        const payload = principalRes.data?.data;
+        if (payload) {
+          setPrincipals(payload.principals ?? []);
+          setLinkPermission(
+            (payload.linkPermission as 'close' | 'view' | 'edit' | null) ?? 'close',
+          );
+        }
+      }
+
+      if (!docRes.error) {
+        const shareToken = docRes.data?.data?.shareToken;
+        if (shareToken && typeof window !== 'undefined') {
+          setShareUrl(`${window.location.origin}/share/${shareToken}`);
+        }
+      }
+
+      if (!friendRes.error) {
+        const list = friendRes.data?.data ?? [];
+        setFriends(list.map((item) => ({ userId: item.userId, name: item.name })));
+      }
+
+      const mergeGroups = [
+        ...(myGroupsRes.data?.data?.groups ?? []),
+        ...(ownedGroupsRes.data?.data?.groups ?? []),
+      ];
+      const unique = new Map<string, GroupOption>();
+      for (const item of mergeGroups) {
+        unique.set(item.groupId, { groupId: item.groupId, name: item.name });
+      }
+      setGroups(Array.from(unique.values()));
+
+      setLoading(false);
+    };
+
+    void load();
+  }, [file.id, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || variant !== 'dropdown') return;
+
+    const updatePosition = () => {
+      const rect = anchorRef?.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPosition({
+        top: rect.bottom + 8,
+        left: Math.max(12, rect.right - 520),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [anchorRef, isOpen, variant]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onDocDown = (event: MouseEvent) => {
+      if (variant !== 'dropdown') return;
+      const target = event.target as Node;
+      if (panelRef.current && !panelRef.current.contains(target)) {
+        onClose();
+      }
+    };
+
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('keydown', onEsc);
+
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [isOpen, onClose, variant]);
+
+  if (!isOpen) return null;
+
+  const addUserId = () => {
+    const value = userInput.trim();
+    if (!value) return;
+    if (!selectedUserIds.includes(value)) {
+      setSelectedUserIds((prev) => [...prev, value]);
+    }
+    setUserInput('');
+  };
+
+  const addGroupId = () => {
+    const value = groupInput.trim();
+    if (!value) return;
+    if (!selectedGroupIds.includes(value)) {
+      setSelectedGroupIds((prev) => [...prev, value]);
+    }
+    setGroupInput('');
+  };
+
+  const removePrincipal = async (principalType: 'user' | 'group', principalId: string) => {
+    if (!currentUserId) return;
+
+    const { error } = await documentsApi.batchRemovePermissions(String(file.id), {
+      grantedBy: currentUserId,
+      userIds: principalType === 'user' ? [principalId] : [],
+      groupIds: principalType === 'group' ? [principalId] : [],
+    });
+
+    if (error) {
+      toastError(error);
+      return;
+    }
+
+    setPrincipals((prev) =>
+      prev.filter(
+        (item) => !(item.principalType === principalType && item.principalId === principalId),
+      ),
+    );
+    toastSuccess('已移除权限');
+  };
+
+  const applyBatchPermissions = async () => {
+    if (!currentUserId) {
+      toastError('请先登录');
+      return;
+    }
+
+    if (selectedCount === 0) {
+      toastError('请先添加用户或用户组');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await documentsApi.batchUpsertPermissions(String(file.id), {
+      grantedBy: currentUserId,
+      sendNotification,
+      userTargets: selectedUserIds.map((targetId) => ({
+        targetId,
+        permission: selectedPermission,
+      })),
+      groupTargets: selectedGroupIds.map((targetId) => ({
+        targetId,
+        permission: selectedPermission,
+      })),
+    });
+    setLoading(false);
+
+    if (error) {
+      toastError(error);
+      return;
+    }
+
+    const refreshed = await documentsApi.getPrincipals(String(file.id), currentUserId);
+    if (!refreshed.error) {
+      setPrincipals(refreshed.data?.data?.principals ?? []);
+    }
+
+    setSelectedUserIds([]);
+    setSelectedGroupIds([]);
+    toastSuccess('权限设置成功');
+  };
+
+  const applyLinkPermission = async () => {
+    setLoading(true);
+
+    if (linkPermission === 'close') {
+      const { error } = await documentsApi.closeShare(String(file.id));
+      setLoading(false);
+      if (error) {
+        toastError(error);
+        return;
+      }
+      toastSuccess('已关闭链接分享');
+      return;
+    }
+
+    const { data, error } = await documentsApi.share(String(file.id), {
+      permission: linkPermission,
+    });
+    setLoading(false);
+
+    if (error) {
+      toastError(error);
+      return;
+    }
+
+    const token = data?.data?.shareToken;
+    if (token && typeof window !== 'undefined') {
+      setShareUrl(`${window.location.origin}/share/${token}`);
+    }
+    toastSuccess('链接权限已更新');
+  };
+
+  const copyLink = async () => {
+    if (!shareUrl) {
+      toastError('暂无可复制链接，请先开启链接分享');
+      return;
+    }
+    await navigator.clipboard.writeText(shareUrl);
+    toastSuccess('链接已复制');
+  };
+
+  const panel = (
+    <div
+      ref={panelRef}
+      className="w-[520px] max-w-[calc(100vw-24px)] rounded-xl border border-slate-200 bg-white shadow-2xl"
+    >
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">分享文档</h3>
+          <p className="text-xs text-slate-500">{file.name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="space-y-5 px-5 py-4">
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-slate-800">邀请协作者</div>
+          <div className="flex gap-2">
+            <input
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="输入用户 ID"
+              className="h-9 flex-1 rounded-md border border-slate-300 px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={addUserId}
+              className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700"
+            >
+              添加用户
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              value={groupInput}
+              onChange={(e) => setGroupInput(e.target.value)}
+              placeholder="输入用户组 ID"
+              className="h-9 flex-1 rounded-md border border-slate-300 px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={addGroupId}
+              className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700"
+            >
+              添加用户组
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {selectedUserIds.map((id) => (
+              <span
+                key={`u-${id}`}
+                className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700"
+              >
+                用户 {id}
+              </span>
+            ))}
+            {selectedGroupIds.map((id) => (
+              <span
+                key={`g-${id}`}
+                className="rounded-full bg-purple-50 px-3 py-1 text-xs text-purple-700"
+              >
+                用户组 {id}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-700"
+              onClick={() => setSelectedUserIds(availableFriendIds)}
+            >
+              快捷添加全部好友
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-700"
+              onClick={() => setSelectedGroupIds(availableGroupIds)}
+            >
+              快捷添加全部用户组
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-700"
+              onClick={() => {
+                setSelectedUserIds([]);
+                setSelectedGroupIds([]);
+              }}
+            >
+              清空选择
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-slate-800">批量设置权限</div>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedPermission}
+              onChange={(e) => setSelectedPermission(e.target.value as PermissionLevel)}
+              className="h-9 flex-1 rounded-md border border-slate-300 px-2 text-sm"
+            >
+              {PERMISSIONS.map((perm) => (
+                <option key={perm} value={perm}>
+                  {perm}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void applyBatchPermissions()}
+              disabled={loading}
+              className="h-9 rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              应用到所选
+            </button>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={sendNotification}
+              onChange={(e) => setSendNotification(e.target.checked)}
+            />
+            发送通知
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-slate-800">当前协作者权限</div>
+          <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2">
+            {principals.length === 0 ? (
+              <p className="text-xs text-slate-500">暂无协作者</p>
+            ) : (
+              principals.map((item) => (
+                <div
+                  key={`${item.principalType}-${item.principalId}`}
+                  className="flex items-center justify-between rounded px-2 py-1 text-xs hover:bg-slate-50"
+                >
+                  <span className="text-slate-700">
+                    [{item.principalType}] {item.name} ({item.principalId}) - {item.permission}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void removePrincipal(item.principalType, item.principalId)}
+                    className="text-rose-600"
+                  >
+                    移除
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2 border-t border-slate-100 pt-4">
+          <div className="text-sm font-medium text-slate-800">链接分享</div>
+          <div className="flex items-center gap-2">
+            <select
+              value={linkPermission}
+              onChange={(e) => setLinkPermission(e.target.value as 'close' | 'view' | 'edit')}
+              className="h-9 flex-1 rounded-md border border-slate-300 px-2 text-sm"
+            >
+              <option value="close">关闭</option>
+              <option value="view">可阅读</option>
+              <option value="edit">可编辑</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => void applyLinkPermission()}
+              disabled={loading}
+              className="h-9 rounded-md border border-slate-300 px-4 text-sm text-slate-700"
+            >
+              保存
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              placeholder="开启链接分享后可复制链接"
+              className="h-9 flex-1 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs text-slate-600"
+            />
+            <button
+              type="button"
+              onClick={() => void copyLink()}
+              className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {loading ? <p className="text-xs text-slate-500">处理中...</p> : null}
+      </div>
+    </div>
+  );
+
+  if (variant === 'dropdown') {
+    if (!position) return null;
+    return (
+      <div
+        className="fixed z-[120]"
+        style={{
+          top: position.top,
+          left: position.left,
+        }}
+      >
+        {panel}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4"
+      onClick={onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()}>{panel}</div>
+    </div>
+  );
+}

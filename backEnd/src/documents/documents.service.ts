@@ -16,8 +16,10 @@ import {
   CreateDocumentVersionDto,
   DocumentType,
 } from './dto/create-document.dto';
+import { BatchRemovePermissionsDto, BatchUpsertPermissionsDto } from './dto/permission.dto';
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
 import { EMPTY_TIPTAP_DOCUMENT_JSON } from '../collaboration/document-yjs-storage';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // 权限等级映射
 const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
@@ -32,7 +34,10 @@ const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // ==================== 文档元数据操作 ====================
 
@@ -1196,9 +1201,8 @@ export class DocumentsService {
       },
     });
 
-    if (principal) {
-      return { permission: principal.permission, source: 'direct' };
-    }
+    let highestPermission: document_principals_permission | null = principal?.permission ?? null;
+    let source: 'direct' | 'group' | 'link' | null = principal ? 'direct' : null;
 
     // 检查组权限
     const userGroups = await this.prisma.group_members.findMany({
@@ -1217,22 +1221,36 @@ export class DocumentsService {
       });
 
       if (groupPermissions.length > 0) {
-        // 返回最高权限
-        const highestPermission = groupPermissions.reduce((highest, current) => {
+        const highestGroupPermission = groupPermissions.reduce((highest, current) => {
           return PERMISSION_LEVELS[current.permission] > PERMISSION_LEVELS[highest.permission]
             ? current
             : highest;
         });
-        return { permission: highestPermission.permission, source: 'group' };
+
+        if (
+          !highestPermission ||
+          PERMISSION_LEVELS[highestGroupPermission.permission] > PERMISSION_LEVELS[highestPermission]
+        ) {
+          highestPermission = highestGroupPermission.permission;
+          source = 'group';
+        }
       }
     }
 
-    // 检查分享链接权限
+    // 链接权限开启时与 ACL 做最高权限合并（close 时仅看 ACL）
     if (doc.link_permission && doc.link_permission !== 'close') {
-      return { permission: doc.link_permission, source: 'link' };
+      const linkPermission =
+        doc.link_permission === 'edit'
+          ? ('edit' as document_principals_permission)
+          : ('view' as document_principals_permission);
+
+      if (!highestPermission || PERMISSION_LEVELS[linkPermission] > PERMISSION_LEVELS[highestPermission]) {
+        highestPermission = linkPermission;
+        source = 'link';
+      }
     }
 
-    return { permission: null, source: null };
+    return { permission: highestPermission, source };
   }
 
   /**
@@ -1322,6 +1340,238 @@ export class DocumentsService {
     return { success: true };
   }
 
+  async listPrincipals(documentId: string, userId: string) {
+    await this.assertCanManagePermissions(documentId, userId);
+
+    const doc = await this.prisma.documents_info.findUnique({
+      where: { document_id: documentId },
+      select: {
+        owner_id: true,
+        link_permission: true,
+      },
+    });
+
+    if (!doc) {
+      throw new NotFoundException('文档不存在');
+    }
+
+    const principals = await this.prisma.document_principals.findMany({
+      where: { document_id: documentId },
+      orderBy: [{ principal_type: 'asc' }, { updated_at: 'desc' }],
+    });
+
+    const userIds = principals
+      .filter((p) => p.principal_type === 'user')
+      .map((p) => p.principal_id);
+    const groupIds = principals
+      .filter((p) => p.principal_type === 'group')
+      .map((p) => p.principal_id);
+
+    const [users, groups] = await Promise.all([
+      userIds.length > 0
+        ? this.prisma.users.findMany({
+            where: { user_id: { in: userIds } },
+            select: { user_id: true, name: true, avatar_url: true },
+          })
+        : Promise.resolve(
+            [] as {
+              user_id: string;
+              name: string;
+              avatar_url: string | null;
+            }[],
+          ),
+      groupIds.length > 0
+        ? this.prisma.groups.findMany({
+            where: { group_id: { in: groupIds } },
+            select: { group_id: true, name: true },
+          })
+        : Promise.resolve(
+            [] as {
+              group_id: string;
+              name: string;
+            }[],
+          ),
+    ]);
+
+    const userMap = new Map<
+      string,
+      {
+        user_id: string;
+        name: string;
+        avatar_url: string | null;
+      }
+    >();
+    users.forEach((u) => userMap.set(u.user_id, u));
+
+    const groupMap = new Map<
+      string,
+      {
+        group_id: string;
+        name: string;
+      }
+    >();
+    groups.forEach((g) => groupMap.set(g.group_id, g));
+
+    return {
+      ownerId: doc.owner_id,
+      linkPermission: doc.link_permission,
+      principals: principals.map((p) => {
+        if (p.principal_type === 'user') {
+          const user = userMap.get(p.principal_id);
+          return {
+            principalType: p.principal_type,
+            principalId: p.principal_id,
+            permission: p.permission,
+            name: user?.name ?? p.principal_id,
+            avatarUrl: user?.avatar_url ?? null,
+          };
+        }
+
+        const group = groupMap.get(p.principal_id);
+        return {
+          principalType: p.principal_type,
+          principalId: p.principal_id,
+          permission: p.permission,
+          name: group?.name ?? p.principal_id,
+        };
+      }),
+    };
+  }
+
+  async batchUpsertPermissions(documentId: string, dto: BatchUpsertPermissionsDto) {
+    await this.assertCanManagePermissions(documentId, dto.grantedBy);
+
+    const userTargets = dto.userTargets ?? [];
+    const groupTargets = dto.groupTargets ?? [];
+
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const target of userTargets) {
+        await tx.document_principals.upsert({
+          where: {
+            document_id_principal_type_principal_id: {
+              document_id: documentId,
+              principal_type: 'user',
+              principal_id: target.targetId,
+            },
+          },
+          update: {
+            permission: target.permission,
+            granted_by: dto.grantedBy,
+            updated_at: now,
+          },
+          create: {
+            document_id: documentId,
+            principal_type: 'user',
+            principal_id: target.targetId,
+            permission: target.permission,
+            granted_by: dto.grantedBy,
+          },
+        });
+      }
+
+      for (const target of groupTargets) {
+        await tx.document_principals.upsert({
+          where: {
+            document_id_principal_type_principal_id: {
+              document_id: documentId,
+              principal_type: 'group',
+              principal_id: target.targetId,
+            },
+          },
+          update: {
+            permission: target.permission,
+            granted_by: dto.grantedBy,
+            updated_at: now,
+          },
+          create: {
+            document_id: documentId,
+            principal_type: 'group',
+            principal_id: target.targetId,
+            permission: target.permission,
+            granted_by: dto.grantedBy,
+          },
+        });
+      }
+    });
+
+    if (dto.sendNotification !== false) {
+      const notifyUserIds = new Set<string>(userTargets.map((item) => item.targetId));
+
+      if (groupTargets.length > 0) {
+        const memberships = await this.prisma.group_members.findMany({
+          where: {
+            group_id: {
+              in: groupTargets.map((item) => item.targetId),
+            },
+          },
+          select: { user_id: true },
+        });
+        for (const member of memberships) {
+          notifyUserIds.add(member.user_id);
+        }
+      }
+
+      notifyUserIds.delete(dto.grantedBy);
+
+      await Promise.all(
+        Array.from(notifyUserIds).map((uid) =>
+          this.notificationsService.createAndPush({
+            userId: uid,
+            requestId: 0n,
+            type: 'DOCUMENT_PERMISSION_CHANGED',
+            payload: {
+              documentId,
+              operatorId: dto.grantedBy,
+            },
+            event: 'permission.changed',
+          }),
+        ),
+      );
+    }
+
+    return {
+      success: true,
+      upsertedUsers: userTargets.length,
+      upsertedGroups: groupTargets.length,
+    };
+  }
+
+  async batchRemovePermissions(documentId: string, dto: BatchRemovePermissionsDto) {
+    await this.assertCanManagePermissions(documentId, dto.grantedBy);
+
+    const userIds = dto.userIds ?? [];
+    const groupIds = dto.groupIds ?? [];
+
+    const [removedUsers, removedGroups] = await Promise.all([
+      userIds.length > 0
+        ? this.prisma.document_principals.deleteMany({
+            where: {
+              document_id: documentId,
+              principal_type: 'user',
+              principal_id: { in: userIds },
+            },
+          })
+        : Promise.resolve({ count: 0 }),
+      groupIds.length > 0
+        ? this.prisma.document_principals.deleteMany({
+            where: {
+              document_id: documentId,
+              principal_type: 'group',
+              principal_id: { in: groupIds },
+            },
+          })
+        : Promise.resolve({ count: 0 }),
+    ]);
+
+    return {
+      success: true,
+      removedUsers: removedUsers.count,
+      removedGroups: removedGroups.count,
+    };
+  }
+
   // ==================== 辅助方法 ====================
 
   /**
@@ -1337,6 +1587,25 @@ export class DocumentsService {
 
     // 检查权限等级
     return PERMISSION_LEVELS[permission] >= PERMISSION_LEVELS[requiredPermission];
+  }
+
+  private async assertCanManagePermissions(documentId: string, userId: string) {
+    const doc = await this.prisma.documents_info.findUnique({
+      where: { document_id: documentId },
+    });
+
+    if (!doc) {
+      throw new NotFoundException('文档不存在');
+    }
+
+    if (doc.owner_id === userId) {
+      return;
+    }
+
+    const canManage = await this.checkUserPermission(documentId, userId, 'manage');
+    if (!canManage) {
+      throw new ForbiddenException('没有权限管理文档协作者');
+    }
   }
 
   /** 批量收藏（跳过无权限项） */

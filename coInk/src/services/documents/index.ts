@@ -618,13 +618,10 @@ const removePermission = (
     errorHandler,
   });
 
-/**
- * 文档管理 API 对象
- */
-export const documentsApi = {
-  /** 创建文档 */
-  create,
-  /** 获取我的所有文档 */
+const getPrincipals = (
+  id: string,
+  userId: string,
+  errorHandler?: ErrorHandler,
   getMyDocuments,
   /** 按父目录获取文档 */
   getByParent,
@@ -666,6 +663,12 @@ export const documentsApi = {
   setPermission,
   /** 移除用户权限 */
   removePermission,
+  /** 获取文档协作者 ACL 列表（用户 + 用户组） */
+  getPrincipals,
+  /** 批量新增/更新文档协作者权限 */
+  batchUpsertPermissions,
+  /** 批量移除文档协作者权限 */
+  batchRemovePermissions,
   /** 批量收藏 */
   batchStarDocuments,
 };

@@ -259,6 +259,38 @@ export interface RemovePermissionParams {
   grantedBy: string;
 }
 
+export interface PrincipalPermissionTarget {
+  targetId: string;
+  permission: PermissionLevel;
+}
+
+export interface BatchUpsertPermissionsParams {
+  grantedBy: string;
+  userTargets?: PrincipalPermissionTarget[];
+  groupTargets?: PrincipalPermissionTarget[];
+  sendNotification?: boolean;
+}
+
+export interface BatchRemovePermissionsParams {
+  grantedBy: string;
+  userIds?: string[];
+  groupIds?: string[];
+}
+
+export interface DocumentPrincipalItem {
+  principalType: 'user' | 'group';
+  principalId: string;
+  permission: PermissionLevel;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+export interface DocumentPrincipalsResponse {
+  ownerId: string;
+  linkPermission: LinkPermission | null;
+  principals: DocumentPrincipalItem[];
+}
+
 /**
  * 创建文档内容参数
  */

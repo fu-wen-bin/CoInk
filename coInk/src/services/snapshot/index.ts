@@ -8,7 +8,7 @@ export interface Snapshot {
   snapshotData: Uint8Array;
 }
 
-const DB_NAME = 'docflow-snapshots';
+const DB_NAME = 'coink-snapshots';
 const DB_VERSION = 1;
 const STORE_NAME = 'snapshots';
 

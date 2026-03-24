@@ -229,12 +229,7 @@ export default function DocumentPage() {
       setPermissionData(permData);
       setIsLoadingPermission(false);
 
-      if (
-        userId &&
-        rawPerm &&
-        rawPerm !== '' &&
-        permData.documentType === 'FILE'
-      ) {
+      if (userId && rawPerm && rawPerm !== '' && permData.documentType === 'FILE') {
         void documentsApi.recordAccess(documentId, { userId });
       }
 
@@ -600,6 +595,7 @@ export default function DocumentPage() {
   if (permissionError || !permissionData?.permission) {
     return (
       <NoPermission
+        documentId={documentId}
         documentTitle={permissionData?.documentTitle}
         message={
           permissionError ||

@@ -198,7 +198,7 @@ function initializeEditorMenuActions(): Record<MenuActionIdentifier, EditorMenuA
     continueWriting: {
       type: 'executable',
       icon: <CompleteSentenceIcon className="tiptap-button-icon" />,
-      label: '继续写作',
+      label: '续写',
       value: 'continueWriting',
       onSelect: ({ editor, options }) => {
         if (!editor) return;

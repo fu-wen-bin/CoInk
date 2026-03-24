@@ -21,11 +21,11 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
  */
 const convertFriendToMentionUser = (friend: Friend): MentionUser => {
   return {
-    id: String(friend.id),
+    id: friend.userId,
     name: friend.name,
-    email: friend.email,
-    avatar: friend.avatar,
-    role: friend.is_online ? '在线' : '离线',
+    email: friend.email ?? undefined,
+    avatar: friend.avatarUrl ?? undefined,
+    role: '好友',
   };
 };
 
@@ -39,21 +39,29 @@ const getFriendsAsMentionUsers = async (): Promise<MentionUser[]> => {
   }
 
   try {
-    const friendsData = await friendService.getFriendList();
+    const cached = localStorage.getItem('cached_user_profile');
+    let userId: string | undefined;
+    try {
+      userId = cached ? (JSON.parse(cached) as { userId?: string })?.userId : undefined;
+    } catch {
+      userId = undefined;
+    }
 
-    if (!friendsData || !Array.isArray(friendsData.friends)) {
+    if (!userId) {
+      return [];
+    }
+
+    const friendsData = await friendService.getFriendList(userId);
+    const list = friendsData.data?.data;
+
+    if (!Array.isArray(list)) {
       console.warn('好友列表为空或格式不正确');
 
       return [];
     }
 
-    // 只显示活跃状态的好友
-    const activeFriends = friendsData.friends.filter(
-      (friend) => friend.relationship_status === 'ACTIVE',
-    );
-
     // 转换为 MentionUser 格式
-    const mentionUsers = activeFriends.map(convertFriendToMentionUser);
+    const mentionUsers = list.map(convertFriendToMentionUser);
 
     // 更新缓存
     cachedFriends = mentionUsers;

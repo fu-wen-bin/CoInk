@@ -1,14 +1,56 @@
-import { ShieldX, Home, ArrowLeft } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { ShieldX, Home, ArrowLeft, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { permissionRequestsApi } from '@/services/permission-requests';
+import { toastError, toastSuccess } from '@/utils/toast';
 
 interface NoPermissionProps {
+  documentId?: string;
   documentTitle?: string;
   message?: string;
 }
 
-export default function NoPermission({ documentTitle, message }: NoPermissionProps) {
+export default function NoPermission({ documentId, documentTitle, message }: NoPermissionProps) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleRequestPermission = async () => {
+    if (!documentId) return;
+
+    const cached = localStorage.getItem('cached_user_profile');
+    let parsed: { userId?: string } | null;
+    try {
+      parsed = cached ? (JSON.parse(cached) as { userId?: string }) : null;
+    } catch {
+      parsed = null;
+    }
+    const applicantId = parsed?.userId ?? '';
+
+    if (!applicantId) {
+      toastError('请先登录后再申请权限');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await permissionRequestsApi.create({
+      documentId,
+      applicantId,
+      targetPermission: 'edit',
+      message: '申请编辑权限',
+    });
+    setSubmitting(false);
+
+    if (error) {
+      toastError(error);
+      return;
+    }
+
+    toastSuccess('权限申请已发送，请等待文档所有者处理');
+  };
+
   return (
     <div className="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="max-w-md w-full mx-4">
@@ -55,6 +97,20 @@ export default function NoPermission({ documentTitle, message }: NoPermissionPro
                 返回首页
               </Link>
             </Button>
+
+            {documentId && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                size="lg"
+                onClick={handleRequestPermission}
+                disabled={submitting}
+              >
+                <KeyRound className="w-4 h-4 mr-2" />
+                {submitting ? '发送中...' : '索要编辑权限'}
+              </Button>
+            )}
           </div>
 
           {/* 提示信息 */}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -19,8 +20,23 @@ import {
   useUnreadCountQuery,
   useMarkAsReadMutation,
 } from '@/hooks/useNotifications';
+import { useAppRealtime } from '@/hooks/useAppRealtime';
+
+const getCurrentUserId = (): string => {
+  if (typeof window === 'undefined') return '';
+  try {
+    const cached = localStorage.getItem('cached_user_profile');
+    const parsed = cached ? (JSON.parse(cached) as { userId?: string }) : null;
+    return parsed?.userId ?? '';
+  } catch {
+    return '';
+  }
+};
 
 export default function NotificationDropdown() {
+  const queryClient = useQueryClient();
+  const [userId, setUserId] = useState('');
+
   const { data: notificationsData, isLoading: isLoadingNotifications } = useNotificationsQuery({
     page: 1,
     limit: 10,
@@ -33,9 +49,43 @@ export default function NotificationDropdown() {
   // 标记组件已挂载，避免 SSR hydration 错误
   useEffect(() => {
     setMounted(true);
+    setUserId(getCurrentUserId());
   }, []);
 
-  const notifications = notificationsData?.notifications || [];
+  useAppRealtime(userId || null, {
+    'notification.new': () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const notifications = (notificationsData?.notifications || []).map((item) => {
+    const payload = item.payload ?? {};
+    const title =
+      item.type === 'PERMISSION_REQUEST_CREATED'
+        ? '收到权限申请'
+        : item.type === 'PERMISSION_REQUEST_REVIEWED'
+          ? '权限申请已处理'
+          : item.type === 'FRIEND_REQUEST_CREATED'
+            ? '收到好友申请'
+            : item.type === 'FRIEND_REQUEST_REVIEWED'
+              ? '好友申请已处理'
+              : '系统通知';
+
+    const content =
+      typeof payload.message === 'string'
+        ? payload.message
+        : typeof payload.documentId === 'string'
+          ? `文档 ${payload.documentId}`
+          : undefined;
+
+    return {
+      id: item.notificationId,
+      title,
+      content,
+      isRead: Boolean(item.readAt),
+      createdAt: item.createdAt,
+    };
+  });
   const unreadCount = unreadCountData?.count || 0;
 
   // SSR 时渲染占位符，避免与客户端生成不同的 Radix UI id
@@ -59,7 +109,7 @@ export default function NotificationDropdown() {
   };
 
   // 处理点击通知项
-  const handleNotificationClick = (notificationId: number, isRead: boolean) => {
+  const handleNotificationClick = (notificationId: string, isRead: boolean) => {
     if (!isRead) {
       markAsReadMutation.mutate(notificationId);
     }

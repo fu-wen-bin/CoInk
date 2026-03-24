@@ -19,12 +19,12 @@ import {
   User,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { toastSuccess, toastError, toastLoading, toastInfo } from '@/utils/toast';
 
 import { useSidebar } from '@/stores/sidebarStore';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 import { cn, getCurrentUserId } from '@/utils';
+import { toastSuccess, toastError, toastLoading, toastInfo } from '@/utils/toast';
 import { useFileStore } from '@/stores/fileStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ type HomeTab = 'recent' | 'owned' | 'shared' | 'starred';
 function unwrapDocuments(payload: unknown): Document[] {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload as Document[];
-  if (typeof payload === 'object' && payload !== null && 'documents' in payload) {
+  if (typeof payload === 'object' && 'documents' in payload) {
     return (payload as { documents?: Document[] }).documents ?? [];
   }
   return [];
@@ -825,6 +825,7 @@ export default function DocsHomeView() {
         <ShareDialog
           file={docToFileItem(shareTarget)}
           isOpen
+          variant="modal"
           onClose={() => setShareTarget(null)}
         />
       ) : null}

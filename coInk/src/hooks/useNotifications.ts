@@ -43,7 +43,7 @@ export function useMarkAsReadMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (notificationId: number) => NotificationApi.markAsRead(notificationId),
+    mutationFn: (notificationId: string) => NotificationApi.markAsRead(notificationId),
     onSuccess: () => {
       // 刷新通知列表和未读数量
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -73,7 +73,7 @@ export function useDeleteNotificationMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (notificationId: number) => NotificationApi.deleteNotification(notificationId),
+    mutationFn: (notificationId: string) => NotificationApi.deleteNotification(notificationId),
     onSuccess: () => {
       // 刷新通知列表和未读数量
       queryClient.invalidateQueries({ queryKey: ['notifications'] });

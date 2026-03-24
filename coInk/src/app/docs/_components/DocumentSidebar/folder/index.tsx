@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { closestCenter, DndContext, MeasuringStrategy, PointerSensor } from '@dnd-kit/core';
 import { useSensor, useSensors } from '@dnd-kit/core';
 import { Folder as FolderIcon } from 'lucide-react';
-import { toastSuccess, toastError } from '@/utils/toast';
 
 import ShareDialog from './ShareDialog';
 import GroupedFileTree from './components/GroupedFileTree';
@@ -16,6 +15,7 @@ import { useFileOperations } from './hooks/useFileOperations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useContextMenu } from './hooks/useContextMenu';
 
+import { toastSuccess, toastError } from '@/utils/toast';
 import { FileExplorerProps, FileItem } from '@/types/file-system';
 import { documentsApi } from '@/services/documents';
 import { useSidebar } from '@/stores/sidebarStore';
@@ -145,7 +145,6 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
       // 直接从 store 调用，避免依赖问题
       void useFileStore.getState().loadFiles(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 监听 refreshTrigger 变化，当从外部触发刷新时重新加载文件列表
@@ -154,7 +153,6 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
       // 直接从 store 调用，避免依赖问题
       void useFileStore.getState().loadFiles(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger, lastOperationSource]);
 
   // URL 选中逻辑：/docs/[room] 的 room 为文档 id（含 UUID；/docs/[id]/snapshot 等同当前文档）
@@ -548,6 +546,7 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
         <ShareDialog
           file={shareDialogFile}
           isOpen={shareDialogOpen}
+          variant="modal"
           onClose={() => {
             setShareDialogOpen(false);
             setShareDialogFile(null);

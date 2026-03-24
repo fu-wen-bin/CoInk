@@ -1,75 +1,16 @@
 import request, { ErrorHandler } from '../request';
 
 /**
- * 通知类型枚举
- */
-export enum NotificationType {
-  SYSTEM = 'SYSTEM',
-  INVITATION = 'INVITATION',
-  JOIN_REQUEST = 'JOIN_REQUEST',
-  MENTION = 'MENTION',
-  COMMENT = 'COMMENT',
-  SHARE = 'SHARE',
-  PERMISSION = 'PERMISSION',
-  ACTIVITY = 'ACTIVITY',
-  DOCUMENT_EDIT = 'DOCUMENT_EDIT',
-  FRIEND_REQUEST = 'FRIEND_REQUEST',
-  FRIEND_ACCEPTED = 'FRIEND_ACCEPTED',
-  FRIEND_REJECTED = 'FRIEND_REJECTED',
-  REMINDER = 'REMINDER',
-  ANNOUNCEMENT = 'ANNOUNCEMENT',
-}
-
-/**
- * 通知优先级枚举
- */
-export enum NotificationPriority {
-  LOW = 'LOW',
-  NORMAL = 'NORMAL',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
-}
-
-/**
- * 通知推送状态枚举
- */
-export enum NotificationPushStatus {
-  PENDING = 'PENDING',
-  PUSHED = 'PUSHED',
-  FAILED = 'FAILED',
-  EXPIRED = 'EXPIRED',
-  SKIPPED = 'SKIPPED',
-}
-
-/**
  * 通知响应DTO
  */
 export interface NotificationResponseDto {
-  id: number;
-  type: NotificationType;
-  title: string;
-  content?: string;
-  userId: number;
-  relatedUserId?: number;
-  documentId?: number;
-  organizationId?: number;
-  spaceId?: number;
-  commentId?: number;
-  invitationId?: string;
-  friendRequestId?: number;
-  metadata?: any;
-  actionUrl?: string;
-  icon?: string;
-  priority: NotificationPriority;
-  expiresAt?: Date;
-  isRead: boolean;
-  readAt?: Date;
-  pushStatus: NotificationPushStatus;
-  pushedAt?: Date;
-  pushAttempts: number;
-  lastPushError?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  notificationId: string;
+  requestId: string;
+  userId: string;
+  type: string;
+  payload?: Record<string, unknown>;
+  readAt?: string;
+  createdAt: string;
 }
 
 /**
@@ -94,16 +35,20 @@ export interface UnreadCountResponseDto {
  * 标记已读响应DTO
  */
 export interface MarkAsReadResponseDto {
-  success: boolean;
-  unreadCount: number;
+  notificationId: string;
+  requestId: string;
+  userId: string;
+  type: string;
+  payload?: Record<string, unknown>;
+  readAt?: string;
+  createdAt: string;
 }
 
 /**
  * 删除通知响应DTO
  */
 export interface DeleteNotificationResponseDto {
-  success: boolean;
-  unreadCount: number;
+  success?: boolean;
 }
 
 /**
@@ -111,14 +56,14 @@ export interface DeleteNotificationResponseDto {
  */
 export interface RetryFailedResponseDto {
   success: boolean;
-  retriedCount: number;
+  message: string;
 }
 
 /**
  * 清理结果响应DTO
  */
 export interface CleanupResultResponseDto {
-  cleanedCount: number;
+  count: number;
 }
 
 /**
@@ -154,7 +99,7 @@ export const NotificationApi = {
    * 标记指定通知为已读
    * @param notificationId 通知ID
    */
-  markAsRead: (notificationId: number, errorHandler?: ErrorHandler) => {
+  markAsRead: (notificationId: string, errorHandler?: ErrorHandler) => {
     return request.patch<MarkAsReadResponseDto>(`/notifications/${notificationId}/read`, {
       errorHandler,
     });
@@ -173,7 +118,7 @@ export const NotificationApi = {
    * 删除指定通知
    * @param notificationId 通知ID
    */
-  deleteNotification: (notificationId: number, errorHandler?: ErrorHandler) => {
+  deleteNotification: (notificationId: string, errorHandler?: ErrorHandler) => {
     return request.delete<DeleteNotificationResponseDto>(`/notifications/${notificationId}`, {
       errorHandler,
     });

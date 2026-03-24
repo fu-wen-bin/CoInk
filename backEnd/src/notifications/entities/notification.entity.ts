@@ -1,6 +1,6 @@
 export class Notification {
-  notificationId: bigint;
-  requestId: bigint;
+  notificationId: string;
+  requestId: string;
   userId: string;
   type: string;
   payload?: Record<string, unknown>;

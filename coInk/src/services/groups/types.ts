@@ -15,13 +15,19 @@ export interface GroupMember {
   /** 用户ID */
   userId: string;
   /** 用户名称 */
-  userName: string;
+  name?: string;
   /** 用户头像 */
+  avatarUrl?: string | null;
+  /** @deprecated 兼容旧字段 */
+  userName?: string;
+  /** @deprecated 兼容旧字段 */
   userAvatar?: string;
   /** 用户邮箱 */
-  email?: string;
+  email?: string | null;
   /** 加入时间 */
   joinedAt: string;
+  /** 是否为组所有者 */
+  isOwner?: boolean;
 }
 
 /**

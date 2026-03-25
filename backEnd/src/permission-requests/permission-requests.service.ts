@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -9,6 +10,7 @@ import {
   permission_requests_status,
   permission_requests_target_permission,
 } from '../../generated/prisma/enums';
+import { document_principals_permission } from '../../generated/prisma/enums';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePermissionRequestDto } from './dto/create-permission-request.dto';
@@ -16,6 +18,8 @@ import { PermissionReviewAction } from './dto/review-permission-request.dto';
 
 @Injectable()
 export class PermissionRequestsService {
+  private readonly logger = new Logger(PermissionRequestsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
@@ -46,29 +50,53 @@ export class PermissionRequestsService {
       throw new BadRequestException('已有待处理的申请，请勿重复提交');
     }
 
+    const targetPermission = this.normalizeTargetPermission(dto.targetPermission);
+
     const created = await this.prisma.permission_requests.create({
       data: {
         document_id: dto.documentId,
         applicant_id: dto.applicantId,
-        target_permission: dto.targetPermission,
+        target_permission: targetPermission,
         message: dto.message ?? null,
         status: permission_requests_status.pending,
-        reviewer_id: doc.owner_id,
+        // 审批人由 owner + manage 动态决定，创建时不预绑定单一 reviewer
+        reviewer_id: null,
       },
     });
 
-    await this.notificationsService.createAndPush({
-      userId: doc.owner_id,
-      requestId: created.request_id,
-      type: 'PERMISSION_REQUEST_CREATED',
-      payload: {
-        documentId: dto.documentId,
-        applicantId: dto.applicantId,
-        targetPermission: dto.targetPermission,
-        message: dto.message ?? '',
-      },
-      event: 'permission.request.created',
-    });
+    const reviewerIds = await this.resolveReviewerIds(dto.documentId, doc.owner_id);
+    const notifyReviewerIds = reviewerIds.filter((uid) => uid !== dto.applicantId);
+
+    this.logger.log(
+      `权限申请通知目标 requestDoc=${dto.documentId} applicant=${dto.applicantId} recipients=${notifyReviewerIds.join(',') || 'none'}`,
+    );
+
+    const notifyResults = await Promise.allSettled(
+      notifyReviewerIds.map((uid) =>
+        this.notificationsService.createAndPush({
+          userId: uid,
+          requestId: created.request_id,
+          type: 'PERMISSION_REQUEST_CREATED',
+          payload: {
+            documentId: dto.documentId,
+            documentTitle: doc.title,
+            applicantId: dto.applicantId,
+            targetPermission,
+            message: dto.message ?? '',
+          },
+          event: 'permission.request.created',
+        }),
+      ),
+    );
+
+    const failedReviewerIds = notifyResults
+      .map((result, idx) => (result.status === 'rejected' ? notifyReviewerIds[idx] : null))
+      .filter((id): id is string => Boolean(id));
+    if (failedReviewerIds.length > 0) {
+      this.logger.warn(
+        `权限申请通知部分发送失败 requestId=${created.request_id.toString()} recipients=${failedReviewerIds.join(',')}`,
+      );
+    }
 
     return {
       requestId: created.request_id.toString(),
@@ -102,8 +130,9 @@ export class PermissionRequestsService {
       throw new NotFoundException('文档不存在');
     }
 
-    if (doc.owner_id !== reviewerId) {
-      throw new ForbiddenException('仅文档所有者可处理申请');
+    const reviewerIds = await this.resolveReviewerIds(row.document_id, doc.owner_id);
+    if (!reviewerIds.includes(reviewerId)) {
+      throw new ForbiddenException('仅文档所有者或文档管理者可处理申请');
     }
 
     const nextStatus =
@@ -122,6 +151,7 @@ export class PermissionRequestsService {
       });
 
       if (nextStatus === permission_requests_status.approved) {
+        const grantedPermission = this.normalizeTargetPermission(req.target_permission);
         await tx.document_principals.upsert({
           where: {
             document_id_principal_type_principal_id: {
@@ -131,7 +161,7 @@ export class PermissionRequestsService {
             },
           },
           update: {
-            permission: req.target_permission,
+            permission: grantedPermission,
             granted_by: reviewerId,
             updated_at: new Date(),
           },
@@ -139,7 +169,7 @@ export class PermissionRequestsService {
             document_id: req.document_id,
             principal_type: 'user',
             principal_id: req.applicant_id,
-            permission: req.target_permission,
+            permission: grantedPermission,
             granted_by: reviewerId,
           },
         });
@@ -148,14 +178,20 @@ export class PermissionRequestsService {
       return req;
     });
 
+    const relatedDoc = await this.prisma.documents_info.findUnique({
+      where: { document_id: updated.document_id },
+      select: { title: true },
+    });
+
     await this.notificationsService.createAndPush({
       userId: updated.applicant_id,
       requestId: updated.request_id,
       type: 'PERMISSION_REQUEST_REVIEWED',
       payload: {
         documentId: updated.document_id,
+        documentTitle: relatedDoc?.title ?? '',
         status: updated.status,
-        targetPermission: updated.target_permission,
+        targetPermission: this.normalizeTargetPermission(updated.target_permission),
       },
       event: 'permission.request.reviewed',
     });
@@ -165,7 +201,7 @@ export class PermissionRequestsService {
       status: updated.status,
       documentId: updated.document_id,
       applicantId: updated.applicant_id,
-      targetPermission: updated.target_permission,
+      targetPermission: this.normalizeTargetPermission(updated.target_permission),
       updatedAt: updated.updated_at,
     };
   }
@@ -181,7 +217,7 @@ export class PermissionRequestsService {
       requestId: row.request_id.toString(),
       documentId: row.document_id,
       applicantId: row.applicant_id,
-      targetPermission: row.target_permission,
+      targetPermission: this.normalizeTargetPermission(row.target_permission),
       status: row.status,
       message: row.message,
       reviewerId: row.reviewer_id,
@@ -211,14 +247,57 @@ export class PermissionRequestsService {
         comment: 2,
         edit: 3,
         manage: 4,
-        full: 5,
       } as const;
 
       return rank[directOrGroup] >= rank.edit
-        ? directOrGroup
+        ? this.normalizeTargetPermission(directOrGroup)
         : permission_requests_target_permission.edit;
     }
 
-    return directOrGroup;
+    return this.normalizeTargetPermission(directOrGroup);
+  }
+
+  private normalizeTargetPermission(
+    permission: permission_requests_target_permission,
+  ): permission_requests_target_permission {
+    return permission;
+  }
+
+  private hasManageTierPermission(
+    permission: document_principals_permission | permission_requests_target_permission,
+  ): boolean {
+    return permission === 'manage';
+  }
+
+  private async resolveReviewerIds(documentId: string, ownerId: string): Promise<string[]> {
+    const principals = await this.prisma.document_principals.findMany({
+      where: { document_id: documentId },
+      select: {
+        principal_type: true,
+        principal_id: true,
+        permission: true,
+      },
+    });
+
+    const directUserReviewerIds = principals
+      .filter((p) => p.principal_type === 'user' && this.hasManageTierPermission(p.permission))
+      .map((p) => p.principal_id);
+
+    const manageGroupIds = principals
+      .filter((p) => p.principal_type === 'group' && this.hasManageTierPermission(p.permission))
+      .map((p) => p.principal_id);
+
+    let groupMemberReviewerIds: string[] = [];
+    if (manageGroupIds.length > 0) {
+      const memberships = await this.prisma.group_members.findMany({
+        where: {
+          group_id: { in: manageGroupIds },
+        },
+        select: { user_id: true },
+      });
+      groupMemberReviewerIds = memberships.map((m) => m.user_id);
+    }
+
+    return [...new Set([ownerId, ...directUserReviewerIds, ...groupMemberReviewerIds])];
   }
 }

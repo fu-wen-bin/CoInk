@@ -76,7 +76,7 @@ export const useFileOperations = (refreshFiles: () => Promise<void>): UseFileOpe
       }
 
       // Create a new document with similar title
-      const response = documentsApi.create({
+      const response = await documentsApi.create({
         title: `${file.name} - 副本`,
         type: file.type === 'folder' ? 'FOLDER' : 'FILE',
         ownerId: userId,

@@ -13,8 +13,9 @@ export const ROUTES = {
   PODCAST: '/dashboard/podcast',
   USER: '/dashboard/user',
   SETTINGS: '/dashboard/settings',
+  INBOX: '/dashboard/inbox',
   CONTACTS: '/dashboard/contacts',
-  ORGANIZATIONS: '/dashboard/organizations',
+  GROUPS: '/dashboard/groups',
   BLOG: '/dashboard/blogs',
 } as const;
 
@@ -23,13 +24,14 @@ export const PAGE_TITLE_MAP: Record<string, string> = {
   [ROUTES.DASHBOARD]: '仪表盘',
   [ROUTES.WORKFLOW]: '工作流编辑器',
   [ROUTES.CONTACTS]: '通讯录',
-  [ROUTES.ORGANIZATIONS]: '组织管理',
+  [ROUTES.GROUPS]: '分组管理',
   [ROUTES.USER]: '个人资料',
   [ROUTES.SETTINGS]: '系统设置',
   [ROUTES.KNOWLEDGE]: '知识库管理',
   [ROUTES.PODCAST]: '播客管理',
   [ROUTES.DOCS]: '文档管理',
   [ROUTES.BLOG]: '博客管理',
+  [ROUTES.INBOX]: '消息通知',
 };
 
 // 页面描述映射
@@ -41,7 +43,8 @@ export const PAGE_DESCRIPTION_MAP: Record<string, string> = {
   [ROUTES.KNOWLEDGE]: '管理和组织您的知识库内容',
   [ROUTES.PODCAST]: '管理您的播客内容和任务',
   [ROUTES.CONTACTS]: '管理您的联系人信息',
-  [ROUTES.ORGANIZATIONS]: '管理您的组织和团队协作',
+  [ROUTES.GROUPS]: '管理您的分组和团队协作',
+  [ROUTES.INBOX]: '查看您的通知和消息',
 };
 
 // 获取页面标题的函数

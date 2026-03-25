@@ -64,16 +64,12 @@ function PageWidthPreviewIcon({ mode, selected }: { mode: PageWidthMode; selecte
         preserveAspectRatio="xMidYMin meet"
         aria-hidden
       >
-        <g
-          transform={`translate(512 512) scale(1 ${PARAGRAPH_ICON_THIN_Y}) translate(-512 -512)`}
-        >
+        <g transform={`translate(512 512) scale(1 ${PARAGRAPH_ICON_THIN_Y}) translate(-512 -512)`}>
           <g transform={`translate(512 0) scale(${scale} 1) translate(-512 0)`}>
             <path
               d={PARAGRAPH_PAGE_WIDTH_ICON_PATH}
               className={cn(
-                selected
-                  ? 'fill-blue-600 dark:fill-blue-400'
-                  : 'fill-gray-500 dark:fill-gray-400',
+                selected ? 'fill-blue-600 dark:fill-blue-400' : 'fill-gray-500 dark:fill-gray-400',
               )}
             />
           </g>

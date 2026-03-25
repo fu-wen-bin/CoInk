@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { toastSuccess } from '@/utils/toast';
 
 import StarredAddDocumentsDialog from './StarredAddDocumentsDialog';
 
@@ -23,11 +22,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 import type { FileItem } from '@/types/file-system';
+import { toastSuccess } from '@/utils/toast';
 import { cn, getCurrentUserId } from '@/utils';
 import { SIDEBAR_LIST_ROW_HOVER, SIDEBAR_LIST_ROW_SELECTED } from '@/utils/sidebar-list-styles';
 import { useFileStore } from '@/stores/fileStore';
 import { useSidebar } from '@/stores/sidebarStore';
-import { getSidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 
 interface StarredViewProps {
   isActive: boolean;
@@ -43,7 +42,7 @@ export default function StarredView({
   onToggleSection,
 }: StarredViewProps) {
   const router = useRouter();
-  const { documentGroups } = useFileStore();
+  const documentGroups = useFileStore((s) => s.documentGroups);
   const selectedFileId = useFileStore((s) => s.selectedFileId);
   const patchDocumentStarred = useFileStore((s) => s.patchDocumentStarred);
   const bumpStarredList = useSidebar((s) => s.bumpStarredList);
@@ -58,8 +57,6 @@ export default function StarredView({
   const clearStarredSelection = useSidebar((s) => s.clearStarredSelection);
   const clearSharedSelection = useSidebar((s) => s.clearSharedSelection);
   const setStarredDocumentIds = useSidebar((s) => s.setStarredDocumentIds);
-  const sharedDocumentIds = useSidebar((s) => s.sharedDocumentIds);
-  const starredDocumentIds = useSidebar((s) => s.starredDocumentIds);
 
   const [starredDocs, setStarredDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,17 +66,6 @@ export default function StarredView({
     const personal = documentGroups.find((g) => g.type === 'personal');
     return personal?.files ?? [];
   }, [documentGroups]);
-
-  const sidebarHighlightZone = useMemo(
-    () =>
-      getSidebarHighlightZone(
-        selectedFileId,
-        libraryFiles,
-        sharedDocumentIds,
-        starredDocumentIds,
-      ),
-    [selectedFileId, libraryFiles, sharedDocumentIds, starredDocumentIds],
-  );
 
   useEffect(() => {
     setStarredDocumentIds(starredDocs.map((d) => d.documentId));
@@ -249,9 +235,7 @@ export default function StarredView({
         {starredDocs.map((doc) => {
           const rowChecked = starredBatchMode && starredSelectedIds.includes(doc.documentId);
           const isOpenInStarredSection =
-            !starredBatchMode &&
-            String(selectedFileId) === doc.documentId &&
-            sidebarHighlightZone === 'starred';
+            !starredBatchMode && String(selectedFileId) === doc.documentId;
           return (
             <div
               key={doc.documentId}

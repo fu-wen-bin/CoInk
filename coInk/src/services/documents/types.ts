@@ -27,13 +27,12 @@ export type LinkPermission = 'close' | 'view' | 'edit';
 
 /**
  * 权限等级枚举（从高到低）
- * - full: 完全控制（包括删除、权限管理）
- * - manage: 管理权限（分享、协作设置）
+ * - manage: 完全管理（分享、协作设置、权限管理）
  * - edit: 编辑权限（修改内容）
  * - comment: 评论权限（添加评论）
  * - view: 只读权限
  */
-export type PermissionLevel = 'full' | 'manage' | 'edit' | 'comment' | 'view';
+export type PermissionLevel = 'manage' | 'edit' | 'comment' | 'view';
 
 /**
  * 权限来源类型
@@ -265,14 +264,14 @@ export interface PrincipalPermissionTarget {
 }
 
 export interface BatchUpsertPermissionsParams {
-  grantedBy: string;
+  grantedBy?: string;
   userTargets?: PrincipalPermissionTarget[];
   groupTargets?: PrincipalPermissionTarget[];
   sendNotification?: boolean;
 }
 
 export interface BatchRemovePermissionsParams {
-  grantedBy: string;
+  grantedBy?: string;
   userIds?: string[];
   groupIds?: string[];
 }
@@ -286,7 +285,12 @@ export interface DocumentPrincipalItem {
 }
 
 export interface DocumentPrincipalsResponse {
+  documentId?: string;
+  documentTitle?: string;
+  documentType?: DocumentType;
   ownerId: string;
+  ownerName?: string;
+  ownerAvatarUrl?: string | null;
   linkPermission: LinkPermission | null;
   principals: DocumentPrincipalItem[];
 }
@@ -405,9 +409,15 @@ export interface DocumentsListResponse {
  */
 export interface CurrentPermissionResponse {
   /** 权限级别 */
-  permission: PermissionLevel;
+  permission: PermissionLevel | null;
   /** 权限来源 */
-  source: PermissionSource;
+  source: PermissionSource | null;
+  /** 文档标题（供 header/无权限页直接展示） */
+  documentTitle?: string;
+  /** 文档类型 */
+  documentType?: DocumentType;
+  /** 文档所有者 */
+  ownerId?: string;
 }
 
 /**

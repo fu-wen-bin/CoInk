@@ -64,7 +64,7 @@ function CurrentUserMenu({ currentUser }: { currentUser?: CollaborationUser | nu
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('cached_user_profile');
-    window.location.href = '/login';
+    window.location.href = '/auth';
   };
 
   return (

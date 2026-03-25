@@ -25,8 +25,8 @@ export class PermissionTargetDto {
 
 export class BatchUpsertPermissionsDto {
   @IsString()
-  @IsNotEmpty()
-  grantedBy: string;
+  @IsOptional()
+  grantedBy?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -47,8 +47,8 @@ export class BatchUpsertPermissionsDto {
 
 export class BatchRemovePermissionsDto {
   @IsString()
-  @IsNotEmpty()
-  grantedBy: string;
+  @IsOptional()
+  grantedBy?: string;
 
   @IsArray()
   @IsString({ each: true })

@@ -12,8 +12,8 @@ export function findFileInLibraryTree(items: FileItem[], id: string): boolean {
 }
 
 /**
- * 当前打开文档在侧栏的「主」展示分区：我的文档库（自有 + 有效权限为 full 的协作文档）> 共享（非 full）> 收藏。
- * 仅非 full 权限的协作文档在「共享的文档」高亮；full 协作文档在文档库树中高亮。
+ * 当前打开文档在侧栏的「主」展示分区：我的文档库（自有 + 有效权限为 manage 的协作文档）> 共享（非 manage）> 收藏。
+ * 仅非 manage 权限的协作文档在「共享的文档」高亮；manage 协作文档在文档库树中高亮。
  */
 export function getSidebarHighlightZone(
   roomId: string | null | undefined,

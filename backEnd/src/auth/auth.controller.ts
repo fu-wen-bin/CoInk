@@ -4,11 +4,10 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Get,
-  Headers,
+  Logger,
   Param,
   Patch,
   Post,
-  Query,
   Res,
   Req,
   UseInterceptors,
@@ -29,27 +28,44 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   /**
    * 设置认证 Cookie
    */
-  private setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
-    // Access Token - 15分钟
-    res.cookie('access_token', tokens.accessToken, {
+  private setAuthCookies(
+    res: Response,
+    tokens: { accessToken?: string; refreshToken?: string },
+    scene: 'register' | 'login' | 'refresh' = 'refresh',
+  ) {
+    const commonOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000, // 15分钟
-    });
+      sameSite: 'lax' as const,
+      path: '/',
+    };
 
-    // Refresh Token - 7天
-    res.cookie('refresh_token', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
-    });
+    if (tokens.accessToken) {
+      res.cookie('access_token', tokens.accessToken, {
+        ...commonOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+    }
+
+    if (tokens.refreshToken) {
+      res.cookie('refresh_token', tokens.refreshToken, {
+        ...commonOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+    }
+
+    if (!tokens.accessToken || !tokens.refreshToken) {
+      this.logger.warn(
+        `${scene} cookie 补发不完整 access=${Boolean(tokens.accessToken)} refresh=${Boolean(tokens.refreshToken)}`,
+      );
+    }
   }
 
   /**
@@ -72,10 +88,14 @@ export class AuthController {
     // AuthResponse 类型：{ accessToken, refreshToken, user }
     const authData = result as unknown as { accessToken?: string; refreshToken?: string };
     if (authData?.accessToken && authData?.refreshToken) {
-      this.setAuthCookies(res, {
-        accessToken: authData.accessToken,
-        refreshToken: authData.refreshToken,
-      });
+      this.setAuthCookies(
+        res,
+        {
+          accessToken: authData.accessToken,
+          refreshToken: authData.refreshToken,
+        },
+        'register',
+      );
     }
 
     return result;
@@ -91,10 +111,14 @@ export class AuthController {
     // 设置 HTTP-Only Cookie
     const authData = result as unknown as { accessToken?: string; refreshToken?: string };
     if (authData?.accessToken && authData?.refreshToken) {
-      this.setAuthCookies(res, {
-        accessToken: authData.accessToken,
-        refreshToken: authData.refreshToken,
-      });
+      this.setAuthCookies(
+        res,
+        {
+          accessToken: authData.accessToken,
+          refreshToken: authData.refreshToken,
+        },
+        'login',
+      );
     }
 
     return result;
@@ -134,7 +158,9 @@ export class AuthController {
   // 2) GitHub 授权完成回调到这里 -> 后端处理完写 cookie -> 重定向回前端进度页
   @Get('github/callback')
   async githubCallback(@Req() req: Request, @Res() res: Response) {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const code = String(req.query.code || '');
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const state = String(req.query.state || '');
 
     if (!code) throw new BadRequestException('缺少授权码 code');
@@ -179,6 +205,7 @@ export class AuthController {
 
       // 重定向到前端展示“认证进度/成功”
       return res.redirect('http://localhost:3000/auth/callback?status=ok');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // 失败也重定向回去，让前端展示失败状态
       return res.redirect('http://localhost:3000/auth/callback?status=fail');
@@ -202,12 +229,14 @@ export class AuthController {
 
     // 更新 Cookie
     const authData = result as unknown as { accessToken?: string; refreshToken?: string };
-    if (authData?.accessToken && authData?.refreshToken) {
-      this.setAuthCookies(res, {
-        accessToken: authData.accessToken,
-        refreshToken: authData.refreshToken,
-      });
-    }
+    this.setAuthCookies(
+      res,
+      {
+        accessToken: authData?.accessToken,
+        refreshToken: authData?.refreshToken,
+      },
+      'refresh',
+    );
 
     return result;
   }

@@ -1,20 +1,32 @@
-import { Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-
-import { CurrentUserId } from '../common/decorators/current-user.decorator';
-
-import { MarkReadDto } from './dto/mark-read.dto';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request } from 'express';
+import { AuthService } from '../auth/auth.service';
 import { QueryNotificationDto } from './dto/query-notification.dto';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly authService: AuthService,
+  ) {}
 
   /**
    * 获取未读通知数
    */
   @Get('unread')
-  getUnreadCount(@CurrentUserId() userId: string) {
+  async getUnreadCount(@Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.getUnreadCount(userId);
   }
 
@@ -22,7 +34,8 @@ export class NotificationsController {
    * 获取通知列表（分页）
    */
   @Get()
-  findAll(@CurrentUserId() userId: string, @Query() queryDto: QueryNotificationDto) {
+  async findAll(@Req() req: Request, @Query() queryDto: QueryNotificationDto) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.findAll(userId, queryDto);
   }
 
@@ -30,7 +43,8 @@ export class NotificationsController {
    * 标记已读
    */
   @Patch(':id/read')
-  markAsRead(@Param('id') notificationId: string, @CurrentUserId() userId: string) {
+  async markAsRead(@Param('id') notificationId: string, @Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.markAsRead(BigInt(notificationId), userId);
   }
 
@@ -38,7 +52,8 @@ export class NotificationsController {
    * 标记全部已读
    */
   @Patch('read-all')
-  markAllAsRead(@CurrentUserId() userId: string) {
+  async markAllAsRead(@Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.markAllAsRead(userId);
   }
 
@@ -46,7 +61,8 @@ export class NotificationsController {
    * 删除通知
    */
   @Delete(':id')
-  remove(@Param('id') notificationId: string, @CurrentUserId() userId: string) {
+  async remove(@Param('id') notificationId: string, @Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.remove(BigInt(notificationId), userId);
   }
 
@@ -54,7 +70,8 @@ export class NotificationsController {
    * 重试失败推送
    */
   @Post('failed/retry')
-  retryFailed(@CurrentUserId() userId: string) {
+  async retryFailed(@Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.retryFailed(userId);
   }
 
@@ -62,7 +79,32 @@ export class NotificationsController {
    * 清理过期通知
    */
   @Delete('expired')
-  clearExpired(@CurrentUserId() userId: string) {
+  async clearExpired(@Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.notificationsService.clearExpired(userId);
+  }
+
+  private async extractUserIdFromRequest(req: Request): Promise<string | null> {
+    const accessToken =
+      typeof req.cookies?.access_token === 'string' ? req.cookies.access_token : undefined;
+
+    if (!accessToken) {
+      return null;
+    }
+
+    const verified = await this.authService.verifyToken(accessToken);
+    if (!verified.valid || !verified.payload?.userId) {
+      throw new UnauthorizedException('登录已失效，请重新登录');
+    }
+
+    return verified.payload.userId;
+  }
+
+  private async requireUserId(req: Request): Promise<string> {
+    const userId = await this.extractUserIdFromRequest(req);
+    if (!userId) {
+      throw new UnauthorizedException('请先登录');
+    }
+    return userId;
   }
 }

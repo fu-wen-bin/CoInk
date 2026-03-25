@@ -27,7 +27,7 @@ export const FixBackspaceAfterImage = Extension.create({
         if (currentNode.content.size > 0) return false;
 
         // 检查是否在段落开始位置（确保是空行的开始）
-        if (!$from.atStart) return false;
+        if ($from.parentOffset !== 0) return false;
 
         // 获取当前段落在文档中的开始位置
         const currentBlockStart = $from.before($from.depth);
@@ -53,10 +53,7 @@ export const FixBackspaceAfterImage = Extension.create({
         const prevNodeStart = currentBlockStart - prevNode.nodeSize;
 
         // 删除当前空段落
-        const tr = state.tr.delete(
-          currentBlockStart,
-          currentBlockStart + currentNode.nodeSize
-        );
+        const tr = state.tr.delete(currentBlockStart, currentBlockStart + currentNode.nodeSize);
 
         // 选中图片节点
         tr.setSelection(NodeSelection.create(tr.doc, prevNodeStart));

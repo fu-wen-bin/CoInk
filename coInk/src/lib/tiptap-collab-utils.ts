@@ -81,7 +81,10 @@ export type OverflowPosition = 'none' | 'top' | 'bottom' | 'both';
  * 当前块的展示名（中文；标题为 H1、H2、H3…）。
  * @param dragHandleNode 来自拖拽柄时，与当前块一致（避免选区尚未更新）。
  */
-export const getNodeDisplayName = (editor: Editor | null, dragHandleNode?: PMNode | null): string => {
+export const getNodeDisplayName = (
+  editor: Editor | null,
+  dragHandleNode?: PMNode | null,
+): string => {
   if (!editor) return '块';
 
   if (dragHandleNode) {

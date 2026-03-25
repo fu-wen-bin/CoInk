@@ -21,6 +21,7 @@ import type {
   GetPermissionParams,
   GetSharedParams,
   GetStarredParams,
+  CurrentPermissionResponse,
   MoveDocumentParams,
   RecordAccessParams,
   RemoveFromRecentParams,
@@ -547,16 +548,8 @@ const getCurrentPermission = (
   id: string,
   params: GetPermissionParams,
   errorHandler?: ErrorHandler,
-): Promise<
-  RequestResult<{
-    permission: string;
-    source: string;
-  }>
-> =>
-  clientRequest.get<{
-    permission: string;
-    source: string;
-  }>(`/documents/${id}/permission`, {
+): Promise<RequestResult<CurrentPermissionResponse>> =>
+  clientRequest.get<CurrentPermissionResponse>(`/documents/${id}/permission`, {
     params,
     errorHandler,
   });

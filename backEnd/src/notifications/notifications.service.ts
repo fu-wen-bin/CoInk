@@ -31,13 +31,21 @@ export class NotificationsService {
     });
 
     const entity = this.mapToEntity(created);
+    const unreadCount = await this.prisma.notifications.count({
+      where: {
+        user_id: params.userId,
+        read_at: null,
+      },
+    });
     this.realtimeService.emitToUser(params.userId, 'notification.new', {
       notification: entity,
+      unreadCount,
     });
 
     if (params.event) {
       this.realtimeService.emitToUser(params.userId, params.event, {
         notification: entity,
+        unreadCount,
       });
     }
 
@@ -74,7 +82,9 @@ export class NotificationsService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 20, unreadOnly = false } = queryDto;
+    const page = this.toPositiveInt(queryDto.page, 1);
+    const limit = Math.min(this.toPositiveInt(queryDto.limit, 20), 100);
+    const unreadOnly = this.toBoolean(queryDto.unreadOnly);
 
     const where: Record<string, unknown> = {
       user_id: userId,
@@ -100,16 +110,87 @@ export class NotificationsService {
       }),
     ]);
 
+    // 为“创建类请求通知”补齐实时状态，避免前端在已处理后仍显示“同意/拒绝”按钮
+    const permissionRequestIds = notifications
+      .filter((n) => n.type === 'PERMISSION_REQUEST_CREATED')
+      .map((n) => n.request_id);
+    const friendRequestIds = notifications
+      .filter((n) => n.type === 'FRIEND_REQUEST_CREATED')
+      .map((n) => n.request_id);
+
+    const [permissionRows, friendRows] = await Promise.all([
+      permissionRequestIds.length > 0
+        ? this.prisma.permission_requests.findMany({
+            where: { request_id: { in: permissionRequestIds } },
+            select: { request_id: true, status: true },
+          })
+        : Promise.resolve([] as { request_id: bigint; status: string }[]),
+      friendRequestIds.length > 0
+        ? this.prisma.friend_requests.findMany({
+            where: { request_id: { in: friendRequestIds } },
+            select: { request_id: true, status: true },
+          })
+        : Promise.resolve([] as { request_id: bigint; status: string }[]),
+    ]);
+
+    const permissionStatusMap = new Map(permissionRows.map((r) => [r.request_id.toString(), r.status]));
+    const friendStatusMap = new Map(friendRows.map((r) => [r.request_id.toString(), r.status]));
+
+    const enrichedNotifications = notifications.map((n) => {
+      const payload =
+        n.payload && typeof n.payload === 'object' && !Array.isArray(n.payload)
+          ? (n.payload as Record<string, unknown>)
+          : {};
+
+      if (n.type === 'PERMISSION_REQUEST_CREATED') {
+        const status = permissionStatusMap.get(n.request_id.toString());
+        if (status) {
+          return { ...n, payload: { ...payload, status } };
+        }
+      }
+
+      if (n.type === 'FRIEND_REQUEST_CREATED') {
+        const status = friendStatusMap.get(n.request_id.toString());
+        if (status) {
+          return { ...n, payload: { ...payload, status } };
+        }
+      }
+
+      return n;
+    });
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      notifications: notifications.map((n) => this.mapToEntity(n)),
+      notifications: enrichedNotifications.map((n) => this.mapToEntity(n)),
       total,
       unreadCount,
       page,
       limit,
       totalPages,
     };
+  }
+
+  private toPositiveInt(value: unknown, fallback: number): number {
+    const n =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number.parseInt(value, 10)
+          : Number.NaN;
+    if (!Number.isFinite(n) || n < 1) {
+      return fallback;
+    }
+    return Math.floor(n);
+  }
+
+  private toBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === 'true' || normalized === '1';
+    }
+    return false;
   }
 
   /**

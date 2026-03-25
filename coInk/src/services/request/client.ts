@@ -23,10 +23,10 @@ import type {
 } from './types';
 import { RequestError } from './types';
 
-import { getCookie, saveAuthData, clearAuthData } from '@/utils/auth/cookie';
+import { clearAuthData } from '@/utils/auth/cookie';
 import { HTTP_METHODS, HTTP_CREDENTIALS, HTTP_STATUS_MESSAGES } from '@/utils/constants/http';
 import { ROUTES } from '@/utils/constants/routes';
-import type { TokenRefreshResponse } from '@/types/auth';
+import { toastError } from '@/utils/toast';
 
 // 在开发环境禁止 Sentry 上报和 breadcrumb 记录
 const isProduction = process.env.NODE_ENV === 'production';
@@ -106,6 +106,15 @@ class ClientRequest {
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname + window.location.search;
       const loginUrl = new URL(ROUTES.AUTH, window.location.origin);
+
+      // 避免短时间内重复弹窗
+      const key = 'auth_redirect_notice_at';
+      const lastNoticeAt = Number(window.sessionStorage.getItem(key) || '0');
+      const now = Date.now();
+      if (now - lastNoticeAt > 1500) {
+        toastError('请你先登录再访问');
+        window.sessionStorage.setItem(key, String(now));
+      }
 
       if (currentPath && currentPath !== ROUTES.AUTH) {
         loginUrl.searchParams.set('redirect_to', encodeURIComponent(currentPath));
@@ -250,9 +259,7 @@ class ClientRequest {
     method,
     params,
     cacheTime,
-    token,
     headers: customHeaders,
-    withCredentials,
   }: ClientRequestProps) {
     let queryParams = '';
     let requestPayload: string | FormData | URLSearchParams | undefined;
@@ -379,10 +386,6 @@ class ClientRequest {
     } catch (error) {
       // 处理 401 错误 - token 过期
       if (error instanceof RequestError && error.status === 401 && !isRetryAfterRefresh) {
-        if (!getCookie('refresh_token')) {
-          throw error;
-        }
-
         try {
           if (this.isRefreshing) {
             return this.addRequestToQueue(requestFn);
@@ -751,7 +754,7 @@ class ClientRequest {
 
       // 处理 401 错误，尝试刷新 token
       if (!response.ok) {
-        if (response.status === 401 && getCookie('refresh_token')) {
+        if (response.status === 401) {
           try {
             if (this.isRefreshing) {
               await this.refreshTokenPromise;
@@ -908,7 +911,7 @@ class ClientRequest {
       let response = await connect();
 
       if (!response.ok) {
-        if (response.status === 401 && getCookie('refresh_token')) {
+        if (response.status === 401) {
           try {
             if (this.isRefreshing) {
               await this.refreshTokenPromise;
@@ -1024,7 +1027,7 @@ class ClientRequest {
 
       // 处理 401 错误，尝试刷新 token
       if (!response.ok) {
-        if (response.status === 401 && getCookie('refresh_token')) {
+        if (response.status === 401) {
           try {
             if (this.isRefreshing) {
               await this.refreshTokenPromise;

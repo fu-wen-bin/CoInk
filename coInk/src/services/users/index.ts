@@ -12,7 +12,9 @@ import type {
   CreateUserRequest,
   DeleteUserRequest,
   GetUserInfoRequest,
+  SearchUserRequest,
   UpdateUserRequest,
+  User,
   UserResponse,
 } from './types';
 
@@ -52,29 +54,54 @@ export const UserApi = {
     }),
 
   /**
-   * 创建用户
-   * 管理员创建新用户账号
-   *
-   * @param data - 创建用户参数
-   * @param errorHandler - 可选的错误处理函数
-   * @returns 创建成功的用户信息
-   *
-   * @example
-   * ```typescript
-   * const { data, error } = await UserApi.createUser({
-   *   name: '张三',
-   *   email: 'zhangsan@example.com',
-   *   password: 'securePassword123',
-   *   role: 'user'
-   * });
-   * if (error) {
-   *   console.error('创建用户失败:', error);
-   *   return;
-   * }
-   * console.log('用户创建成功:', data?.data?.user);
-   * ```
+   * 搜索用户
+   * 根据关键词模糊搜索用户（名称/邮箱）
    */
-  createUser: (
+  searchUsers: async (
+    params: SearchUserRequest,
+    errorHandler?: ErrorHandler,
+  ): Promise<RequestResult<User[]>> => {
+    const response = await clientRequest.get<
+      Array<{ user_id: string; name: string; email?: string | null; avatar_url?: string | null }>
+    >('/user/search', {
+      params,
+      errorHandler,
+    });
+
+    if (!response.data?.data) {
+      return {
+        ...response,
+        data: response.data
+          ? {
+              ...response.data,
+              data: [],
+            }
+          : null,
+      };
+    }
+
+    const mappedUsers: User[] = response.data.data.map((item) => ({
+      userId: item.user_id,
+      name: item.name,
+      email: item.email ?? null,
+      avatarUrl: item.avatar_url ?? null,
+      role: 'USER',
+    }));
+
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        data: mappedUsers,
+      },
+    };
+  },
+
+  /**
+   * 创建用户
+   * 管理员功能，创建新用户
+   */
+  create: (
     data: CreateUserRequest,
     errorHandler?: ErrorHandler,
   ): Promise<RequestResult<UserResponse>> =>

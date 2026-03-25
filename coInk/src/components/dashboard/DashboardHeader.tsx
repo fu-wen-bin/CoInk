@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { User, Settings, LogOut, HelpCircle, Menu, ChevronDown, Users } from 'lucide-react';
+import { User, LogOut, HelpCircle, Menu, ChevronDown, Users } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -207,20 +207,6 @@ export default function DashboardHeader({
                     </div>
                     <span className="font-medium text-gray-700 group-hover:text-gray-900">
                       个人资料
-                    </span>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/dashboard/settings"
-                    className="flex items-center py-2.5 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 group"
-                  >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-purple-100 transition-colors duration-200 mr-3">
-                      <Settings className="h-4 w-4 text-gray-600 group-hover:text-purple-600 transition-colors duration-200" />
-                    </div>
-                    <span className="font-medium text-gray-700 group-hover:text-gray-900">
-                      账户设置
                     </span>
                   </Link>
                 </DropdownMenuItem>

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils';
 import UserApi from '@/services/users';
-import { User } from '@/services/users/type';
+import type { User } from '@/services/users/types';
 
 interface UserSelectorProps {
   selectedUsers: User[];
@@ -43,12 +43,12 @@ const UserSelector = ({
     setIsSearching(true);
 
     try {
-      const response = await UserApi.searchUsers(query, 10, 0);
+      const response = await UserApi.searchUsers({ q: query });
 
-      if (response?.data?.data?.users) {
+      if (response?.data?.data) {
         // 过滤掉已选中的用户
-        const filteredUsers = response.data.data.users.filter(
-          (user) => !selectedUsers.some((selected) => selected.id === user.id),
+        const filteredUsers = response.data.data.filter(
+          (user) => !selectedUsers.some((selected) => selected.userId === user.userId),
         );
         setSearchResults(filteredUsers);
       }
@@ -95,8 +95,8 @@ const UserSelector = ({
   };
 
   // 移除选中的用户
-  const handleRemoveUser = (userId: number) => {
-    const newSelectedUsers = selectedUsers.filter((user) => user.id !== userId);
+  const handleRemoveUser = (userId: string) => {
+    const newSelectedUsers = selectedUsers.filter((user) => user.userId !== userId);
     onSelectionChange(newSelectedUsers);
   };
 
@@ -108,7 +108,7 @@ const UserSelector = ({
     } else if (e.key === 'Backspace' && !searchQuery && selectedUsers.length > 0) {
       // 如果输入框为空且按退格键，删除最后一个选中的用户
       e.preventDefault();
-      handleRemoveUser(selectedUsers[selectedUsers.length - 1].id);
+      handleRemoveUser(selectedUsers[selectedUsers.length - 1].userId);
     }
   };
 
@@ -157,16 +157,16 @@ const UserSelector = ({
         {/* 已选中的用户标签 */}
         {selectedUsers.map((user) => (
           <div
-            key={user.id}
+            key={user.userId}
             className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
           >
-            {user.avatar_url && (
-              <img src={user.avatar_url} alt={user.name} className="w-4 h-4 rounded-full" />
+            {user.avatarUrl && (
+              <img src={user.avatarUrl} alt={user.name} className="w-4 h-4 rounded-full" />
             )}
             <span>{user.name}</span>
             <button
               type="button"
-              onClick={() => handleRemoveUser(user.id)}
+              onClick={() => handleRemoveUser(user.userId)}
               className="ml-1 text-blue-600 hover:text-blue-800"
             >
               <Icon name="X" className="h-3 w-3" />
@@ -185,7 +185,6 @@ const UserSelector = ({
             onFocus={() => {
               setIsOpen(true);
             }}
-            onBlur={() => setIsOpen(false)}
             placeholder={selectedUsers.length === 0 ? placeholder : ''}
             className="flex-1 min-w-[120px] outline-none bg-transparent text-sm"
             disabled={!canAddMore}
@@ -214,14 +213,14 @@ const UserSelector = ({
               </div>
               {searchResults.map((user) => (
                 <div
-                  key={user.id}
+                  key={user.userId}
                   className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleSelectUser(user)}
                 >
                   <div className="flex-shrink-0">
-                    {user.avatar_url ? (
+                    {user.avatarUrl ? (
                       <img
-                        src={user.avatar_url}
+                        src={user.avatarUrl}
                         alt={user.name || '用户'}
                         className="w-8 h-8 rounded-full"
                       />

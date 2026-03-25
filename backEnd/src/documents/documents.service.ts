@@ -20,6 +20,7 @@ import { BatchRemovePermissionsDto, BatchUpsertPermissionsDto } from './dto/perm
 import { UpdateDocumentContentDto, UpdateDocumentDto } from './dto/update-document.dto';
 import { EMPTY_TIPTAP_DOCUMENT_JSON } from '../collaboration/document-yjs-storage';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 // 权限等级映射
 const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
@@ -27,7 +28,6 @@ const PERMISSION_LEVELS: Record<document_principals_permission, number> = {
   comment: 2,
   edit: 3,
   manage: 4,
-  full: 5,
 };
 
 @Injectable()
@@ -37,6 +37,7 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   // ==================== 文档元数据操作 ====================
@@ -84,13 +85,13 @@ export class DocumentsService {
       });
     }
 
-    // 给所有者添加 full 权限
+    // 所有者权限统一落 manage（完全管理）
     await this.prisma.document_principals.create({
       data: {
         document_id: documentId,
         principal_type: 'user',
         principal_id: createDocumentDto.ownerId,
-        permission: 'full',
+        permission: 'manage',
         granted_by: createDocumentDto.ownerId,
       },
     });
@@ -115,7 +116,7 @@ export class DocumentsService {
 
   /**
    * 获取用户的所有文档（不包含已删除的）
-   * 含：自己拥有的文档 + 他人文档但对当前用户有效权限为 full 的协作文档（与「共享」互斥）
+   * 含：自己拥有的文档 + 他人文档但对当前用户有效权限为 manage 的协作文档（与「共享」互斥）
    */
   async findAll(ownerId: string) {
     const owned = await this.prisma.documents_info.findMany({
@@ -126,12 +127,13 @@ export class DocumentsService {
       orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
     });
 
-    const fullCollaborationIds = await this.findDocumentIdsWhereUserHasFullAsNonOwner(ownerId);
+    const manageTierCollaborationIds =
+      await this.findDocumentIdsWhereUserHasManageTierAsNonOwner(ownerId);
     let extra: typeof owned = [];
-    if (fullCollaborationIds.length > 0) {
+    if (manageTierCollaborationIds.length > 0) {
       extra = await this.prisma.documents_info.findMany({
         where: {
-          document_id: { in: fullCollaborationIds },
+          document_id: { in: manageTierCollaborationIds },
           is_deleted: false,
         },
         orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
@@ -145,6 +147,7 @@ export class DocumentsService {
 
   /**
    * 获取单个文档详情
+   * @param documentId
    * @param userId 传入时，isStarred 表示该用户是否在 document_user_star 中收藏
    */
   async findOne(documentId: string, userId?: string) {
@@ -166,7 +169,7 @@ export class DocumentsService {
 
   /**
    * 按父目录获取文档
-   * 含：自己该目录下的文档 + 他人文档但对当前用户有效权限为 full 且 parent 匹配的协作文档
+   * 含：自己该目录下的文档 + 他人文档但对当前用户有效权限为 manage 且 parent 匹配的协作文档
    */
   async findByParent(parentId: string | null, ownerId: string) {
     const owned = await this.prisma.documents_info.findMany({
@@ -182,20 +185,17 @@ export class DocumentsService {
       ],
     });
 
-    const fullCollaborationIds = await this.findDocumentIdsWhereUserHasFullAsNonOwner(ownerId);
+    const manageTierCollaborationIds =
+      await this.findDocumentIdsWhereUserHasManageTierAsNonOwner(ownerId);
     let extra: typeof owned = [];
-    if (fullCollaborationIds.length > 0) {
+    if (manageTierCollaborationIds.length > 0) {
       extra = await this.prisma.documents_info.findMany({
         where: {
-          document_id: { in: fullCollaborationIds },
+          document_id: { in: manageTierCollaborationIds },
           parent_id: parentId || null,
           is_deleted: false,
         },
-        orderBy: [
-          { type: 'desc' },
-          { sort_order: 'asc' },
-          { updated_at: 'desc' },
-        ],
+        orderBy: [{ type: 'desc' }, { sort_order: 'asc' }, { updated_at: 'desc' }],
       });
     }
 
@@ -307,8 +307,8 @@ export class DocumentsService {
   }
 
   /**
-   * 获取与我共享的文档列表（非拥有者，且有效权限不为 full——可读/可写/评论/管理等在侧栏「共享」展示）
-   * full 权限协作文档出现在「我的文档库」接口中，不在此列表。
+   * 获取与我共享的文档列表（非拥有者，且有效权限不为 manage——可读/可写/评论在侧栏「共享」展示）
+   * manage 协作文档出现在「我的文档库」接口中，不在此列表。
    * 列表随拥有者修改权限而变；协作者无法通过「退出」接口改变服务端权限。
    */
   async findSharedWithMe(userId: string) {
@@ -356,11 +356,11 @@ export class DocumentsService {
       }
     }
 
-    // 仅保留有效权限存在且不为 full 的文档（full 归入「我的文档库」）
+    // 仅保留有效权限存在且不为 manage 的文档（manage 归入「我的文档库」）
     const filteredDocs: typeof docs = [];
     for (const doc of docs) {
       const { permission } = await this.getUserPermission(doc.document_id, userId);
-      if (permission && permission !== 'full') {
+      if (permission && !this.isManageTierPermission(permission)) {
         filteredDocs.push(doc);
       }
     }
@@ -369,7 +369,9 @@ export class DocumentsService {
 
     const activeRows = enriched.map((item, i) => ({
       ...item,
-      myPermission: permissionMap.get(filteredDocs[i].document_id)?.permission,
+      myPermission: this.normalizePermissionForRead(
+        permissionMap.get(filteredDocs[i].document_id)?.permission,
+      ),
       sharedAccessDenied: false,
     }));
 
@@ -447,9 +449,7 @@ export class DocumentsService {
   }
 
   /** 合并文档列表并按 document_id 去重（primary 顺序优先） */
-  private mergeDocumentsById<
-    T extends { document_id: string },
-  >(primary: T[], secondary: T[]): T[] {
+  private mergeDocumentsById<T extends { document_id: string }>(primary: T[], secondary: T[]): T[] {
     const seen = new Set<string>();
     const out: T[] = [];
     for (const d of primary) {
@@ -468,9 +468,9 @@ export class DocumentsService {
   }
 
   /**
-   * 非拥有者身份下，有效权限为 full 的文档 ID（与「共享的文档」互斥，出现在「我的文档库」树）
+   * 非拥有者身份下，有效权限为 manage 的文档 ID（与「共享的文档」互斥，出现在「我的文档库」树）
    */
-  private async findDocumentIdsWhereUserHasFullAsNonOwner(userId: string): Promise<string[]> {
+  private async findDocumentIdsWhereUserHasManageTierAsNonOwner(userId: string): Promise<string[]> {
     const principals = await this.prisma.document_principals.findMany({
       where: { principal_type: 'user', principal_id: userId },
     });
@@ -497,11 +497,22 @@ export class DocumentsService {
       });
       if (!doc || doc.is_deleted || doc.owner_id === userId) continue;
       const { permission } = await this.getUserPermission(documentId, userId);
-      if (permission === 'full') {
+      if (permission && this.isManageTierPermission(permission)) {
         result.push(documentId);
       }
     }
     return result;
+  }
+
+  private isManageTierPermission(permission: document_principals_permission): boolean {
+    return permission === 'manage';
+  }
+
+  private normalizePermissionForRead(
+    permission: document_principals_permission | null | undefined,
+  ): document_principals_permission | null {
+    if (!permission) return null;
+    return permission;
   }
 
   /**
@@ -918,13 +929,18 @@ export class DocumentsService {
   /**
    * 获取文档内容
    */
-  async findContent(documentId: string) {
+  async findContent(documentId: string, userId: string = '') {
     const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
     });
 
     if (!existing) {
       throw new NotFoundException('文档不存在');
+    }
+
+    const canView = await this.checkUserPermission(documentId, userId, 'view');
+    if (!canView) {
+      throw new ForbiddenException('没有权限查看文档内容');
     }
 
     const content = await this.prisma.document_contents.findUnique({
@@ -946,7 +962,11 @@ export class DocumentsService {
   /**
    * 更新文档内容
    */
-  async updateContent(documentId: string, updateContentDto: UpdateDocumentContentDto) {
+  async updateContent(
+    documentId: string,
+    updateContentDto: UpdateDocumentContentDto,
+    userId: string = '',
+  ) {
     const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
     });
@@ -955,12 +975,19 @@ export class DocumentsService {
       throw new NotFoundException('文档不存在');
     }
 
+    const canEdit = await this.checkUserPermission(documentId, userId, 'edit');
+    if (!canEdit) {
+      throw new ForbiddenException('没有权限编辑文档');
+    }
+
+    const updatedBy = userId || updateContentDto.updatedBy || 'anonymous';
+
     const content = await this.prisma.document_contents.update({
       where: { document_id: documentId },
       data: {
         content: updateContentDto.content as Prisma.InputJsonValue,
         y_state: null,
-        updated_by: updateContentDto.updatedBy,
+        updated_by: updatedBy,
         updated_at: new Date(),
       },
     });
@@ -985,13 +1012,20 @@ export class DocumentsService {
   /**
    * 创建文档版本（保存历史）
    */
-  async createVersion(createVersionDto: CreateDocumentVersionDto) {
+  async createVersion(createVersionDto: CreateDocumentVersionDto, userId: string = '') {
     const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: createVersionDto.documentId },
     });
     if (!existing || existing.is_deleted) {
       throw new NotFoundException('文档不存在');
     }
+
+    const canEdit = await this.checkUserPermission(createVersionDto.documentId, userId, 'edit');
+    if (!canEdit) {
+      throw new ForbiddenException('没有权限创建文档版本');
+    }
+
+    const operatorId = userId || createVersionDto.userId || 'anonymous';
     const row = await this.prisma.document_contents.findUnique({
       where: { document_id: createVersionDto.documentId },
     });
@@ -1020,7 +1054,7 @@ export class DocumentsService {
       description: createVersionDto.description ?? null,
       content: createVersionDto.content as Prisma.InputJsonValue,
       y_state: (yState ?? null) as Prisma.Bytes | null,
-      user_id: createVersionDto.userId,
+      user_id: operatorId,
     };
 
     for (let attempt = 0; attempt < 8; attempt++) {
@@ -1059,13 +1093,18 @@ export class DocumentsService {
   /**
    * 获取文档所有版本
    */
-  async findVersions(documentId: string) {
+  async findVersions(documentId: string, userId: string = '') {
     const existing = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
     });
 
     if (!existing) {
       throw new NotFoundException('文档不存在');
+    }
+
+    const canView = await this.checkUserPermission(documentId, userId, 'view');
+    if (!canView) {
+      throw new ForbiddenException('没有权限查看文档版本');
     }
 
     // 列表不读取 content / y_state：避免单行 JSON 损坏或超大 BLOB 导致整次查询失败
@@ -1099,7 +1138,12 @@ export class DocumentsService {
   /**
    * 获取指定版本详情
    */
-  async findVersion(documentId: string, versionId: Date) {
+  async findVersion(documentId: string, versionId: Date, userId: string = '') {
+    const canView = await this.checkUserPermission(documentId, userId, 'view');
+    if (!canView) {
+      throw new ForbiddenException('没有权限查看该版本');
+    }
+
     const version = await this.prisma.document_versions.findUnique({
       where: {
         document_id_version_id: {
@@ -1127,7 +1171,12 @@ export class DocumentsService {
   /**
    * 恢复到指定版本
    */
-  async restoreVersion(documentId: string, versionId: Date) {
+  async restoreVersion(documentId: string, versionId: Date, userId: string = '') {
+    const canEdit = await this.checkUserPermission(documentId, userId, 'edit');
+    if (!canEdit) {
+      throw new ForbiddenException('没有权限恢复文档版本');
+    }
+
     const version = await this.prisma.document_versions.findUnique({
       where: {
         document_id_version_id: {
@@ -1189,14 +1238,32 @@ export class DocumentsService {
 
     if (isAnonymous) {
       if (doc.link_permission && doc.link_permission !== 'close') {
-        return { permission: doc.link_permission, source: 'link' };
+        return {
+          permission: doc.link_permission,
+          source: 'link',
+          documentTitle: doc.title,
+          documentType: doc.type,
+          ownerId: doc.owner_id,
+        };
       }
-      return { permission: null, source: null };
+      return {
+        permission: null,
+        source: null,
+        documentTitle: doc.title,
+        documentType: doc.type,
+        ownerId: doc.owner_id,
+      };
     }
 
-    // 所有者拥有 full 权限
+    // 所有者对外统一返回 manage（完全管理）
     if (doc.owner_id === userId) {
-      return { permission: 'full' as const, source: 'owner' };
+      return {
+        permission: 'manage' as const,
+        source: 'owner',
+        documentTitle: doc.title,
+        documentType: doc.type,
+        ownerId: doc.owner_id,
+      };
     }
 
     // 检查直接权限
@@ -1210,7 +1277,9 @@ export class DocumentsService {
       },
     });
 
-    let highestPermission: document_principals_permission | null = principal?.permission ?? null;
+    let highestPermission: document_principals_permission | null = this.normalizePermissionForRead(
+      principal?.permission,
+    );
     let source: 'direct' | 'group' | 'link' | null = principal ? 'direct' : null;
 
     // 检查组权限
@@ -1238,9 +1307,10 @@ export class DocumentsService {
 
         if (
           !highestPermission ||
-          PERMISSION_LEVELS[highestGroupPermission.permission] > PERMISSION_LEVELS[highestPermission]
+          PERMISSION_LEVELS[highestGroupPermission.permission] >
+            PERMISSION_LEVELS[highestPermission]
         ) {
-          highestPermission = highestGroupPermission.permission;
+          highestPermission = this.normalizePermissionForRead(highestGroupPermission.permission);
           source = 'group';
         }
       }
@@ -1253,13 +1323,22 @@ export class DocumentsService {
           ? ('edit' as document_principals_permission)
           : ('view' as document_principals_permission);
 
-      if (!highestPermission || PERMISSION_LEVELS[linkPermission] > PERMISSION_LEVELS[highestPermission]) {
+      if (
+        !highestPermission ||
+        PERMISSION_LEVELS[linkPermission] > PERMISSION_LEVELS[highestPermission]
+      ) {
         highestPermission = linkPermission;
         source = 'link';
       }
     }
 
-    return { permission: highestPermission, source };
+    return {
+      permission: this.normalizePermissionForRead(highestPermission),
+      source,
+      documentTitle: doc.title,
+      documentType: doc.type,
+      ownerId: doc.owner_id,
+    };
   }
 
   /**
@@ -1279,7 +1358,7 @@ export class DocumentsService {
       throw new NotFoundException('文档不存在');
     }
 
-    // 只有所有者或拥有 manage/full 权限的用户才能设置权限
+    // 只有所有者或拥有 manage 权限的用户才能设置权限
     if (doc.owner_id !== grantedBy) {
       const hasPermission = await this.checkUserPermission(documentId, grantedBy, 'manage');
       if (!hasPermission) {
@@ -1287,10 +1366,12 @@ export class DocumentsService {
       }
     }
 
-    // 不能给自己设置权限（所有者已经有 full 权限）
+    // 不能给自己设置权限（所有者默认有 manage 权限）
     if (targetUserId === doc.owner_id) {
       throw new BadRequestException('不能修改所有者的权限');
     }
+
+    const normalizedPermission = permission;
 
     // 创建或更新权限
     await this.prisma.document_principals.upsert({
@@ -1302,7 +1383,7 @@ export class DocumentsService {
         },
       },
       update: {
-        permission,
+        permission: normalizedPermission,
         granted_by: grantedBy,
         updated_at: new Date(),
       },
@@ -1310,12 +1391,12 @@ export class DocumentsService {
         document_id: documentId,
         principal_type: 'user',
         principal_id: targetUserId,
-        permission,
+        permission: normalizedPermission,
         granted_by: grantedBy,
       },
     });
 
-    return { success: true, userId: targetUserId, permission };
+    return { success: true, userId: targetUserId, permission: normalizedPermission };
   }
 
   /**
@@ -1355,6 +1436,9 @@ export class DocumentsService {
     const doc = await this.prisma.documents_info.findUnique({
       where: { document_id: documentId },
       select: {
+        document_id: true,
+        title: true,
+        type: true,
         owner_id: true,
         link_permission: true,
       },
@@ -1421,8 +1505,18 @@ export class DocumentsService {
     >();
     groups.forEach((g) => groupMap.set(g.group_id, g));
 
+    const owner = await this.prisma.users.findUnique({
+      where: { user_id: doc.owner_id },
+      select: { user_id: true, name: true, avatar_url: true },
+    });
+
     return {
+      documentId: doc.document_id,
+      documentTitle: doc.title,
+      documentType: doc.type,
       ownerId: doc.owner_id,
+      ownerName: owner?.name ?? doc.owner_id,
+      ownerAvatarUrl: owner?.avatar_url ?? null,
       linkPermission: doc.link_permission,
       principals: principals.map((p) => {
         if (p.principal_type === 'user') {
@@ -1430,7 +1524,7 @@ export class DocumentsService {
           return {
             principalType: p.principal_type,
             principalId: p.principal_id,
-            permission: p.permission,
+            permission: this.normalizePermissionForRead(p.permission),
             name: user?.name ?? p.principal_id,
             avatarUrl: user?.avatar_url ?? null,
           };
@@ -1440,7 +1534,7 @@ export class DocumentsService {
         return {
           principalType: p.principal_type,
           principalId: p.principal_id,
-          permission: p.permission,
+          permission: this.normalizePermissionForRead(p.permission),
           name: group?.name ?? p.principal_id,
         };
       }),
@@ -1448,6 +1542,9 @@ export class DocumentsService {
   }
 
   async batchUpsertPermissions(documentId: string, dto: BatchUpsertPermissionsDto) {
+    if (!dto.grantedBy) {
+      throw new ForbiddenException('请先登录');
+    }
     await this.assertCanManagePermissions(documentId, dto.grantedBy);
 
     const userTargets = dto.userTargets ?? [];
@@ -1457,6 +1554,7 @@ export class DocumentsService {
 
     await this.prisma.$transaction(async (tx) => {
       for (const target of userTargets) {
+        const normalizedPermission = target.permission;
         await tx.document_principals.upsert({
           where: {
             document_id_principal_type_principal_id: {
@@ -1466,7 +1564,7 @@ export class DocumentsService {
             },
           },
           update: {
-            permission: target.permission,
+            permission: normalizedPermission,
             granted_by: dto.grantedBy,
             updated_at: now,
           },
@@ -1474,13 +1572,14 @@ export class DocumentsService {
             document_id: documentId,
             principal_type: 'user',
             principal_id: target.targetId,
-            permission: target.permission,
+            permission: normalizedPermission,
             granted_by: dto.grantedBy,
           },
         });
       }
 
       for (const target of groupTargets) {
+        const normalizedPermission = target.permission;
         await tx.document_principals.upsert({
           where: {
             document_id_principal_type_principal_id: {
@@ -1490,7 +1589,7 @@ export class DocumentsService {
             },
           },
           update: {
-            permission: target.permission,
+            permission: normalizedPermission,
             granted_by: dto.grantedBy,
             updated_at: now,
           },
@@ -1498,7 +1597,7 @@ export class DocumentsService {
             document_id: documentId,
             principal_type: 'group',
             principal_id: target.targetId,
-            permission: target.permission,
+            permission: normalizedPermission,
             granted_by: dto.grantedBy,
           },
         });
@@ -1506,6 +1605,10 @@ export class DocumentsService {
     });
 
     if (dto.sendNotification !== false) {
+      const document = await this.prisma.documents_info.findUnique({
+        where: { document_id: documentId },
+        select: { title: true },
+      });
       const notifyUserIds = new Set<string>(userTargets.map((item) => item.targetId));
 
       if (groupTargets.length > 0) {
@@ -1532,6 +1635,7 @@ export class DocumentsService {
             type: 'DOCUMENT_PERMISSION_CHANGED',
             payload: {
               documentId,
+              documentTitle: document?.title ?? '',
               operatorId: dto.grantedBy,
             },
             event: 'permission.changed',
@@ -1548,6 +1652,9 @@ export class DocumentsService {
   }
 
   async batchRemovePermissions(documentId: string, dto: BatchRemovePermissionsDto) {
+    if (!dto.grantedBy) {
+      throw new ForbiddenException('请先登录');
+    }
     await this.assertCanManagePermissions(documentId, dto.grantedBy);
 
     const userIds = dto.userIds ?? [];
@@ -1573,6 +1680,31 @@ export class DocumentsService {
           })
         : Promise.resolve({ count: 0 }),
     ]);
+
+    // 发送实时通知给被移除权限的用户
+    const notifyUserIds = new Set<string>(userIds);
+
+    // 如果被移除的是组权限，需要通知该组所有成员
+    if (groupIds.length > 0) {
+      const memberships = await this.prisma.group_members.findMany({
+        where: {
+          group_id: { in: groupIds },
+        },
+        select: { user_id: true },
+      });
+      for (const member of memberships) {
+        notifyUserIds.add(member.user_id);
+      }
+    }
+
+    // 发送权限变更通知
+    for (const userId of notifyUserIds) {
+      this.realtimeService.emitToUser(userId, 'document:permission_revoked', {
+        documentId,
+        timestamp: Date.now(),
+        message: '您的文档权限已被移除，页面将切换到只读模式',
+      });
+    }
 
     return {
       success: true,
@@ -1875,10 +2007,12 @@ export class DocumentsService {
         select: { parent_id: true },
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (parent?.parent_id === documentId) {
         throw new BadRequestException('不能将文档移动到其子文件夹中');
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
       currentId = parent?.parent_id || null;
     }
   }

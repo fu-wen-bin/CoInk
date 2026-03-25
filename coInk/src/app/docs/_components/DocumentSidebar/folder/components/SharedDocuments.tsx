@@ -110,8 +110,7 @@ const SharedDocuments: React.FC<SharedDocumentsProps> = ({ isExpanded, onToggle 
       view: '查看',
       edit: '编辑',
       comment: '评论',
-      manage: '管理',
-      full: '完全控制',
+      manage: '完全管理',
     };
 
     return permissionMap[permission] || permission;

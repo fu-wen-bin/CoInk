@@ -54,8 +54,15 @@ export const useNotificationSocket = () => {
 
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [currentUser, setCurrentUser] = useState<{
-    id: number;
+    id: string;
     name: string;
+  } | null>(null);
+
+  // 权限变更事件
+  const [permissionRevoked, setPermissionRevoked] = useState<{
+    documentId: string;
+    timestamp: number;
+    message: string;
   } | null>(null);
 
   // const [podcastEvent, setPodcastEvent] = useState<PodcastEvent | null>(null);
@@ -163,8 +170,18 @@ export const useNotificationSocket = () => {
         });
       });
 
+      // 监听文档权限被移除事件
+      socket.on('document:permission_revoked', (data: { documentId: string; timestamp: number; message: string }) => {
+        console.log('权限被移除:', data);
+        setPermissionRevoked(data);
+        // 触发全局事件，让文档页面监听
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('document:permission_revoked', { detail: data }));
+        }
+      });
+
       // 监听错误
-      socket.on('error', (error: any) => {
+      socket.on('error', (error: { message?: string }) => {
         setConnectionState((prev) => ({
           ...prev,
           error: error.message || '未知错误',
@@ -172,16 +189,18 @@ export const useNotificationSocket = () => {
       });
 
       // 监听心跳响应
-      socket.on('pong', (data: any) => {
+      socket.on('pong', (data: { timestamp?: string }) => {
         console.log('心跳正常:', data.timestamp);
       });
 
       // 监听认证结果
-      socket.on('auth_result', (data: any) => {
+      socket.on(
+        'auth_result',
+        (data: { success: boolean; message?: string; user?: { id: string; name: string } }) => {
         if (data.success) {
           setCurrentUser({
-            id: data.user.id,
-            name: data.user.name,
+            id: data.user?.id ?? '',
+            name: data.user?.name ?? '',
           });
           // 认证成功后获取在线用户列表
           socket.emit('get_online_users');
@@ -191,7 +210,8 @@ export const useNotificationSocket = () => {
             error: data.message || '认证失败',
           }));
         }
-      });
+        },
+      );
     } catch (error) {
       setIsConnecting(false);
       setConnectionState({
@@ -298,6 +318,10 @@ export const useNotificationSocket = () => {
 
     // 播客 ai 事件
     podcastTasks,
+
+    // 权限变更事件
+    permissionRevoked,
+    resetPermissionRevoked: () => setPermissionRevoked(null),
 
     // 服务器和认证信息
     serverUrl: server,

@@ -70,12 +70,7 @@ export default function SharedDocumentsView({
 
   const sidebarHighlightZone = useMemo(
     () =>
-      getSidebarHighlightZone(
-        selectedFileId,
-        libraryFiles,
-        sharedDocumentIds,
-        starredDocumentIds,
-      ),
+      getSidebarHighlightZone(selectedFileId, libraryFiles, sharedDocumentIds, starredDocumentIds),
     [selectedFileId, libraryFiles, sharedDocumentIds, starredDocumentIds],
   );
 
@@ -157,9 +152,7 @@ export default function SharedDocumentsView({
     }
     patchDocumentStarred(file.id, next);
     setSharedDocs((prev) =>
-      prev.map((d) =>
-        d.documentId === file.id ? { ...d, isStarred: next } : d,
-      ),
+      prev.map((d) => (d.documentId === file.id ? { ...d, isStarred: next } : d)),
     );
     toastSuccess(next ? '已加入收藏' : '已取消收藏');
     bumpStarredList();
@@ -296,9 +289,7 @@ export default function SharedDocumentsView({
                   onDuplicate={undefined}
                   onRename={undefined}
                   onDelete={undefined}
-                  onStar={
-                    doc.type === 'FILE' ? (f) => void handleStar(f, doc) : undefined
-                  }
+                  onStar={doc.type === 'FILE' ? (f) => void handleStar(f, doc) : undefined}
                   className="opacity-0 group-hover:opacity-100"
                 />
               )}

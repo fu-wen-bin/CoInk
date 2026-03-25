@@ -85,7 +85,7 @@ export const useDragDropStore = create<DragDropState>((set, get) => ({
     // 调用API移动文档
     try {
       await documentsApi.move(activeId, {
-        parentId: parentId ?? null,
+        parentId: parentId ?? '',
         userId: '', // userId will be handled by the backend from JWT
       });
 

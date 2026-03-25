@@ -35,6 +35,7 @@ import { useCommentStore } from '@/stores/commentStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
 import { useSidebar } from '@/stores/sidebarStore';
+import { toastInfo } from '@/utils/toast';
 
 // 类型定义
 interface CollaborationUser {
@@ -53,7 +54,7 @@ interface DocumentPermissionData {
   documentTitle: string;
   documentType: 'FILE' | 'FOLDER';
   isOwner: boolean;
-  permission: PermissionLevel;
+  permission: PermissionLevel | null;
 }
 
 export default function DocumentPage() {
@@ -165,7 +166,9 @@ export default function DocumentPage() {
         // 解析失败时 userId 保持为空字符串
       }
 
-      const { data, error } = await documentsApi.getCurrentPermission(documentId, { userId });
+      const { data, error } = await documentsApi.getCurrentPermission(documentId, {
+        userId,
+      });
 
       if (error) {
         setPermissionError(error);
@@ -201,16 +204,8 @@ export default function DocumentPage() {
       }
 
       const rawPerm = data.data.permission;
-      let docTitle = '';
-      let documentType: 'FILE' | 'FOLDER' = 'FILE';
-      if (!rawPerm || rawPerm === '') {
-        const docRes = await documentsApi.getById(documentId);
-        const meta = docRes?.data?.data;
-        if (meta) {
-          docTitle = meta.title ?? '';
-          documentType = meta.type === 'FOLDER' ? 'FOLDER' : 'FILE';
-        }
-      }
+      const docTitle = data.data.documentTitle ?? '';
+      const documentType = data.data.documentType === 'FOLDER' ? 'FOLDER' : 'FILE';
 
       // Map the response to the expected format
       const permData: DocumentPermissionData = {
@@ -221,17 +216,17 @@ export default function DocumentPage() {
         documentTitle: docTitle,
         documentType,
         isOwner: false,
-        permission: (rawPerm ?? '') as PermissionLevel,
+        permission: rawPerm,
       };
       setPermissionData(permData);
       setIsLoadingPermission(false);
 
-      if (userId && rawPerm && rawPerm !== '' && permData.documentType === 'FILE') {
+      if (userId && rawPerm && permData.documentType === 'FILE') {
         void documentsApi.recordAccess(documentId, { userId });
       }
 
       // 无权限时不初始化编辑器 (没有 'view' 权限表示无权限)
-      if (!rawPerm || rawPerm === '') {
+      if (!rawPerm) {
         setIsMounted(true);
 
         return;
@@ -256,6 +251,62 @@ export default function DocumentPage() {
     }
 
     init();
+  }, [documentId]);
+
+  // 监听权限变更事件（实时通知）
+  useEffect(() => {
+    if (!documentId || typeof window === 'undefined') return;
+
+    const handlePermissionRevoked = (event: CustomEvent<{ documentId: string; timestamp: number; message: string }>) => {
+      const data = event.detail;
+      if (data.documentId !== documentId) return;
+
+      console.log('收到权限变更通知:', data);
+
+      // 刷新权限数据
+      void (async () => {
+        try {
+          const cachedUser = localStorage.getItem('cached_user_profile');
+          let userId = '';
+          if (cachedUser) {
+            const user = JSON.parse(cachedUser) as { userId?: string };
+            userId = user.userId || '';
+          }
+
+          const { data: permData, error } = await documentsApi.getCurrentPermission(documentId, { userId });
+
+          if (error) {
+            console.error('权限刷新失败:', error);
+            setPermissionError('您的权限已变更，请刷新页面');
+            return;
+          }
+
+          if (permData?.data) {
+            // 更新权限数据
+            setPermissionData((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                permission: permData.data.permission,
+              };
+            });
+
+            // 如果权限被移除或变为只读，显示提示
+            if (!permData.data.permission || permData.data.permission === 'view') {
+              toastInfo('您的文档权限已被变更，当前为只读模式');
+            }
+          }
+        } catch (err) {
+          console.error('刷新权限失败:', err);
+        }
+      })();
+    };
+
+    window.addEventListener('document:permission_revoked', handlePermissionRevoked as EventListener);
+
+    return () => {
+      window.removeEventListener('document:permission_revoked', handlePermissionRevoked as EventListener);
+    };
   }, [documentId]);
 
   // 本地持久化
@@ -650,8 +701,8 @@ export default function DocumentPage() {
         connectedUsers={connectedUsers}
         currentUser={currentUser}
         documentId={documentId}
-        documentTitle={currentDocumentName ?? undefined}
-        documentName={currentDocumentName ?? `文档 ${documentId}`}
+        documentTitle={currentDocumentName ?? permissionData?.documentTitle ?? undefined}
+        documentName={currentDocumentName ?? permissionData?.documentTitle ?? `文档 ${documentId}`}
         doc={doc}
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}

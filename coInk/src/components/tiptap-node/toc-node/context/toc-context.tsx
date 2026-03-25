@@ -99,11 +99,7 @@ export function getScrollableParent(element: HTMLElement | null): HTMLElement | 
   return window;
 }
 
-function scrollElementToOffset(
-  element: HTMLElement,
-  topOffset: number,
-  behavior: ScrollBehavior,
-) {
+function scrollElementToOffset(element: HTMLElement, topOffset: number, behavior: ScrollBehavior) {
   const root = getScrollableParent(element);
 
   if (root === window) {

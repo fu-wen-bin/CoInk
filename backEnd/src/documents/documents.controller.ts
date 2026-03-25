@@ -8,8 +8,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 
+import { AuthService } from '../auth/auth.service';
 import { DocumentsService } from './documents.service';
 import {
   CreateDocumentContentDto,
@@ -22,7 +26,10 @@ import { document_principals_permission } from '../../generated/prisma/enums';
 
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly authService: AuthService,
+  ) {}
 
   // 创建文档（文件或文件夹）
   @Post()
@@ -210,25 +217,34 @@ export class DocumentsController {
 
   // 获取当前用户对文档的权限
   @Get(':id/permission')
-  getUserPermission(@Param('id') id: string, @Query('userId') userId?: string) {
-    return this.documentsService.getUserPermission(id, userId ?? '');
+  async getUserPermission(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Query('userId') queryUserId?: string,
+  ) {
+    let cookieUserId: string | null = null;
+    try {
+      cookieUserId = await this.extractUserIdFromRequest(req);
+    } catch {
+      cookieUserId = null;
+    }
+    const userId = cookieUserId ?? queryUserId ?? '';
+    return this.documentsService.getUserPermission(id, userId);
   }
 
   @Get(':id/principals')
-  listPrincipals(@Param('id') id: string, @Query('userId') userId: string) {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
-    }
+  async listPrincipals(@Param('id') id: string, @Req() req: Request) {
+    const userId = await this.requireUserId(req);
     return this.documentsService.listPrincipals(id, userId);
   }
 
   // 设置用户权限
   @Post(':id/permissions')
-  setUserPermission(
+  async setUserPermission(
     @Param('id') id: string,
     @Body('targetUserId') targetUserId: string,
     @Body('permission') permission: document_principals_permission,
-    @Body('grantedBy') grantedBy: string,
+    @Req() req: Request,
   ) {
     if (!targetUserId) {
       throw new BadRequestException('targetUserId is required');
@@ -236,47 +252,53 @@ export class DocumentsController {
     if (!permission) {
       throw new BadRequestException('permission is required');
     }
-    if (!grantedBy) {
-      throw new BadRequestException('grantedBy is required');
-    }
+    const grantedBy = await this.requireUserId(req);
     return this.documentsService.setUserPermission(id, targetUserId, permission, grantedBy);
   }
 
   // 移除用户权限
   @Delete(':id/permissions')
-  removeUserPermission(
+  async removeUserPermission(
     @Param('id') id: string,
-    @Body('targetUserId') targetUserId: string,
-    @Body('grantedBy') grantedBy: string,
+    @Body('targetUserId') bodyTargetUserId: string,
+    @Req() req: Request,
+    @Query('targetUserId') queryTargetUserId?: string,
   ) {
+    const targetUserId = bodyTargetUserId || queryTargetUserId;
     if (!targetUserId) {
       throw new BadRequestException('targetUserId is required');
     }
-    if (!grantedBy) {
-      throw new BadRequestException('grantedBy is required');
-    }
+    const grantedBy = await this.requireUserId(req);
     return this.documentsService.removeUserPermission(id, targetUserId, grantedBy);
   }
 
   @Post(':id/permissions/batch-upsert')
-  batchUpsertPermissions(@Param('id') id: string, @Body() dto: BatchUpsertPermissionsDto) {
-    if (!dto.grantedBy) {
-      throw new BadRequestException('grantedBy is required');
-    }
-    return this.documentsService.batchUpsertPermissions(id, dto);
+  async batchUpsertPermissions(
+    @Param('id') id: string,
+    @Body() dto: BatchUpsertPermissionsDto,
+    @Req() req: Request,
+  ) {
+    const grantedBy = await this.requireUserId(req);
+    return this.documentsService.batchUpsertPermissions(id, { ...dto, grantedBy });
   }
 
   @Delete(':id/permissions/batch')
-  batchRemovePermissions(
+  async batchRemovePermissions(
     @Param('id') id: string,
-    @Body() dto: BatchRemovePermissionsDto,
-    @Query('grantedBy') grantedByQuery?: string,
+    @Body() bodyDto: BatchRemovePermissionsDto,
+    @Req() req: Request,
+    @Query('userIds') queryUserIds?: string | string[],
+    @Query('groupIds') queryGroupIds?: string | string[],
   ) {
-    // 优先从查询参数获取 grantedBy，否则从 body 获取
-    const grantedBy = grantedByQuery || dto.grantedBy;
-    if (!grantedBy) {
-      throw new BadRequestException('grantedBy is required');
-    }
+    const queryDto: BatchRemovePermissionsDto = {
+      userIds: this.normalizeIdList(queryUserIds),
+      groupIds: this.normalizeIdList(queryGroupIds),
+    };
+    const dto: BatchRemovePermissionsDto = {
+      ...queryDto,
+      ...bodyDto,
+    };
+    const grantedBy = await this.requireUserId(req);
     return this.documentsService.batchRemovePermissions(id, { ...dto, grantedBy });
   }
 
@@ -290,47 +312,107 @@ export class DocumentsController {
 
   // 获取文档内容
   @Get(':id/content')
-  findContent(@Param('id') id: string) {
-    return this.documentsService.findContent(id);
+  async findContent(@Param('id') id: string, @Req() req: Request) {
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.findContent(id, userId ?? '');
   }
 
   // 更新文档内容
   @Patch(':id/content')
-  updateContent(@Param('id') id: string, @Body() dto: UpdateDocumentContentDto) {
-    return this.documentsService.updateContent(id, dto);
+  async updateContent(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentContentDto,
+    @Req() req: Request,
+  ) {
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.updateContent(id, dto, userId ?? '');
   }
 
   // ==================== 文档版本 ====================
 
   // 创建文档版本
   @Post(':id/versions')
-  createVersion(@Param('id') id: string, @Body() dto: CreateDocumentVersionDto) {
-    return this.documentsService.createVersion({ ...dto, documentId: id });
+  async createVersion(
+    @Param('id') id: string,
+    @Body() dto: CreateDocumentVersionDto,
+    @Req() req: Request,
+  ) {
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.createVersion({ ...dto, documentId: id }, userId ?? '');
   }
 
   // 获取文档所有版本
   @Get(':id/versions')
-  findVersions(@Param('id') id: string) {
-    return this.documentsService.findVersions(id);
+  async findVersions(@Param('id') id: string, @Req() req: Request) {
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.findVersions(id, userId ?? '');
   }
 
   // 获取指定版本
   @Get(':id/versions/:versionId')
-  findVersion(@Param('id') id: string, @Param('versionId') versionId: string) {
+  async findVersion(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @Req() req: Request,
+  ) {
     const parsed = new Date(versionId);
     if (Number.isNaN(parsed.getTime())) {
       throw new BadRequestException('versionId is not a valid date');
     }
-    return this.documentsService.findVersion(id, parsed);
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.findVersion(id, parsed, userId ?? '');
   }
 
   // 将文档恢复到指定版本
   @Post(':id/versions/:versionId/restore')
-  restoreVersion(@Param('id') id: string, @Param('versionId') versionId: string) {
+  async restoreVersion(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @Req() req: Request,
+  ) {
     const parsed = new Date(versionId);
     if (Number.isNaN(parsed.getTime())) {
       throw new BadRequestException('versionId is not a valid date');
     }
-    return this.documentsService.restoreVersion(id, parsed);
+    const userId = await this.extractUserIdFromRequest(req);
+    return this.documentsService.restoreVersion(id, parsed, userId ?? '');
+  }
+
+  private async extractUserIdFromRequest(req: Request): Promise<string | null> {
+    const accessToken =
+      typeof req.cookies?.access_token === 'string' ? req.cookies.access_token : undefined;
+
+    if (!accessToken) {
+      return null;
+    }
+
+    const verified = await this.authService.verifyToken(accessToken);
+    if (!verified.valid || !verified.payload?.userId) {
+      throw new UnauthorizedException('登录已失效，请重新登录');
+    }
+
+    return verified.payload.userId;
+  }
+
+  private async requireUserId(req: Request): Promise<string> {
+    const userId = await this.extractUserIdFromRequest(req);
+    if (!userId) {
+      throw new UnauthorizedException('请先登录');
+    }
+    return userId;
+  }
+
+  private normalizeIdList(raw?: string | string[]): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw
+        .flatMap((item) => item.split(','))
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return raw
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 }

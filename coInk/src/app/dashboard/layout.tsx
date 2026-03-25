@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { type ReactNode, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { Tour, TourProvider, tourSteps, useDashboardTour } from '@/components/tour';
 import { NotificationSocketProvider } from '@/providers/NotificationSocketProvider';
 import { getPageTitle, getPageDescription, NAV_ITEMS } from '@/utils';
+import { toastError } from '@/utils/toast';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ interface DashboardLayoutProps {
 
 function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false); // 移动端默认关闭
 
   const toggleSidebar = () => {
@@ -27,6 +29,20 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
 
   // 处理 Dashboard Tour 的自动启动和完成状态
   useDashboardTour();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hasLoggedInFlag = document.cookie.includes('logged_in=true');
+    const hasCachedProfile = Boolean(window.localStorage.getItem('cached_user_profile'));
+
+    if (hasLoggedInFlag || hasCachedProfile) {
+      return;
+    }
+
+    toastError('请你先登录再访问');
+    const redirectTo = encodeURIComponent(pathname || '/dashboard');
+    router.replace(`/auth?redirect_to=${redirectTo}`);
+  }, [pathname, router]);
 
   return (
     <>

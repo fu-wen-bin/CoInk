@@ -5,7 +5,7 @@ import { userQueryKeys } from './useUserQuery';
 
 import { toastSuccess, toastError, toastWarning } from '@/utils/toast';
 import { authApi } from '@/services/auth';
-import type { AuthResponseData, User} from '@/services/auth/types';
+import type { AuthResponseData, User } from '@/services/auth/types';
 import { setLoggedInFlag } from '@/utils/auth/cookie';
 
 // 邮箱验证码登录参数（扩展）

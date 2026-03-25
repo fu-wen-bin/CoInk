@@ -60,10 +60,10 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
     });
 
     const result: FileStructure[] = [];
-    const childrenMap = new Map<number, FileStructure[]>();
+    const childrenMap = new Map<string, FileStructure[]>();
 
     docMap.forEach((doc) => {
-      childrenMap.set(doc.id, []);
+      childrenMap.set(doc.documentId, []);
     });
 
     docMap.forEach((doc) => {
@@ -127,7 +127,7 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
           is_starred: item.is_starred,
           updated_at: item.updated_at,
           created_at: item.created_at,
-          parent_id: item.parent_id,
+          parentId: item.parentId,
           path: itemPath,
           matches,
         });
@@ -147,8 +147,8 @@ const SearchTab = ({ isActive }: SearchTabProps) => {
   const loadDocuments = async () => {
     const res = await documentsApi.getMyDocuments('');
 
-    if (res?.data) {
-      const { documents } = res.data;
+    if (res?.data?.data) {
+      const { documents } = res.data.data;
       setDocuments(documents);
 
       // 转换为文件结构

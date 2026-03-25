@@ -114,6 +114,14 @@ export interface GetUserInfoRequest {
 }
 
 /**
+ * 搜索用户请求参数
+ */
+export interface SearchUserRequest {
+  /** 搜索关键词（名称或邮箱） */
+  q: string;
+}
+
+/**
  * 单个用户响应
  */
 export interface UserResponse {

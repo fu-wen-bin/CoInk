@@ -22,6 +22,11 @@ import {
 import { useAppRealtime } from '@/hooks/useAppRealtime';
 import { friendService } from '@/services/friend';
 import { permissionRequestsApi } from '@/services/permission-requests';
+import {
+  getNotificationDocumentId,
+  getNotificationDocumentTitle,
+  getNotificationTypeLabel,
+} from '@/utils/notification';
 import { toastError, toastSuccess } from '@/utils/toast';
 
 interface NotificationListItem {
@@ -32,6 +37,7 @@ interface NotificationListItem {
   content?: string;
   isRead: boolean;
   createdAt: Date | string;
+  status?: string;
 }
 
 const getCurrentUserId = (): string => {
@@ -50,6 +56,7 @@ export default function NotificationDropdown() {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
   const [processingKey, setProcessingKey] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: notificationsData, isLoading: isLoadingNotifications } = useNotificationsQuery({
     page: 1,
@@ -70,13 +77,24 @@ export default function NotificationDropdown() {
     void queryClient.invalidateQueries({ queryKey: ['notifications'] });
   }, [queryClient]);
 
+  const syncUnreadCount = useCallback(
+    (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return;
+      const count = (payload as { unreadCount?: unknown }).unreadCount;
+      if (typeof count !== 'number') return;
+      queryClient.setQueryData(['notifications', 'unread-count'], { count });
+    },
+    [queryClient],
+  );
+
   const realtimeHandlers = useMemo(
     () => ({
-      'notification.new': () => {
+      'notification.new': (payload: unknown) => {
+        syncUnreadCount(payload);
         refreshNotifications();
       },
     }),
-    [refreshNotifications],
+    [refreshNotifications, syncUnreadCount],
   );
 
   useAppRealtime(userId || null, realtimeHandlers);
@@ -84,35 +102,77 @@ export default function NotificationDropdown() {
   const notifications: NotificationListItem[] = (notificationsData?.notifications || []).map(
     (item) => {
       const payload = item.payload ?? {};
-      const title =
-        item.type === 'PERMISSION_REQUEST_CREATED'
-          ? '收到权限申请'
-          : item.type === 'PERMISSION_REQUEST_REVIEWED'
-            ? '权限申请已处理'
-            : item.type === 'FRIEND_REQUEST_CREATED'
-              ? '收到好友申请'
-              : item.type === 'FRIEND_REQUEST_REVIEWED'
-                ? '好友申请已处理'
-                : '系统通知';
+      const title = getNotificationTypeLabel(item.type);
+      const documentTitle = getNotificationDocumentTitle(payload);
+      const documentId = getNotificationDocumentId(payload);
 
-      const content =
-        typeof payload.message === 'string' && payload.message.trim()
-          ? payload.message
-          : item.type === 'FRIEND_REQUEST_REVIEWED'
-            ? payload.status === 'approved'
-              ? '对方已同意你的好友申请'
-              : payload.status === 'rejected'
-                ? '对方已拒绝你的好友申请'
-                : '好友申请状态已更新'
-            : item.type === 'PERMISSION_REQUEST_REVIEWED'
-              ? payload.status === 'approved'
-                ? '权限申请已通过'
-                : payload.status === 'rejected'
-                  ? '权限申请已拒绝'
-                  : '权限申请状态已更新'
-              : typeof payload.documentId === 'string'
-                ? `文档 ${payload.documentId}`
-                : undefined;
+      const content = (() => {
+        // 如果有明确的 message，优先使用
+        if (typeof payload.message === 'string' && payload.message.trim()) {
+          // 权限申请通知，追加权限类型信息
+          if (item.type === 'PERMISSION_REQUEST_CREATED' && payload.targetPermission) {
+            const permMap: Record<string, string> = {
+              view: '查看',
+              comment: '评论',
+              edit: '编辑',
+              manage: '完全管理',
+            };
+            return `${payload.message} (${permMap[payload.targetPermission as string] || payload.targetPermission}权限)`;
+          }
+          return payload.message;
+        }
+
+        // 好友申请已处理
+        if (item.type === 'FRIEND_REQUEST_REVIEWED') {
+          return payload.status === 'approved'
+            ? '对方已同意你的好友申请'
+            : payload.status === 'rejected'
+              ? '对方已拒绝你的好友申请'
+              : '好友申请状态已更新';
+        }
+
+        // 权限申请已处理
+        if (item.type === 'PERMISSION_REQUEST_REVIEWED') {
+          const permMap: Record<string, string> = {
+            view: '查看',
+            comment: '评论',
+            edit: '编辑',
+            manage: '完全管理',
+          };
+          const permText = payload.targetPermission
+            ? `(${permMap[payload.targetPermission as string] || payload.targetPermission}权限) `
+            : '';
+          return payload.status === 'approved'
+            ? `权限申请已通过 ${permText}`
+            : payload.status === 'rejected'
+              ? `权限申请已拒绝 ${permText}`
+              : '权限申请状态已更新';
+        }
+
+        // 收到权限申请（没有 message 时）
+        if (item.type === 'PERMISSION_REQUEST_CREATED') {
+          const permMap: Record<string, string> = {
+            view: '查看',
+            comment: '评论',
+            edit: '编辑',
+            manage: '完全管理',
+          };
+          const permText = payload.targetPermission
+            ? permMap[payload.targetPermission as string] || payload.targetPermission
+            : '编辑';
+          return `申请${permText}权限`;
+        }
+
+        // 默认显示文档标题，缺失时显示文档ID
+        if (documentTitle) {
+          return `文档 ${documentTitle}`;
+        }
+        if (documentId) {
+          return `文档 ${documentId}`;
+        }
+
+        return undefined;
+      })();
 
       return {
         id: item.notificationId,
@@ -122,6 +182,7 @@ export default function NotificationDropdown() {
         content,
         isRead: Boolean(item.readAt),
         createdAt: item.createdAt,
+        status: typeof payload.status === 'string' ? payload.status : undefined,
       };
     },
   );
@@ -154,7 +215,7 @@ export default function NotificationDropdown() {
     }
 
     router.push(
-      `/dashboard/contacts?requestId=${encodeURIComponent(notification.requestId)}&type=${encodeURIComponent(notification.type)}`,
+      `/dashboard/inbox?requestId=${encodeURIComponent(notification.requestId)}&type=${encodeURIComponent(notification.type)}`,
     );
   };
 
@@ -211,9 +272,13 @@ export default function NotificationDropdown() {
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative hover:bg-gray-100">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`relative hover:bg-gray-100 ${isOpen ? 'bg-gray-100' : ''}`}
+        >
           <Bell className="h-5 w-5 text-gray-600" />
           {!isLoadingCount && unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
@@ -257,6 +322,7 @@ export default function NotificationDropdown() {
               const canQuickReview =
                 notification.type === 'FRIEND_REQUEST_CREATED' ||
                 notification.type === 'PERMISSION_REQUEST_CREATED';
+              const isPending = !notification.status || notification.status === 'pending';
 
               return (
                 <div
@@ -281,7 +347,7 @@ export default function NotificationDropdown() {
                       {notification.content}
                     </p>
                   )}
-                  {canQuickReview && (
+                  {canQuickReview && isPending && (
                     <div className="flex items-center gap-2 w-full">
                       <button
                         type="button"
@@ -312,6 +378,9 @@ export default function NotificationDropdown() {
                       </button>
                     </div>
                   )}
+                  {canQuickReview && !isPending && (
+                    <span className="text-xs text-gray-500">该申请已处理</span>
+                  )}
                   <span className="text-xs text-gray-400">
                     {formatTime(notification.createdAt)}
                   </span>
@@ -327,9 +396,9 @@ export default function NotificationDropdown() {
             <button
               type="button"
               className="w-full text-center text-blue-600 font-medium hover:bg-blue-50 py-3 text-sm"
-              onClick={() => router.push('/dashboard/contacts')}
+              onClick={() => router.push('/dashboard/inbox')}
             >
-              查看全部并进入通讯录
+              查看全部通知
             </button>
           </>
         )}

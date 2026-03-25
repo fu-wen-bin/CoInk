@@ -14,7 +14,7 @@ interface NotificationSocketContextType {
   error: string | null;
 
   // 用户数据
-  currentUser: { id: number; name: string } | null;
+  currentUser: { id: string; name: string } | null;
   onlineUsers: OnlineUser[];
 
   // 播客 ai 事件

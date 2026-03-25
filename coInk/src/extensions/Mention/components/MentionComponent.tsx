@@ -21,12 +21,12 @@ export const MentionComponent: React.FC<NodeViewProps> = ({ node }) => {
     setError(null);
 
     try {
-      const response = await UserApi.getUserById(node.attrs.id);
+      const response = await UserApi.getUserInfo({ userId: node.attrs.id });
 
       // request 返回 { data: ApiResponse<User> | null, error: string | null }
       // ApiResponse<User> = { code, message, data: User, timestamp }
-      if (response.data?.data) {
-        setUser(response.data.data);
+      if (response.data?.data?.user) {
+        setUser(response.data.data.user);
       } else if (response.error) {
         setError(response.error);
       } else {

@@ -1,7 +1,7 @@
 import { clientRequest } from '@/services/request';
 import type { ErrorHandler, RequestResult } from '@/services/request';
 
-export type PermissionLevel = 'view' | 'comment' | 'edit' | 'manage' | 'full';
+export type PermissionLevel = 'view' | 'comment' | 'edit' | 'manage';
 
 export interface PermissionRequestItem {
   requestId: string;
@@ -52,6 +52,3 @@ export const permissionRequestsApi = {
       errorHandler,
     }),
 };
-
-
-

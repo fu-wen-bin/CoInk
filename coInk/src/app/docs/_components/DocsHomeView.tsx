@@ -11,6 +11,7 @@ import {
   Loader2,
   LogOut,
   MoreHorizontal,
+  PanelLeft,
   Settings,
   Share2,
   Star,
@@ -123,7 +124,7 @@ export default function DocsHomeView() {
   const setNewItemType = useFileStore((s) => s.setNewItemType);
   const setNewItemName = useFileStore((s) => s.setNewItemName);
   const setNewItemGroupId = useFileStore((s) => s.setNewItemGroupId);
-  const { setActiveTab: setSidebarNav, bumpStarredList } = useSidebar();
+  const { isOpen: isSidebarOpen, toggle: toggleSidebar, setActiveTab: setSidebarNav, bumpStarredList } = useSidebar();
   const pathname = usePathname();
   const { data: user } = useUserQuery();
   const logoutMutation = useLogoutMutation();
@@ -384,9 +385,21 @@ export default function DocsHomeView() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-6 dark:border-slate-800">
-        <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-          主页
-        </h1>
+        <div className="flex items-center gap-2">
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              aria-label="显示侧边栏"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
+          )}
+          <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            文档
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard"

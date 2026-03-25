@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Editor, NodeViewProps } from '@tiptap/react';
-import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { Editor, NodeViewProps, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
 
 import { isValidPosition } from '@/lib/tiptap-utils';
@@ -305,7 +304,7 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
         wrapperMouseEnterHandler();
         scheduleSelectImageForFloatingToolbar();
       }}
-      onPointerLeave={(e) => {
+      onPointerLeave={(e: React.PointerEvent<HTMLDivElement>) => {
         clearImageToolbarHoverTimer();
         wrapperMouseLeaveHandler(e);
       }}

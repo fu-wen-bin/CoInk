@@ -84,9 +84,7 @@ export const useSidebar = create<SidebarState>()(
         set((state) => ({
           starredBatchMode: v,
           starredSelectedIds: v ? state.starredSelectedIds : [],
-          ...(v
-            ? { sharedBatchMode: false, sharedSelectedIds: [] as string[] }
-            : {}),
+          ...(v ? { sharedBatchMode: false, sharedSelectedIds: [] as string[] } : {}),
         })),
       enterStarredBatchWithAll: (ids) =>
         set({
@@ -114,9 +112,7 @@ export const useSidebar = create<SidebarState>()(
         set((state) => ({
           sharedBatchMode: v,
           sharedSelectedIds: v ? state.sharedSelectedIds : [],
-          ...(v
-            ? { starredBatchMode: false, starredSelectedIds: [] as string[] }
-            : {}),
+          ...(v ? { starredBatchMode: false, starredSelectedIds: [] as string[] } : {}),
         })),
       enterSharedBatchWithAll: (ids) =>
         set({

@@ -7,10 +7,7 @@ import type {
 } from '@tiptap/extension-table-of-contents';
 
 import { cn } from '@/lib/tiptap-utils';
-import {
-  getScrollableParent,
-  useToc,
-} from '@/components/tiptap-node/toc-node/context/toc-context';
+import { getScrollableParent, useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
 
 import './toc-sidebar.scss';
 

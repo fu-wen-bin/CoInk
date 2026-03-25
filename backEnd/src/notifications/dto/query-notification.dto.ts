@@ -17,5 +17,6 @@ export class QueryNotificationDto {
 
   @IsBoolean()
   @IsOptional()
+  @Type(() => Boolean)
   unreadOnly?: boolean = false;
 }

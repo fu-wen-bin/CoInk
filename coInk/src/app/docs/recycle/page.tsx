@@ -9,6 +9,7 @@ import {
   Folder,
   Loader2,
   MoreHorizontal,
+  PanelLeft,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 import { cn, getCurrentUserId } from '@/utils';
+import { useSidebar } from '@/stores/sidebarStore';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -60,6 +62,7 @@ function rowCellClasses(isSelected: boolean): string {
 
 export default function RecycleBinPage() {
   const router = useRouter();
+  const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar();
   const [rows, setRows] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +256,16 @@ export default function RecycleBinPage() {
       {/* Header */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-6 dark:border-slate-800">
         <div className="flex items-center gap-3">
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              aria-label="显示侧边栏"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
+          )}
           <Link
             href="/docs"
             className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"

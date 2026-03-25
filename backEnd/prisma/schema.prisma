@@ -194,7 +194,6 @@ enum document_principals_permission {
   comment
   edit
   manage
-  full
 }
 
 enum permission_requests_target_permission {
@@ -202,7 +201,6 @@ enum permission_requests_target_permission {
   comment
   edit
   manage
-  full
 }
 
 enum permission_requests_status {

@@ -257,7 +257,9 @@ export default function DocumentPage() {
   useEffect(() => {
     if (!documentId || typeof window === 'undefined') return;
 
-    const handlePermissionRevoked = (event: CustomEvent<{ documentId: string; timestamp: number; message: string }>) => {
+    const handlePermissionRevoked = (
+      event: CustomEvent<{ documentId: string; timestamp: number; message: string }>,
+    ) => {
       const data = event.detail;
       if (data.documentId !== documentId) return;
 
@@ -273,7 +275,9 @@ export default function DocumentPage() {
             userId = user.userId || '';
           }
 
-          const { data: permData, error } = await documentsApi.getCurrentPermission(documentId, { userId });
+          const { data: permData, error } = await documentsApi.getCurrentPermission(documentId, {
+            userId,
+          });
 
           if (error) {
             console.error('权限刷新失败:', error);
@@ -302,10 +306,16 @@ export default function DocumentPage() {
       })();
     };
 
-    window.addEventListener('document:permission_revoked', handlePermissionRevoked as EventListener);
+    window.addEventListener(
+      'document:permission_revoked',
+      handlePermissionRevoked as EventListener,
+    );
 
     return () => {
-      window.removeEventListener('document:permission_revoked', handlePermissionRevoked as EventListener);
+      window.removeEventListener(
+        'document:permission_revoked',
+        handlePermissionRevoked as EventListener,
+      );
     };
   }, [documentId]);
 
@@ -569,7 +579,7 @@ export default function DocumentPage() {
   }, [editor, isPanelOpen, closePanel]);
 
   // 编辑器内复制：写入 text/html + text/plain（与 ProseMirror 序列化一致），避免只写纯文本导致粘贴丢失格式
-  // 不再写入 text/json 整篇文档，否则会触发 JsonPaste 覆盖整篇内容
+  // 不再写入 text/json 整篇文档，避免粘贴时错误覆盖整篇内容
   useEffect(() => {
     if (!editor) return;
 

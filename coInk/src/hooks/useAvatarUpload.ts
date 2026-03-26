@@ -1,17 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toastError } from '@/utils/toast';
 
-import { useUpdateUserMutation, userQueryKeys } from './useUserQuery';
+import { getLocalUserData, userQueryKeys } from './useUserQuery';
 
 import { formatFileSize } from '@/utils/format/file-size';
 import { uploadService } from '@/services/upload';
 import type { User } from '@/services/users/types';
+import { toastError } from '@/utils/toast';
 
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
 export function useAvatarUpload() {
   const queryClient = useQueryClient();
-  const updateUserMutation = useUpdateUserMutation();
 
   return useMutation({
     mutationFn: async (file: File) => {
@@ -25,15 +24,9 @@ export function useAvatarUpload() {
       }
 
       // 上传图片获取URL
-      const imageUrl = await uploadService.uploadImage(file);
+      const imageUrl = await uploadService.uploadAvatar(file);
 
-      // 获取当前用户ID
-      const user = queryClient.getQueryData<User>(userQueryKeys.profile());
-      if (!user?.userId) {
-        throw new Error('用户未登录');
-      }
-
-      return { imageUrl, userId: user.userId };
+      return { imageUrl };
     },
     onMutate: async (file) => {
       // 创建预览URL进行乐观更新
@@ -43,7 +36,8 @@ export function useAvatarUpload() {
       await queryClient.cancelQueries({ queryKey: userQueryKeys.profile() });
 
       // 获取当前用户数据
-      const previousUser = queryClient.getQueryData<User>(userQueryKeys.profile());
+      const previousUser =
+        queryClient.getQueryData<User>(userQueryKeys.profile()) ?? getLocalUserData(queryClient);
 
       // 乐观更新 - 立即显示预览
       if (previousUser) {
@@ -61,8 +55,16 @@ export function useAvatarUpload() {
         URL.revokeObjectURL(context.previewUrl);
       }
 
-      // 更新真实的头像URL
-      await updateUserMutation.mutateAsync({ userId: data.userId, avatarUrl: data.imageUrl });
+      // 后端 upload/avatar 已写库，这里同步前端缓存与本地存储
+      queryClient.setQueriesData<User | undefined>({ queryKey: userQueryKeys.profile() }, (old) =>
+        old ? { ...old, avatarUrl: data.imageUrl } : old,
+      );
+
+      const local = getLocalUserData(queryClient);
+      if (local) {
+        const nextLocal = { ...local, avatarUrl: data.imageUrl };
+        localStorage.setItem('cached_user_profile', JSON.stringify(nextLocal));
+      }
     },
     onError: (error, file, context) => {
       // 清理预览URL

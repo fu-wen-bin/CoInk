@@ -4,7 +4,7 @@ import { createContext, useContext, ReactNode, useEffect } from 'react';
 import { Socket } from 'socket.io-client';
 
 import { useNotificationSocket } from '@/hooks/ws/useNotificationSocket';
-import { OnlineUser, PodcastEvent } from '@/types/ws';
+import { OnlineUser } from '@/types/ws';
 
 // 定义 Context 类型
 interface NotificationSocketContextType {
@@ -17,9 +17,6 @@ interface NotificationSocketContextType {
   currentUser: { id: string; name: string } | null;
   onlineUsers: OnlineUser[];
 
-  // 播客 ai 事件
-  podcastTasks: Map<string, PodcastEvent>;
-
   // 服务器和认证信息
   serverUrl?: string;
   token: string | null;
@@ -30,8 +27,6 @@ interface NotificationSocketContextType {
   sendPing: () => void;
   getOnlineUsers: () => void;
   reset: () => void;
-  removeCompletedTask: (jobId: string) => void;
-  clearCompletedTasks: () => void;
 
   // 工具函数
   isValidToken: () => boolean;

@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Edit2, Plus, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 
-import { friendService } from '@/services/friend';
-import type { Friend } from '@/services/friend/types';
 import { groupsApi } from '@/services/groups';
 import type { Group, GroupMember } from '@/services/groups/types';
+import { UserApi } from '@/services/users';
+import type { User } from '@/services/users/types';
 import { toastError, toastSuccess } from '@/utils/toast';
 
 const getCurrentUserId = (): string => {
@@ -23,8 +23,8 @@ const getCurrentUserId = (): string => {
 export default function GroupsPage() {
   const [userId, setUserId] = useState('');
   const [ownedGroups, setOwnedGroups] = useState<Group[]>([]);
-  const [joinedGroups, setJoinedGroups] = useState<Group[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
+  const [userSearchResults, setUserSearchResults] = useState<User[]>([]);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
@@ -35,34 +35,40 @@ export default function GroupsPage() {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
-  const [friendKeyword, setFriendKeyword] = useState('');
+  const [userKeyword, setUserKeyword] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
   useEffect(() => {
     setUserId(getCurrentUserId());
   }, []);
 
+  const resolveUserId = useCallback((): string => {
+    if (userId) return userId;
+    const fallbackId = getCurrentUserId();
+    if (fallbackId) setUserId(fallbackId);
+    return fallbackId;
+  }, [userId]);
+
   const loadBaseData = useCallback(async () => {
-    if (!userId) return;
+    const effectiveUserId = resolveUserId();
+    if (!effectiveUserId) return;
     setLoading(true);
-    const [ownedRes, joinedRes, friendRes] = await Promise.all([
-      groupsApi.getOwnedGroups(userId),
-      groupsApi.getMyGroups(userId),
-      friendService.getFriendList(userId),
-    ]);
+    const ownedRes = await groupsApi.getOwnedGroups(effectiveUserId);
     setLoading(false);
 
     if (ownedRes.error) toastError(ownedRes.error);
-    if (joinedRes.error) toastError(joinedRes.error);
-    if (friendRes.error) toastError(friendRes.error);
 
     setOwnedGroups(ownedRes.data?.data?.groups ?? []);
-    setJoinedGroups(joinedRes.data?.data?.groups ?? []);
-    setFriends(friendRes.data?.data ?? []);
-  }, [userId]);
+  }, [resolveUserId]);
 
   const loadMembers = useCallback(async () => {
     if (!selectedGroup) {
+      setMembers([]);
+      return;
+    }
+    // Optimistic groups are local placeholders; skip remote member lookup.
+    if (selectedGroup.groupId.startsWith('temp_')) {
       setMembers([]);
       return;
     }
@@ -73,7 +79,8 @@ export default function GroupsPage() {
       toastError(res.error);
       return;
     }
-    setMembers(res.data?.data?.members ?? []);
+    const payload = res.data?.data;
+    setMembers(Array.isArray(payload) ? payload : (payload?.members ?? []));
   }, [selectedGroup]);
 
   useEffect(() => {
@@ -84,16 +91,85 @@ export default function GroupsPage() {
     void loadMembers();
   }, [loadMembers]);
 
+  useEffect(() => {
+    const canManageGroup = selectedGroup?.ownerId === userId;
+    if (!canManageGroup || !selectedGroup) {
+      setUserSearchResults([]);
+      return;
+    }
+
+    const keyword = userKeyword.trim();
+    if (!keyword) {
+      setUserSearchResults([]);
+      return;
+    }
+
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      const { data, error } = await UserApi.searchUsers({ q: keyword });
+      if (error) {
+        toastError(error);
+        return;
+      }
+      setUserSearchResults(data?.data ?? []);
+    }, 350);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [selectedGroup, userId, userKeyword]);
+
   const createGroup = async () => {
+    const effectiveUserId = resolveUserId();
+    if (!effectiveUserId) {
+      toastError('请先登录后再创建分组');
+      return;
+    }
     const name = createName.trim();
-    if (!name) return;
-    const res = await groupsApi.createGroup({ name, ownerId: userId });
+    if (!name) {
+      toastError('请输入分组名称');
+      return;
+    }
+
+    setCreatingGroup(true);
+
+    const tempGroupId = `temp_${Date.now()}`;
+    const tempGroup: Group = {
+      groupId: tempGroupId,
+      name,
+      ownerId: effectiveUserId,
+      createdAt: new Date().toISOString(),
+      memberCount: 0,
+    };
+
+    setOwnedGroups((prev) => [tempGroup, ...prev]);
+    setCreateName('');
+
+    const res = await groupsApi.createGroup({ name, ownerId: effectiveUserId });
+    setCreatingGroup(false);
+
     if (res.error) {
+      setOwnedGroups((prev) => prev.filter((group) => group.groupId !== tempGroupId));
+      setSelectedGroup((prev) => (prev?.groupId === tempGroupId ? null : prev));
       toastError(res.error);
       return;
     }
+
+    const createdGroup = res.data?.data;
+    if (createdGroup) {
+      setOwnedGroups((prev) => [
+        createdGroup,
+        ...prev.filter((group) => group.groupId !== tempGroupId),
+      ]);
+      setSelectedGroup(createdGroup);
+    }
+
     toastSuccess('分组已创建');
-    setCreateName('');
     void loadBaseData();
   };
 
@@ -155,20 +231,21 @@ export default function GroupsPage() {
   };
 
   const memberIds = useMemo(() => new Set(members.map((m) => m.userId)), [members]);
-  const searchableFriends = useMemo(() => {
-    const q = friendKeyword.trim().toLowerCase();
-    return friends.filter((f) => {
-      if (memberIds.has(f.userId)) return false;
-      if (!q) return true;
-      return (
-        f.name.toLowerCase().includes(q) ||
-        f.userId.toLowerCase().includes(q) ||
-        (f.email ? f.email.toLowerCase().includes(q) : false)
-      );
-    });
-  }, [friendKeyword, friends, memberIds]);
-
+  const visibleMembers = members;
   const isOwner = selectedGroup?.ownerId === userId;
+  const searchableUsers = useMemo(
+    () =>
+      userSearchResults.filter(
+        (candidate) => !memberIds.has(candidate.userId) && candidate.userId !== userId,
+      ),
+    [memberIds, userId, userSearchResults],
+  );
+  const toDisplayMemberCount = (group: Group) => {
+    if (selectedGroup?.groupId === group.groupId && members.length > 0) {
+      return members.length;
+    }
+    return group.memberCount ?? 0;
+  };
 
   return (
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
@@ -186,15 +263,16 @@ export default function GroupsPage() {
           <button
             type="button"
             onClick={() => void createGroup()}
-            className="inline-flex h-10 items-center gap-1 rounded-lg bg-blue-600 px-3 text-sm text-white hover:bg-blue-700"
+            disabled={creatingGroup}
+            className="inline-flex h-10 items-center gap-1 rounded-lg bg-blue-600 px-3 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            <Plus className="h-4 w-4" /> 新建
+            <Plus className="h-4 w-4" /> {creatingGroup ? '创建中...' : '新建'}
           </button>
         </div>
 
         <div className="mt-5 space-y-3">
           <div>
-            <p className="mb-2 text-xs font-medium text-gray-500">我管理的分组</p>
+            <p className="mb-2 text-xs font-medium text-gray-500">我的分组</p>
             <div className="space-y-2">
               {ownedGroups.map((group) => (
                 <div
@@ -231,7 +309,7 @@ export default function GroupsPage() {
                         className="min-w-0 text-left"
                       >
                         <p className="truncate text-sm font-medium text-gray-800">{group.name}</p>
-                        <p className="text-xs text-gray-500">{group.memberCount ?? 0} 成员</p>
+                        <p className="text-xs text-gray-500">{toDisplayMemberCount(group)} 成员</p>
                       </button>
                       <div className="flex gap-1">
                         <button
@@ -259,29 +337,7 @@ export default function GroupsPage() {
                 </div>
               ))}
               {!loading && ownedGroups.length === 0 && (
-                <p className="text-xs text-gray-500">暂无你创建的分组</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-xs font-medium text-gray-500">我加入的分组</p>
-            <div className="space-y-2">
-              {joinedGroups.map((group) => (
-                <button
-                  key={group.groupId}
-                  type="button"
-                  onClick={() => setSelectedGroup(group)}
-                  className={`w-full rounded-lg border p-3 text-left ${selectedGroup?.groupId === group.groupId ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}
-                >
-                  <p className="truncate text-sm font-medium text-gray-800">{group.name}</p>
-                  <p className="text-xs text-gray-500">
-                    所有者：{group.ownerName ?? group.ownerId}
-                  </p>
-                </button>
-              ))}
-              {!loading && joinedGroups.length === 0 && (
-                <p className="text-xs text-gray-500">暂无加入的分组</p>
+                <p className="text-xs text-gray-500">暂无分组，请创建一个</p>
               )}
             </div>
           </div>
@@ -298,7 +354,7 @@ export default function GroupsPage() {
           <>
             <div className="mb-4 border-b border-gray-100 pb-3">
               <h3 className="text-lg font-semibold text-gray-900">{selectedGroup.name}</h3>
-              <p className="text-xs text-gray-500">成员 {members.length}</p>
+              <p className="text-xs text-gray-500">成员 {visibleMembers.length}</p>
             </div>
 
             {isOwner && (
@@ -306,25 +362,40 @@ export default function GroupsPage() {
                 <div className="relative mb-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
-                    value={friendKeyword}
-                    onChange={(e) => setFriendKeyword(e.target.value)}
-                    placeholder="搜索好友添加到分组"
+                    value={userKeyword}
+                    onChange={(e) => setUserKeyword(e.target.value)}
+                    placeholder="搜索用户添加到分组"
                     className="h-9 w-full rounded-md border border-gray-300 px-9 text-sm outline-none focus:border-blue-500"
                   />
                 </div>
                 <div className="max-h-40 space-y-2 overflow-y-auto">
-                  {searchableFriends.slice(0, 12).map((f) => (
+                  {searchableUsers.slice(0, 12).map((candidate) => (
                     <div
-                      key={f.userId}
-                      className="flex items-center justify-between rounded-md border border-gray-100 px-2 py-2"
+                      key={candidate.userId}
+                      className="flex w-full items-center justify-between rounded-md border border-gray-100 px-2 py-2"
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-gray-800">{f.name}</p>
-                        <p className="truncate text-xs text-gray-500">{f.email ?? f.userId}</p>
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        {candidate.avatarUrl ? (
+                          <img
+                            src={candidate.avatarUrl}
+                            alt={candidate.name ?? candidate.userId}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
+                            {(candidate.name ?? candidate.userId).slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-gray-800">{candidate.name}</p>
+                          <p className="truncate text-xs text-gray-500">
+                            {candidate.email ?? candidate.userId}
+                          </p>
+                        </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => void addMember(f.userId)}
+                        onClick={() => void addMember(candidate.userId)}
                         disabled={addingMember}
                         className="inline-flex h-7 items-center gap-1 rounded bg-blue-600 px-2 text-xs text-white hover:bg-blue-700 disabled:opacity-60"
                       >
@@ -332,8 +403,11 @@ export default function GroupsPage() {
                       </button>
                     </div>
                   ))}
-                  {searchableFriends.length === 0 && (
-                    <p className="text-xs text-gray-500">没有可添加的好友</p>
+                  {userKeyword.trim() && searchableUsers.length === 0 && (
+                    <p className="text-xs text-gray-500">没有可添加的用户</p>
+                  )}
+                  {!userKeyword.trim() && (
+                    <p className="text-xs text-gray-500">输入用户名或邮箱搜索全站用户</p>
                   )}
                 </div>
               </div>
@@ -341,10 +415,10 @@ export default function GroupsPage() {
 
             <div className="space-y-2">
               {membersLoading && <p className="text-sm text-gray-500">成员加载中...</p>}
-              {!membersLoading && members.length === 0 && (
+              {!membersLoading && visibleMembers.length === 0 && (
                 <p className="text-sm text-gray-500">暂无成员</p>
               )}
-              {members.map((member) => (
+              {visibleMembers.map((member) => (
                 <div
                   key={member.userId}
                   className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"

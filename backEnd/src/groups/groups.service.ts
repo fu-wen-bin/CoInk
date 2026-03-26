@@ -41,27 +41,6 @@ export class GroupsService {
   }
 
   /**
-   * 获取用户的所有权限组
-   */
-  async findByUser(userId: string): Promise<Group[]> {
-    // 获取用户作为成员的组
-    const memberships = await this.prisma.group_members.findMany({
-      where: { user_id: userId },
-    });
-
-    const groupIds = memberships.map((m) => m.group_id);
-
-    const groups = await this.prisma.groups.findMany({
-      where: {
-        group_id: { in: groupIds },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    return groups.map((g) => this.mapToGroup(g));
-  }
-
-  /**
    * 获取用户拥有的权限组
    */
   async findByOwner(ownerId: string): Promise<Group[]> {

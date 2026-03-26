@@ -1,14 +1,11 @@
 'use client';
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Copy,
   Globe,
   Link2,
   MessageCircle,
@@ -21,7 +18,6 @@ import {
 
 import { documentsApi } from '@/services/documents';
 import type { DocumentPrincipalItem, PermissionLevel } from '@/services/documents/types';
-import { friendService } from '@/services/friend';
 import { groupsApi } from '@/services/groups';
 import type { GroupMember } from '@/services/groups/types';
 import { UserApi } from '@/services/users';
@@ -33,6 +29,7 @@ type ShareDialogVariant = 'dropdown' | 'modal';
 type GroupOption = {
   groupId: string;
   name: string;
+  ownerId?: string;
 };
 
 type PermissionTarget = {
@@ -92,8 +89,10 @@ export default function ShareDialog({
     null,
   );
   const [selectedUsers, setSelectedUsers] = useState<PermissionTarget[]>([]);
+  const [selectedUserLookup, setSelectedUserLookup] = useState<
+    Record<string, { name: string; avatarUrl?: string | null }>
+  >({});
   const [selectedGroups, setSelectedGroups] = useState<PermissionTarget[]>([]);
-  const [friends, setFriends] = useState<Array<{ userId: string; name: string }>>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [principals, setPrincipals] = useState<DocumentPrincipalItem[]>([]);
 
@@ -117,7 +116,6 @@ export default function ShareDialog({
   const [principalPermissionDraft, setPrincipalPermissionDraft] = useState<
     Record<string, PermissionLevel>
   >({});
-  const [principalSavingKey, setPrincipalSavingKey] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -138,29 +136,38 @@ export default function ShareDialog({
 
   const selectedCount = selectedUsers.length + selectedGroups.length;
   const canManage = currentPermission === 'manage';
-  const availableFriendIds = useMemo(() => friends.map((item) => item.userId), [friends]);
-  const availableGroupIds = useMemo(() => groups.map((item) => item.groupId), [groups]);
+  const manageableGroups = useMemo(
+    () => groups.filter((item) => item.ownerId === currentUserId),
+    [currentUserId, groups],
+  );
+  const joinedGroups = useMemo(
+    () => groups.filter((item) => item.ownerId !== currentUserId),
+    [currentUserId, groups],
+  );
+  const filteredGroups = useMemo(
+    () =>
+      groups.filter((g) =>
+        groupSearchKeyword.trim()
+          ? g.name.toLowerCase().includes(groupSearchKeyword.trim().toLowerCase())
+          : true,
+      ),
+    [groupSearchKeyword, groups],
+  );
+  const activeGroup = useMemo(
+    () => groups.find((item) => item.groupId === activeGroupId) ?? null,
+    [activeGroupId, groups],
+  );
   const selectedUsersMeta = useMemo(() => {
-    const friendMap = new Map(
-      friends.map((item) => [item.userId, { name: item.name, avatarUrl: null }]),
-    );
-    const searchMap = new Map(
-      userSearchResults.map((item) => [
-        item.userId,
-        { name: item.name, avatarUrl: item.avatarUrl ?? null },
-      ]),
-    );
     return selectedUsers.map((target) => {
-      const fromFriend = friendMap.get(target.targetId);
-      const fromSearch = searchMap.get(target.targetId);
+      const fromLookup = selectedUserLookup[target.targetId];
       return {
         userId: target.targetId,
-        name: fromFriend?.name ?? fromSearch?.name ?? target.targetId,
-        avatarUrl: fromSearch?.avatarUrl ?? null,
+        name: fromLookup?.name ?? target.targetId,
+        avatarUrl: fromLookup?.avatarUrl ?? null,
         permission: target.permission,
       };
     });
-  }, [friends, selectedUsers, userSearchResults]);
+  }, [selectedUserLookup, selectedUsers]);
   const selectedGroupsMeta = useMemo(() => {
     const groupMap = new Map(groups.map((item) => [item.groupId, item.name]));
     return selectedGroups.map((target) => ({
@@ -181,7 +188,6 @@ export default function ShareDialog({
         setCurrentPermission(null);
         setPrincipals([]);
         setGroups([]);
-        setFriends([]);
         return;
       }
 
@@ -195,10 +201,8 @@ export default function ShareDialog({
       setCurrentPermission(resolvedPermission);
 
       if (resolvedPermission === 'manage') {
-        const [principalRes, friendRes, myGroupsRes, ownedGroupsRes] = await Promise.all([
+        const [principalRes, ownedGroupsRes] = await Promise.all([
           documentsApi.getPrincipals(docId, uid),
-          friendService.getFriendList(uid),
-          groupsApi.getMyGroups(uid),
           groupsApi.getOwnedGroups(uid),
         ]);
 
@@ -223,27 +227,21 @@ export default function ShareDialog({
           }
         }
 
-        if (!friendRes.error) {
-          const list = friendRes.data?.data ?? [];
-          setFriends(list.map((item) => ({ userId: item.userId, name: item.name })));
-        }
-
-        const mergeGroups = [
-          ...(myGroupsRes.data?.data?.groups ?? []),
-          ...(ownedGroupsRes.data?.data?.groups ?? []),
-        ];
-        const unique = new Map<string, GroupOption>();
-        for (const item of mergeGroups) {
-          unique.set(item.groupId, { groupId: item.groupId, name: item.name });
-        }
-        setGroups(Array.from(unique.values()));
+        const groups = ownedGroupsRes.data?.data?.groups ?? [];
+        setGroups(
+          groups.map((item) => ({
+            groupId: item.groupId,
+            name: item.name,
+            ownerId: item.ownerId,
+          })),
+        );
       } else {
         setPrincipals([]);
         setSelectedUsers([]);
         setSelectedGroups([]);
+        setActiveGroupId('');
         setGroupMembers([]);
         setGroups([]);
-        setFriends([]);
       }
 
       if (!docRes.error) {
@@ -317,7 +315,24 @@ export default function ShareDialog({
     setShowUserDropdown(false);
     setUserInput('');
     setGroupSearchKeyword('');
+    setActiveGroupId('');
+    setGroupMembers([]);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (view !== 'invite') return;
+    if (groups.length === 0) {
+      setActiveGroupId('');
+      setGroupMembers([]);
+      return;
+    }
+
+    if (!activeGroupId || !groups.some((item) => item.groupId === activeGroupId)) {
+      const nextGroupId = groups[0].groupId;
+      setActiveGroupId(nextGroupId);
+      void loadGroupMembers(nextGroupId);
+    }
+  }, [activeGroupId, groups, view]);
 
   useEffect(() => {
     const draft: Record<string, PermissionLevel> = {};
@@ -367,22 +382,30 @@ export default function ShareDialog({
       const { data } = await UserApi.searchUsers({ q: value });
       if (data?.data) {
         const selectedIds = new Set(selectedUsers.map((item) => item.targetId));
-        const results = data.data.filter((u) => !selectedIds.has(u.userId));
+        const principalUserIds = new Set(
+          principals
+            .filter((item) => item.principalType === 'user')
+            .map((item) => item.principalId),
+        );
+        const results = data.data.filter(
+          (u) =>
+            !selectedIds.has(u.userId) &&
+            !principalUserIds.has(u.userId) &&
+            u.userId !== currentUserId,
+        );
         setUserSearchResults(results);
+        setSelectedUserLookup((prev) => {
+          const next = { ...prev };
+          results.forEach((user) => {
+            next[user.userId] = {
+              name: user.name,
+              avatarUrl: user.avatarUrl ?? null,
+            };
+          });
+          return next;
+        });
       }
     }, 500);
-  };
-
-  const selectUser = (userId: string) => {
-    setSelectedUsers((prev) => {
-      if (prev.some((item) => item.targetId === userId)) {
-        return prev;
-      }
-      return [...prev, { targetId: userId, permission: 'edit' }];
-    });
-    setUserInput('');
-    setUserSearchResults([]);
-    setShowUserDropdown(false);
   };
 
   const selectGroup = (groupId: string) => {
@@ -467,7 +490,11 @@ export default function ShareDialog({
       const { data } = await UserApi.searchUsers({ q: value });
       if (data?.data) {
         const existingIds = new Set(groupMembers.map((member) => member.userId));
-        setMemberSearchResults(data.data.filter((user) => !existingIds.has(user.userId)));
+        setMemberSearchResults(
+          data.data.filter(
+            (user) => !existingIds.has(user.userId) && user.userId !== currentUserId,
+          ),
+        );
       }
     }, 400);
   };
@@ -544,7 +571,6 @@ export default function ShareDialog({
     const key = principalKeyOf(item);
     const nextPermission = principalPermissionDraft[key] ?? item.permission;
 
-    setPrincipalSavingKey(key);
     const { error } = await documentsApi.batchUpsertPermissions(docId, {
       sendNotification: false,
       userTargets:
@@ -556,8 +582,6 @@ export default function ShareDialog({
           ? [{ targetId: item.principalId, permission: nextPermission }]
           : [],
     });
-    setPrincipalSavingKey('');
-
     if (error) {
       toastError(error);
       return;
@@ -589,36 +613,6 @@ export default function ShareDialog({
       ),
     );
     toastSuccess('已移除权限');
-  };
-
-  const applyBatchPermissions = async () => {
-    if (!currentUserId) {
-      toastError('请先登录');
-      return;
-    }
-
-    if (selectedCount === 0) {
-      toastError('请先添加用户或用户组');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await documentsApi.batchUpsertPermissions(docId, {
-      sendNotification,
-      userTargets: selectedUsers,
-      groupTargets: selectedGroups,
-    });
-    setLoading(false);
-
-    if (error) {
-      toastError(error);
-      return;
-    }
-
-    await refreshPrincipals();
-    setSelectedUsers([]);
-    setSelectedGroups([]);
-    toastSuccess('权限设置成功');
   };
 
   const applyLinkPermission = async () => {
@@ -661,7 +655,17 @@ export default function ShareDialog({
     toastSuccess('链接已复制');
   };
 
-  const selectPendingUser = (user: { userId: string; name: string }) => {
+  const selectPendingUser = (user: {
+    userId: string;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  }) => {
+    if (user.userId === currentUserId) {
+      toastError('不能添加自己为协作者');
+      return;
+    }
+
     if (principals.some((p) => p.principalId === user.userId)) {
       toastError('该用户已经是协作者');
       return;
@@ -671,6 +675,13 @@ export default function ShareDialog({
       if (prev.some((item) => item.targetId === user.userId)) return prev;
       return [...prev, { targetId: user.userId, permission: 'edit' }];
     });
+    setSelectedUserLookup((prev) => ({
+      ...prev,
+      [user.userId]: {
+        name: user.name || user.userId,
+        avatarUrl: user.avatarUrl ?? null,
+      },
+    }));
 
     setUserInput('');
     setUserSearchResults([]);
@@ -680,7 +691,7 @@ export default function ShareDialog({
 
   const confirmAddUser = async () => {
     if (selectedCount === 0) {
-      toastError('请至少选择一个好友或分组');
+      toastError('请至少选择一个用户或分组');
       return;
     }
 
@@ -1035,64 +1046,247 @@ export default function ShareDialog({
 
       {view === 'invite' && (
         <div className="p-5">
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-xs font-medium text-slate-500">搜索好友</label>
-              <div className="relative">
-                <input
-                  value={userInput}
-                  onChange={(e) => handleUserSearch(e.target.value)}
-                  placeholder="输入好友用户名/邮箱"
-                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  autoFocus
-                />
-                {showUserDropdown && userSearchResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                    {userSearchResults.map((user) => (
-                      <button
-                        key={user.userId}
-                        onClick={() => selectPendingUser(user)}
-                        className="flex w-full items-center gap-3 px-4 py-2 hover:bg-slate-50"
-                      >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-violet-700">
-                          {user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full" />
-                          ) : (
-                            user.name.slice(0, 1)
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <div className="text-sm font-medium text-slate-900">{user.name}</div>
-                          <div className="text-xs text-slate-500">{user.email ?? user.userId}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-medium text-slate-500">搜索分组</label>
+          <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+            <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+              <label className="block text-xs font-medium text-slate-500">搜索分组</label>
               <input
                 value={groupSearchKeyword}
                 onChange={(e) => setGroupSearchKeyword(e.target.value)}
                 placeholder="输入分组名称"
-                className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <div className="mt-2 max-h-32 space-y-2 overflow-y-auto">
-                {groups
-                  .filter((g) =>
-                    groupSearchKeyword.trim()
-                      ? g.name.toLowerCase().includes(groupSearchKeyword.trim().toLowerCase())
-                      : true,
-                  )
-                  .slice(0, 8)
-                  .map((group) => {
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-slate-500">我管理的分组</p>
+                <div className="max-h-40 space-y-2 overflow-y-auto">
+                  {filteredGroups
+                    .filter((item) => item.ownerId === currentUserId)
+                    .map((group) => {
+                      const selected = selectedGroups.some(
+                        (item) => item.targetId === group.groupId,
+                      );
+                      return (
+                        <button
+                          key={group.groupId}
+                          type="button"
+                          onClick={() => {
+                            setActiveGroupId(group.groupId);
+                            void loadGroupMembers(group.groupId);
+                          }}
+                          className={`w-full rounded-md border px-3 py-2 text-left ${activeGroupId === group.groupId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <p className="truncate text-sm text-slate-700">{group.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {selected ? '已加入待授权' : '可授权分组'}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  {manageableGroups.length === 0 && (
+                    <p className="text-xs text-slate-400">暂无你管理的分组</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-slate-500">我加入的分组</p>
+                <div className="max-h-32 space-y-2 overflow-y-auto">
+                  {filteredGroups
+                    .filter((item) => item.ownerId !== currentUserId)
+                    .map((group) => {
+                      const selected = selectedGroups.some(
+                        (item) => item.targetId === group.groupId,
+                      );
+                      return (
+                        <button
+                          key={group.groupId}
+                          type="button"
+                          onClick={() => {
+                            setActiveGroupId(group.groupId);
+                            void loadGroupMembers(group.groupId);
+                          }}
+                          className={`w-full rounded-md border px-3 py-2 text-left ${activeGroupId === group.groupId ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <p className="truncate text-sm text-slate-700">{group.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {selected ? '已加入待授权' : '可授权分组'}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  {joinedGroups.length === 0 && (
+                    <p className="text-xs text-slate-400">暂无已加入分组</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-500">搜索用户</label>
+                <div className="relative">
+                  <input
+                    value={userInput}
+                    onChange={(e) => handleUserSearch(e.target.value)}
+                    placeholder="输入用户名/邮箱"
+                    className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  {showUserDropdown && userSearchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {userSearchResults.map((user) => (
+                        <button
+                          key={user.userId}
+                          onClick={() => selectPendingUser(user)}
+                          className="flex w-full items-center gap-3 px-4 py-2 hover:bg-slate-50"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full" />
+                            ) : (
+                              user.name.slice(0, 1)
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-sm font-medium text-slate-900">{user.name}</div>
+                            <div className="text-xs text-slate-500">
+                              {user.email ?? user.userId}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-500">分组成员管理</p>
+                  {activeGroup ? (
+                    <p className="text-xs text-slate-500">当前分组：{activeGroup.name}</p>
+                  ) : null}
+                </div>
+
+                <div className="relative mb-3">
+                  <input
+                    value={memberUserInput}
+                    onChange={(e) => handleMemberSearch(e.target.value)}
+                    placeholder="在当前分组中搜索用户添加"
+                    disabled={!activeGroupId}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  />
+                  {showMemberDropdown && memberSearchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {memberSearchResults.map((user) => (
+                        <div
+                          key={user.userId}
+                          className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-slate-800">{user.name}</p>
+                            <p className="truncate text-xs text-slate-500">
+                              {user.email ?? user.userId}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void addMemberToActiveGroup(user.userId)}
+                            className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+                          >
+                            添加
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="max-h-44 space-y-2 overflow-y-auto">
+                  {groupMembers.map((member) => {
+                    const isOwner = member.isOwner || member.userId === activeGroup?.ownerId;
+                    const draftPermission = memberPermissionDraft[member.userId] ?? 'inherit';
+                    const effectivePermission = memberEffectivePermission[member.userId] ?? null;
+                    const effectiveSource = memberEffectiveSource[member.userId] ?? null;
+                    return (
+                      <div
+                        key={member.userId}
+                        className="rounded-md border border-slate-100 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-slate-800">
+                              {member.name ?? member.userId}
+                              {isOwner ? '（所有者）' : ''}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {member.email ?? member.userId}
+                            </p>
+                          </div>
+                          {!isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => void removeMemberFromActiveGroup(member.userId)}
+                              className="rounded p-1 text-rose-600 hover:bg-rose-50"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <select
+                            value={draftPermission}
+                            onChange={(e) =>
+                              setMemberPermissionDraft((prev) => ({
+                                ...prev,
+                                [member.userId]: e.target.value as PermissionLevel | 'inherit',
+                              }))
+                            }
+                            className="rounded border border-slate-300 px-2 py-1 text-xs"
+                          >
+                            <option value="inherit">继承分组</option>
+                            {PERMISSIONS.map((p) => (
+                              <option key={p} value={p}>
+                                {PERMISSION_LABELS[p]}
+                              </option>
+                            ))}
+                          </select>
+                          {!isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => void saveMemberPermission(member.userId)}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              保存权限
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          当前生效：
+                          {effectivePermission ? PERMISSION_LABELS[effectivePermission] : '无'}
+                          {' · 来源：'}
+                          {formatPermissionSource(effectiveSource)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  {activeGroupId && groupMembers.length === 0 && (
+                    <p className="text-xs text-slate-400">当前分组暂无成员</p>
+                  )}
+                  {!activeGroupId && <p className="text-xs text-slate-400">请先在左侧选择分组</p>}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-500">
+                  授权当前分组
+                </label>
+                <div className="max-h-28 space-y-2 overflow-y-auto">
+                  {filteredGroups.slice(0, 10).map((group) => {
                     const selected = selectedGroups.some((item) => item.targetId === group.groupId);
                     return (
                       <button
-                        key={group.groupId}
+                        key={`grant:${group.groupId}`}
                         type="button"
                         onClick={() => selectGroup(group.groupId)}
                         className="flex w-full items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
@@ -1102,6 +1296,7 @@ export default function ShareDialog({
                       </button>
                     );
                   })}
+                </div>
               </div>
             </div>
 
@@ -1112,7 +1307,7 @@ export default function ShareDialog({
                   <div key={`u:${item.userId}`} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm text-slate-800">{item.name}</p>
-                      <p className="text-xs text-slate-500">好友</p>
+                      <p className="text-xs text-slate-500">用户</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <select

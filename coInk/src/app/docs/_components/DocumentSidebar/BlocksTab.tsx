@@ -153,20 +153,6 @@ const BlocksTab = () => {
       category: 'data',
     },
     {
-      icon: 'ChartColumnBig',
-      label: '图表',
-      description: '插入各种类型的图表',
-      blockType: 'chart',
-      category: 'data',
-    },
-    {
-      icon: 'LayoutDashboard',
-      label: '多列布局',
-      description: '创建多列内容布局',
-      blockType: 'columns',
-      category: 'layout',
-    },
-    {
       icon: 'DividerOutlined',
       label: '分割线',
       description: '添加水平分割线',
@@ -178,13 +164,6 @@ const BlocksTab = () => {
       label: '任务列表',
       description: '创建可勾选的任务列表',
       blockType: 'todolist',
-      category: 'interactive',
-    },
-    {
-      icon: 'Calendar',
-      label: '日历',
-      description: '插入日历组件',
-      blockType: 'calendar',
       category: 'interactive',
     },
     {
@@ -200,14 +179,6 @@ const BlocksTab = () => {
       label: 'AI',
       description: '插入AI组件',
       blockType: 'ai',
-      category: 'interactive',
-    },
-    // 插入倒计时组件
-    {
-      icon: 'Timer',
-      label: '倒计时',
-      description: '插入倒计时组件',
-      blockType: 'countdown',
       category: 'interactive',
     },
   ];

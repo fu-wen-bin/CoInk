@@ -51,10 +51,15 @@ export interface UploadProgressInfo {
  * 图片上传返回的 data 结构
  */
 export interface UploadImageData {
-  fileUrl: string;
-  fileHash: string;
-  processedFileName: string;
-  originalMimeType: string;
-  processedMimeType: string;
-  imageKitFileId: string;
+  /** 新接口（OSS）返回字段 */
+  url?: string;
+  /** 旧接口兼容字段 */
+  fileUrl?: string;
+  fileHash?: string;
+  processedFileName?: string;
+  originalMimeType?: string;
+  processedMimeType?: string;
+  imageKitFileId?: string;
+  success?: boolean;
+  fileName?: string;
 }

@@ -48,18 +48,12 @@ export { ImageUpload } from './ImageUpload';
 export { ImageBlock } from './ImageBlock';
 export { TableImage } from './TableImage';
 export { Columns, Column } from './MultiColumn';
-export { emojiSuggestion } from './EmojiSuggestion';
 export { DraggableBlock } from './DraggableBlock';
 export { DragHandler } from './DragHandler';
-export { MarkdownPaste } from './MarkdownPaste';
-export { JsonPaste } from './JsonPaste';
 
 export { SelectOnlyCode } from './CodeBlock/SelectOnlyCode';
-export { Youtube } from './Youtube';
 export { ClearMarksOnEnter } from './ClearMarksOnEnter';
 export { ClearEmptyHeadingOnBackspace } from './ClearEmptyHeadingOnBackspace';
-export { Chart } from './Chart';
-export { Countdown } from './Countdown';
 export { Comment } from './Comment';
 export { Mention, mentionSuggestion, createMentionSuggestion, clearMentionCache } from './Mention';
 export type { MentionUser } from './Mention';

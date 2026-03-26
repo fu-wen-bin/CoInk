@@ -15,6 +15,13 @@ import request, { ErrorHandler } from '@/services/request';
 export class UploadService {
   private baseUrl = '/upload';
 
+  private resolveUploadedUrl(payload: UploadImageData | null | undefined): string | null {
+    if (!payload) return null;
+    if (typeof payload.url === 'string' && payload.url) return payload.url;
+    if (typeof payload.fileUrl === 'string' && payload.fileUrl) return payload.fileUrl;
+    return null;
+  }
+
   /**
    * 检查文件是否已存在（基于文件哈希）
    */
@@ -180,13 +187,13 @@ export class UploadService {
   }
 
   /**
-   * 上传图片或GIF
-   * @param file 要上传的图片文件
-   * @returns 图片URL字符串
+   * 上传头像
+   * @param file 要上传的头像文件
+   * @returns 头像URL字符串
    */
-  async uploadImage(file: File, errorHandler?: ErrorHandler): Promise<string> {
+  async uploadAvatar(file: File, errorHandler?: ErrorHandler): Promise<string> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('avatar', file);
 
     const result = await request.post<UploadImageData>(`${this.baseUrl}/avatar`, {
       params: formData,
@@ -198,11 +205,46 @@ export class UploadService {
         }),
     });
 
-    if (result.error || !result.data?.data?.fileUrl) {
+    const uploadedUrl = this.resolveUploadedUrl(result.data?.data);
+    if (result.error || !uploadedUrl) {
       throw new Error(result.error || '图片上传失败');
     }
 
-    return result.data.data.fileUrl;
+    return uploadedUrl;
+  }
+
+  /**
+   * 上传编辑器图片
+   * @param file 要上传的图片文件
+   * @returns 图片URL字符串
+   */
+  async uploadEditorImage(file: File, errorHandler?: ErrorHandler): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const result = await request.post<UploadImageData>(`${this.baseUrl}/editor-image`, {
+      params: formData,
+      timeout: 30000,
+      errorHandler:
+        errorHandler ||
+        ((error) => {
+          console.error('编辑器图片上传时出错:', error);
+        }),
+    });
+
+    const uploadedUrl = this.resolveUploadedUrl(result.data?.data);
+    if (result.error || !uploadedUrl) {
+      throw new Error(result.error || '图片上传失败');
+    }
+
+    return uploadedUrl;
+  }
+
+  /**
+   * 兼容旧调用：等价于 uploadEditorImage
+   */
+  async uploadImage(file: File, errorHandler?: ErrorHandler): Promise<string> {
+    return this.uploadEditorImage(file, errorHandler);
   }
 }
 

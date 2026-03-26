@@ -67,9 +67,11 @@ export class OssService {
    */
   async uploadBuffer(objectKey: string, buffer: Buffer, contentType: string): Promise<string> {
     const client = this.getClient();
+    const objectAcl = this.config.get<string>('OSS_OBJECT_ACL')?.trim() || 'public-read';
     const result = await client.put(objectKey, buffer, {
       headers: {
         'Content-Type': contentType,
+        'x-oss-object-acl': objectAcl,
       },
     });
 

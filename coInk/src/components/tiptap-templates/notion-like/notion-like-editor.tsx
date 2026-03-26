@@ -1,122 +1,94 @@
 'use client';
 
 import { useContext, useEffect } from 'react';
-import { EditorContent, EditorContext, useEditor, type Editor } from '@tiptap/react';
-import type { Doc as YDoc } from 'yjs';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
-import { createPortal } from 'react-dom';
-import { toastError } from '@/utils/toast';
-// --- Tiptap Core Extensions ---
-import { StarterKit } from '@tiptap/starter-kit';
-import { Mention } from '@tiptap/extension-mention';
-import { TaskList, TaskItem } from '@tiptap/extension-list';
-import { Color, TextStyle } from '@tiptap/extension-text-style';
-import { Selection } from '@tiptap/extensions';
-import { Collaboration, isChangeOrigin } from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
-import { Typography } from '@tiptap/extension-typography';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Superscript } from '@tiptap/extension-superscript';
-import { Subscript } from '@tiptap/extension-subscript';
-import { TextAlign } from '@tiptap/extension-text-align';
-import { Mathematics } from '@tiptap/extension-mathematics';
-import { UniqueID } from '@tiptap/extension-unique-id';
+import { Collaboration, isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Emoji, gitHubEmojis } from '@tiptap/extension-emoji';
+import { Highlight } from '@tiptap/extension-highlight';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { Mathematics } from '@tiptap/extension-mathematics';
+import { Mention } from '@tiptap/extension-mention';
+import { Subscript } from '@tiptap/extension-subscript';
+import { Superscript } from '@tiptap/extension-superscript';
 import { getHierarchicalIndexes, TableOfContents } from '@tiptap/extension-table-of-contents';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Color, TextStyle } from '@tiptap/extension-text-style';
+import { Typography } from '@tiptap/extension-typography';
+import { UniqueID } from '@tiptap/extension-unique-id';
+import { Selection } from '@tiptap/extensions';
+import { EditorContent, EditorContext, useEditor, type Editor } from '@tiptap/react';
+import { StarterKit } from '@tiptap/starter-kit';
+import { createPortal } from 'react-dom';
+import type { Doc as YDoc } from 'yjs';
 
-// --- Hooks ---
-import { useUiEditorState } from '@/hooks/use-ui-editor-state';
-import { useScrollToHash } from '@/components/tiptap-ui/copy-anchor-link-button/use-scroll-to-hash';
-// --- Custom Extensions ---
+import type { CollaborationUser } from '@/app/docs/_components/DocumentHeader/types';
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
-import { UiState } from '@/components/tiptap-extension/ui-state-extension';
-import { Image } from '@/components/tiptap-node/image-node/image-node-extension';
-import { NodeBackground } from '@/components/tiptap-extension/node-background-extension';
-import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
-import { TocNode } from '@/components/tiptap-node/toc-node/extensions/toc-node-extension';
-// --- Tiptap Node ---
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension';
-// --- Table Node ---
-import { TableKit } from '@/components/tiptap-node/table-node/extensions/table-node-extension';
+import { Image } from '@/components/tiptap-node/image-node/image-node-extension';
 import { TableHandleExtension } from '@/components/tiptap-node/table-node/extensions/table-handle';
-import { TableHandle } from '@/components/tiptap-node/table-node/ui/table-handle/table-handle';
-import { TableSelectionOverlay } from '@/components/tiptap-node/table-node/ui/table-selection-overlay';
+import { TableKit } from '@/components/tiptap-node/table-node/extensions/table-node-extension';
 import { TableCellHandleMenu } from '@/components/tiptap-node/table-node/ui/table-cell-handle-menu';
 import { TableExtendRowColumnButtons } from '@/components/tiptap-node/table-node/ui/table-extend-row-column-button';
-import '@/components/tiptap-node/table-node/styles/prosemirror-table.scss';
-import '@/components/tiptap-node/table-node/styles/table-node.scss';
-import '@/components/tiptap-node/blockquote-node/blockquote-node.scss';
-import '@/components/tiptap-node/code-block-node/code-block-node.scss';
-import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
-import '@/components/tiptap-node/list-node/list-node.scss';
-import '@/components/tiptap-node/image-node/image-node.scss';
-import '@/components/tiptap-node/heading-node/heading-node.scss';
-import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
-// --- Tiptap UI ---
+import { TableHandle } from '@/components/tiptap-node/table-node/ui/table-handle/table-handle';
+import { TableSelectionOverlay } from '@/components/tiptap-node/table-node/ui/table-selection-overlay';
+import { TocNode } from '@/components/tiptap-node/toc-node/extensions/toc-node-extension';
+import { TocProvider, useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
+import { TocSidebar } from '@/components/tiptap-node/toc-node';
+import { ListNormalizationExtension } from '@/components/tiptap-extension/list-normalization-extension';
+import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
+import { NodeBackground } from '@/components/tiptap-extension/node-background-extension';
+import { UiState } from '@/components/tiptap-extension/ui-state-extension';
+import { AiMenu } from '@/components/tiptap-ui/ai-menu';
+import { useScrollToHash } from '@/components/tiptap-ui/copy-anchor-link-button/use-scroll-to-hash';
+import { DragContextMenu } from '@/components/tiptap-ui/drag-context-menu';
 import { EmojiDropdownMenu } from '@/components/tiptap-ui/emoji-dropdown-menu';
 import { MentionDropdownMenu } from '@/components/tiptap-ui/mention-dropdown-menu';
 import { SlashDropdownMenu } from '@/components/tiptap-ui/slash-dropdown-menu';
-import { DragContextMenu } from '@/components/tiptap-ui/drag-context-menu';
-import { AiMenu } from '@/components/tiptap-ui/ai-menu';
-// --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
 import {
   CharacterCount,
-  Chart,
   ClearEmptyHeadingOnBackspace,
   ClearMarksOnEnter,
   CodeBlock,
   Column,
   Columns,
   Comment,
-  Countdown,
   Details,
   DetailsContent,
   DetailsSummary,
   FixBackspaceAfterImage,
   FontFamily,
   FontSize,
-  JsonPaste,
   Link as CoInkLink,
-  MarkdownPaste,
   MathLiveExtension,
   SearchAndReplace,
   TrailingNode,
   Underline,
-  Youtube,
 } from '@/extensions';
 import { CoInkPlaceholder } from '@/extensions/coink-placeholder';
-// --- Styles ---
-import '@/components/tiptap-templates/notion-like/notion-like-editor.scss';
-// --- Content ---
+import { useUiEditorState } from '@/hooks/use-ui-editor-state';
+import { EDITOR_AI_ENABLED, createEditorAiExtension } from '@/lib/editor-ai';
+import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
+import { useEditorStore } from '@/stores/editorStore';
+import { useSidebar } from '@/stores/sidebarStore';
+import { getAuthToken } from '@/utils';
+import { toastError } from '@/utils/toast';
 import { NotionEditorHeader } from '@/components/tiptap-templates/notion-like/notion-like-editor-header';
 import { MobileToolbar } from '@/components/tiptap-templates/notion-like/notion-like-editor-mobile-toolbar';
 import { NotionToolbarFloating } from '@/components/tiptap-templates/notion-like/notion-like-editor-toolbar-floating';
-import { TocSidebar } from '@/components/tiptap-node/toc-node';
-import { TocProvider, useToc } from '@/components/tiptap-node/toc-node/context/toc-context';
-import { ListNormalizationExtension } from '@/components/tiptap-extension/list-normalization-extension';
-import { EDITOR_AI_ENABLED, createEditorAiExtension } from '@/lib/editor-ai';
-import { getAuthToken } from '@/utils';
-import { useEditorStore } from '@/stores/editorStore';
-import { useSidebar } from '@/stores/sidebarStore';
-export interface CollaborationUser {
-  id: string;
-  name: string;
-  color: string;
-}
+
+import '@/components/tiptap-node/blockquote-node/blockquote-node.scss';
+import '@/components/tiptap-node/code-block-node/code-block-node.scss';
+import '@/components/tiptap-node/heading-node/heading-node.scss';
+import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
+import '@/components/tiptap-node/image-node/image-node.scss';
+import '@/components/tiptap-node/list-node/list-node.scss';
+import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
+import '@/components/tiptap-node/table-node/styles/prosemirror-table.scss';
+import '@/components/tiptap-node/table-node/styles/table-node.scss';
+import '@/components/tiptap-templates/notion-like/notion-like-editor.scss';
 
 export interface NotionEditorProps {
-  provider: HocuspocusProvider;
-  ydoc: YDoc;
-  user: CollaborationUser;
-  placeholder?: string;
-  editable?: boolean;
-  showHeader?: boolean;
-  showTocSidebar?: boolean;
-  onEditorCreate?: (editor: Editor | null) => void;
-}
-
-export interface EditorProviderProps {
   provider: HocuspocusProvider;
   ydoc: YDoc;
   user: CollaborationUser;
@@ -196,7 +168,7 @@ export function EditorContentArea() {
 /**
  * Component that creates and provides the editor instance
  */
-export function EditorProvider(props: EditorProviderProps) {
+export function EditorProvider(props: NotionEditorProps) {
   const {
     provider,
     ydoc,
@@ -336,24 +308,12 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       Typography,
       CharacterCount.configure({ limit: 50000 }),
-      JsonPaste,
-      MarkdownPaste,
       TrailingNode,
       UiState,
       TocNode.configure({
         topOffset: 48,
       }),
-      Youtube.configure({
-        controls: false,
-        nocookie: true,
-        inline: false,
-        HTMLAttributes: {
-          class: 'youtube-video-wrapper',
-        },
-      }),
       ClearMarksOnEnter,
-      Chart,
-      Countdown,
       Comment.configure({
         HTMLAttributes: {
           class: 'comment',

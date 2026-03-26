@@ -19,14 +19,3 @@ export interface OnlineUser {
 export interface OnlineUsersResponse {
   users: OnlineUser[];
 }
-
-export interface PodcastEvent {
-  jobId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  message?: string;
-  [key: string]: unknown;
-}
-
-export interface PodcastEventResponse {
-  data: PodcastEvent;
-}

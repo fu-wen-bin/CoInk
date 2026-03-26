@@ -3,7 +3,7 @@
  *
  * 功能说明：
  * - 创建、更新、删除权限组
- * - 获取我加入的和我拥有的权限组
+ * - 获取我拥有的权限组
  * - 管理权限组成员（添加、移除）
  *
  * 后端接口文档：backEnd/docs/API.md
@@ -20,6 +20,30 @@ import type {
 
 import { clientRequest, ErrorHandler } from '@/services/request';
 import type { RequestResult } from '@/services/request';
+
+const normalizeGroupsList = (payload: unknown): GroupsListResponse => {
+  if (Array.isArray(payload)) {
+    return {
+      groups: payload as Group[],
+      total: payload.length,
+    };
+  }
+
+  if (payload && typeof payload === 'object') {
+    const maybe = payload as Partial<GroupsListResponse>;
+    if (Array.isArray(maybe.groups)) {
+      return {
+        groups: maybe.groups,
+        total: typeof maybe.total === 'number' ? maybe.total : maybe.groups.length,
+      };
+    }
+  }
+
+  return {
+    groups: [],
+    total: 0,
+  };
+};
 
 /**
  * 权限组服务 API 对象
@@ -75,34 +99,6 @@ export const groupsApi = {
     }),
 
   /**
-   * 获取我加入的权限组
-   *
-   * 获取当前用户作为成员加入的所有权限组
-   *
-   * @param userId - 用户ID
-   * @param errorHandler - 可选的错误处理函数
-   * @returns 权限组列表
-   *
-   * @example
-   * ```typescript
-   * const { data, error } = await groupsApi.getMyGroups('user_id');
-   * if (error) {
-   *   console.error(error);
-   *   return;
-   * }
-   * // data.data.groups 为权限组列表
-   * ```
-   */
-  getMyGroups: (
-    userId: string,
-    errorHandler?: ErrorHandler,
-  ): Promise<RequestResult<GroupsListResponse>> =>
-    clientRequest.get<GroupsListResponse>('/groups/my', {
-      params: { userId },
-      errorHandler,
-    }),
-
-  /**
    * 获取我拥有的权限组
    *
    * 获取当前用户作为所有者创建的所有权限组
@@ -125,10 +121,22 @@ export const groupsApi = {
     userId: string,
     errorHandler?: ErrorHandler,
   ): Promise<RequestResult<GroupsListResponse>> =>
-    clientRequest.get<GroupsListResponse>('/groups/owned', {
-      params: { userId },
-      errorHandler,
-    }),
+    (async () => {
+      const response = await clientRequest.get<GroupsListResponse | Group[]>('/groups/owned', {
+        params: { userId },
+        errorHandler,
+      });
+
+      return {
+        ...response,
+        data: response.data
+          ? {
+              ...response.data,
+              data: normalizeGroupsList(response.data.data),
+            }
+          : null,
+      };
+    })(),
 
   /**
    * 获取权限组详情

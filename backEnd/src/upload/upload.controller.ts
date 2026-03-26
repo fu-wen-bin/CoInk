@@ -133,11 +133,27 @@ export class UploadController {
       limits: { fileSize: AVATAR_UPLOAD_MAX_BYTES },
     }),
   )
-  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @CurrentUserId() userId: string) {
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
     if (!file) {
       throw new BadRequestException('头像文件不能为空');
     }
 
-    return this.uploadService.uploadAvatar(file.buffer, file.originalname, file.mimetype, userId);
+    const accessToken =
+      typeof req.cookies?.access_token === 'string' ? req.cookies.access_token : undefined;
+    if (!accessToken) {
+      throw new UnauthorizedException('请先登录后再上传头像');
+    }
+
+    const verified = await this.authService.verifyToken(accessToken);
+    if (!verified.valid || !verified.payload?.userId) {
+      throw new UnauthorizedException('登录已失效，请重新登录');
+    }
+
+    return this.uploadService.uploadAvatar(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      verified.payload.userId,
+    );
   }
 }

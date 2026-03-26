@@ -4,7 +4,6 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import Mathematics, { migrateMathStrings } from '@tiptap/extension-mathematics';
 import { Extension } from '@tiptap/core';
-import { toastError } from '@/utils/toast';
 
 import {
   CharacterCount,
@@ -30,8 +29,6 @@ import {
   ImageBlock,
   TableImage,
   Link,
-  JsonPaste,
-  MarkdownPaste,
   Placeholder,
   Selection,
   SlashCommand,
@@ -48,8 +45,6 @@ import {
   TrailingNode,
   Typography,
   Underline,
-  emojiSuggestion,
-  Columns,
   TaskList,
   TaskItem,
   Column,
@@ -57,10 +52,7 @@ import {
   DraggableBlock,
   DragHandler,
   FileHandler,
-  Youtube,
   ClearMarksOnEnter,
-  Chart,
-  Countdown,
   Comment,
   Mention,
   mentionSuggestion,
@@ -70,6 +62,7 @@ import {
 import { ImageUpload } from './ImageUpload';
 import { TableOfContentsNode } from './TableOfContentsNode';
 
+import { toastError } from '@/utils/toast';
 import { SelectOnlyCode } from '@/extensions/CodeBlock';
 import { Image as EditorImage } from '@/components/tiptap-node/image-node/image-node-extension';
 import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
@@ -104,7 +97,6 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
   Paragraph,
   Text,
   // Image,
-  Columns,
   TaskList,
   TaskItem.configure({
     nested: true,
@@ -343,7 +335,6 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
 
   Emoji.configure({
     enableEmoticons: true,
-    suggestion: emojiSuggestion,
   }),
   TextAlign.extend({
     addKeyboardShortcuts() {
@@ -392,8 +383,6 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
     width: 2,
     class: 'ProseMirror-dropcursor border-black',
   }),
-  JsonPaste,
-  MarkdownPaste,
   SelectOnlyCode,
   // MathLive 专业数学编辑器
   MathLiveExtension,
@@ -427,17 +416,7 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
       },
     },
   }),
-  Youtube.configure({
-    controls: false,
-    nocookie: true,
-    inline: false,
-    HTMLAttributes: {
-      class: 'youtube-video-wrapper',
-    },
-  }),
   ClearMarksOnEnter,
-  Chart,
-  Countdown,
   Comment.configure({
     HTMLAttributes: {
       class: 'comment',
@@ -466,7 +445,6 @@ export const StaticExtensionKit = [
   HardBreak,
   Paragraph,
   Text,
-  Columns,
   TaskList,
   TaskItem.configure({
     nested: true,
@@ -561,8 +539,6 @@ export const StaticExtensionKit = [
     width: 2,
     class: 'ProseMirror-dropcursor border-black',
   }),
-  JsonPaste,
-  MarkdownPaste,
   SelectOnlyCode,
   MathLiveExtension,
   Mathematics.configure({
@@ -577,17 +553,7 @@ export const StaticExtensionKit = [
       },
     },
   }),
-  Youtube.configure({
-    controls: false,
-    nocookie: true,
-    inline: false,
-    HTMLAttributes: {
-      class: 'youtube-video-wrapper',
-    },
-  }),
   ClearMarksOnEnter,
-  Chart,
-  Countdown,
   Comment.configure({
     HTMLAttributes: {
       class: 'comment',

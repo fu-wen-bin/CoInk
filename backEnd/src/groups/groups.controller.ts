@@ -27,17 +27,6 @@ export class GroupsController {
   }
 
   /**
-   * 获取我加入的权限组
-   */
-  @Get('my')
-  findMyGroups(@Query('userId') userId: string) {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
-    }
-    return this.groupsService.findByUser(userId);
-  }
-
-  /**
    * 获取我拥有的权限组
    */
   @Get('owned')

@@ -5,10 +5,10 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Info, Loader2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { toastSuccess, toastError } from '@/utils/toast';
 
 import { SnapshotReadonlyPane } from './snapshot-readonly-pane';
 
+import { toastSuccess, toastError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { documentsApi } from '@/services/documents';
 import { documentVersionApi } from '@/services/documents/versions';

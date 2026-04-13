@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { toastError, toastSuccess } from '@/utils/toast';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import { snapshotService, Snapshot } from '@/services/snapshot';
 
 interface UseEditorHistoryOptions {

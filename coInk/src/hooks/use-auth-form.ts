@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { toastError, toastSuccess } from '@/utils/toast';
 import { z } from 'zod';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import authApi from '@/services/auth';
 import { LoginFormData } from '@/utils/auth-schemas';
 import { LoginMode } from '@/app/auth/_components/login-mode-switcher';

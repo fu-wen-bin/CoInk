@@ -1,6 +1,5 @@
 'use client';
 
-import { toastInfo, toastSuccess, toastError } from '@/utils/toast';
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm, Controller } from 'react-hook-form';
@@ -8,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User as UserIcon, MapPin, Globe, Building, Edit3, Save, X } from 'lucide-react';
 
+import { toastInfo, toastSuccess, toastError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Textarea from '@/components/ui/Textarea';

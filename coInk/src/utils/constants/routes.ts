@@ -15,7 +15,6 @@ export const ROUTES = {
   INBOX: '/dashboard/inbox',
   CONTACTS: '/dashboard/contacts',
   GROUPS: '/dashboard/groups',
-  BLOG: '/dashboard/blogs',
 } as const;
 
 // 页面标题映射
@@ -28,7 +27,6 @@ export const PAGE_TITLE_MAP: Record<string, string> = {
   [ROUTES.SETTINGS]: '系统设置',
   [ROUTES.KNOWLEDGE]: '知识库管理',
   [ROUTES.DOCS]: '文档管理',
-  [ROUTES.BLOG]: '博客管理',
   [ROUTES.INBOX]: '消息通知',
 };
 

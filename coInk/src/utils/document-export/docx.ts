@@ -2,10 +2,11 @@
  * DOCX export utilities
  */
 
-import { toastWarning, toastError, toastSuccess } from '@/utils/toast';
 import { Editor } from '@tiptap/core';
 
 import { generateDOCX } from '../export-doc';
+
+import { toastWarning, toastError, toastSuccess } from '@/utils/toast';
 
 /**
  * Export document as DOCX

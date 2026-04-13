@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+
 import { toastError, toastSuccess } from '@/utils/toast';
 
 export interface AuthFormData {

@@ -45,7 +45,7 @@ interface ShareDialogProps {
   anchorRef?: RefObject<HTMLElement | null>;
 }
 
-const PERMISSIONS: PermissionLevel[] = ['view', 'comment', 'edit', 'manage'];
+const PERMISSIONS: PermissionLevel[] = ['view', 'edit', 'manage'];
 const PERMISSION_LABELS: Record<PermissionLevel, string> = {
   view: '可阅读',
   comment: '可评论',
@@ -131,6 +131,7 @@ export default function ShareDialog({
     setShowUserDropdown(false);
     setUserInput('');
     setGroupSearchKeyword('');
+    setPosition(null);
     onClose();
   }, [onClose]);
 
@@ -156,6 +157,15 @@ export default function ShareDialog({
   const activeGroup = useMemo(
     () => groups.find((item) => item.groupId === activeGroupId) ?? null,
     [activeGroupId, groups],
+  );
+  const activeGroupGrantPermission = useMemo(
+    () => selectedGroups.find((item) => item.targetId === activeGroupId)?.permission ?? null,
+    [activeGroupId, selectedGroups],
+  );
+  const visibleGroupMembers = useMemo(
+    () =>
+      groupMembers.filter((member) => !(member.isOwner || member.userId === activeGroup?.ownerId)),
+    [activeGroup?.ownerId, groupMembers],
   );
   const selectedUsersMeta = useMemo(() => {
     return selectedUsers.map((target) => {
@@ -317,6 +327,7 @@ export default function ShareDialog({
     setGroupSearchKeyword('');
     setActiveGroupId('');
     setGroupMembers([]);
+    setPosition(null);
   }, [isOpen]);
 
   useEffect(() => {
@@ -440,7 +451,8 @@ export default function ShareDialog({
     }
 
     const memberRes = await groupsApi.getGroupMembers(groupId);
-    const members = memberRes.data?.data?.members ?? [];
+    const payload = memberRes.data?.data;
+    const members = Array.isArray(payload) ? payload : (payload?.members ?? []);
     setGroupMembers(members);
 
     const userPrincipalMap = new Map(
@@ -1203,35 +1215,50 @@ export default function ShareDialog({
                 </div>
 
                 <div className="max-h-44 space-y-2 overflow-y-auto">
-                  {groupMembers.map((member) => {
-                    const isOwner = member.isOwner || member.userId === activeGroup?.ownerId;
+                  {visibleGroupMembers.map((member) => {
                     const draftPermission = memberPermissionDraft[member.userId] ?? 'inherit';
-                    const effectivePermission = memberEffectivePermission[member.userId] ?? null;
-                    const effectiveSource = memberEffectiveSource[member.userId] ?? null;
+                    const effectivePermission =
+                      draftPermission === 'inherit' && activeGroupGrantPermission
+                        ? activeGroupGrantPermission
+                        : (memberEffectivePermission[member.userId] ?? null);
+                    const effectiveSource =
+                      draftPermission === 'inherit' && activeGroupGrantPermission
+                        ? 'group'
+                        : (memberEffectiveSource[member.userId] ?? null);
                     return (
                       <div
                         key={member.userId}
                         className="rounded-md border border-slate-100 px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm text-slate-800">
-                              {member.name ?? member.userId}
-                              {isOwner ? '（所有者）' : ''}
-                            </p>
-                            <p className="truncate text-xs text-slate-500">
-                              {member.email ?? member.userId}
-                            </p>
+                          <div className="flex min-w-0 items-center gap-2">
+                            {member.avatarUrl ? (
+                              <img
+                                src={member.avatarUrl}
+                                alt={member.name ?? member.userId}
+                                className="h-7 w-7 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs text-slate-600">
+                                {(member.name ?? member.userId).slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-slate-800">
+                                {member.name ?? member.userId}
+                              </p>
+                              <p className="truncate text-xs text-slate-500">
+                                {member.email ?? member.userId}
+                              </p>
+                            </div>
                           </div>
-                          {!isOwner && (
-                            <button
-                              type="button"
-                              onClick={() => void removeMemberFromActiveGroup(member.userId)}
-                              className="rounded p-1 text-rose-600 hover:bg-rose-50"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => void removeMemberFromActiveGroup(member.userId)}
+                            className="rounded p-1 text-rose-600 hover:bg-rose-50"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <select
@@ -1251,15 +1278,13 @@ export default function ShareDialog({
                               </option>
                             ))}
                           </select>
-                          {!isOwner && (
-                            <button
-                              type="button"
-                              onClick={() => void saveMemberPermission(member.userId)}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              保存权限
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => void saveMemberPermission(member.userId)}
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            保存权限
+                          </button>
                         </div>
                         <p className="mt-1 text-[11px] text-slate-500">
                           当前生效：
@@ -1270,7 +1295,7 @@ export default function ShareDialog({
                       </div>
                     );
                   })}
-                  {activeGroupId && groupMembers.length === 0 && (
+                  {activeGroupId && visibleGroupMembers.length === 0 && (
                     <p className="text-xs text-slate-400">当前分组暂无成员</p>
                   )}
                   {!activeGroupId && <p className="text-xs text-slate-400">请先在左侧选择分组</p>}
@@ -1417,7 +1442,7 @@ export default function ShareDialog({
 
   return (
     <>
-      {variant === 'dropdown' && position && (
+      {isOpen && variant === 'dropdown' && position && (
         <div
           className="fixed z-[120]"
           style={{
@@ -1429,7 +1454,7 @@ export default function ShareDialog({
         </div>
       )}
 
-      {variant === 'modal' && (
+      {isOpen && variant === 'modal' && (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4"
           onClick={handleClose}

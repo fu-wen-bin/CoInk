@@ -1,28 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState, useRef, Activity } from 'react';
+import { Activity, useCallback, useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import type { Editor } from '@tiptap/react';
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Eye } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { Group, Panel, type GroupImperativeHandle } from 'react-resizable-panels';
 import 'md-editor-rt/lib/preview.css';
 
-// 动态导入 CommentPanel，禁用 SSR
-const CommentPanel = dynamic(
-  () =>
-    import('@/app/docs/_components/CommentPanel').then((mod) => ({ default: mod.CommentPanel })),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
-
 import { getCursorColorByUserId, getAuthToken } from '@/utils';
 import { getSelectionLineRange } from '@/utils/editor';
+import { ROUTES } from '@/utils/constants/routes';
 import DocumentHeader from '@/app/docs/_components/DocumentHeader';
 import { SearchPanel } from '@/app/docs/_components/SearchPanel';
 import { useFileStore } from '@/stores/fileStore';
@@ -31,11 +21,10 @@ import { NotionEditor } from '@/components/tiptap-templates/notion-like/notion-l
 import { documentsApi } from '@/services/documents';
 import NoPermission from '@/app/docs/_components/NoPermission';
 import type { PermissionLevel } from '@/services/documents/types';
-import { useCommentStore } from '@/stores/commentStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
 import { useSidebar } from '@/stores/sidebarStore';
-import { toastInfo } from '@/utils/toast';
+import { toast, toastInfo } from '@/utils/toast';
 
 // 类型定义
 interface CollaborationUser {
@@ -57,6 +46,45 @@ interface DocumentPermissionData {
   permission: PermissionLevel | null;
 }
 
+interface CachedUserProfile {
+  userId?: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
+const ANON_ALLOWED_SELECTOR =
+  '[data-anon-interaction-allow], [data-panel-resize-handle-enabled], [role="separator"][aria-orientation="vertical"], .resize-handle, [data-sonner-toaster], [data-sonner-toast]';
+
+const ANON_BLOCKED_SELECTOR =
+  'button, a, input, textarea, select, [role="button"], [role="menuitem"], [role="option"], [contenteditable="true"], [data-state], [data-radix-collection-item]';
+
+function readCachedSessionUser(): { userId: string; name: string; avatarUrl: string } {
+  if (typeof window === 'undefined') {
+    return { userId: '', name: '', avatarUrl: '' };
+  }
+
+  const hasLoggedInFlag = document.cookie.includes('logged_in=true');
+  if (!hasLoggedInFlag) {
+    return { userId: '', name: '', avatarUrl: '' };
+  }
+
+  try {
+    const cachedUser = localStorage.getItem('cached_user_profile');
+    if (!cachedUser) {
+      return { userId: '', name: '', avatarUrl: '' };
+    }
+
+    const user = JSON.parse(cachedUser) as CachedUserProfile;
+    return {
+      userId: user.userId || '',
+      name: user.name || '',
+      avatarUrl: user.avatarUrl || '',
+    };
+  } catch {
+    return { userId: '', name: '', avatarUrl: '' };
+  }
+}
+
 export default function DocumentPage() {
   const params = useParams();
   const documentId = params?.room as string;
@@ -64,6 +92,7 @@ export default function DocumentPage() {
   const collabSyncedRef = useRef(false);
   const cloudSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cloudSaveSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anonymousBlockToastAtRef = useRef(0);
   /** onSynced 后短窗口内忽略 Yjs update，减少 IDB 合并/初始同步误触发「正在保存」 */
   const ignoreCloudSaveHintsUntilRef = useRef(0);
 
@@ -77,6 +106,7 @@ export default function DocumentPage() {
   const [permissionData, setPermissionData] = useState<DocumentPermissionData | null>(null);
   const [isLoadingPermission, setIsLoadingPermission] = useState(true);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [isRedirectingToAuth, setIsRedirectingToAuth] = useState(false);
 
   // 协作编辑器状态
   const [doc, setDoc] = useState<Y.Doc | null>(null);
@@ -88,7 +118,6 @@ export default function DocumentPage() {
   /** Hocuspocus 落库成功后 stateless 推送的 updatedAt（ISO） */
   const [cloudSavedUpdatedAt, setCloudSavedUpdatedAt] = useState<string | null>(null);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
-  const { closePanel, isPanelOpen } = useCommentStore();
   const { setEditor, clearEditor } = useEditorStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -154,17 +183,8 @@ export default function DocumentPage() {
       setIsLoadingPermission(true);
       setPermissionError(null);
 
-      // 从 localStorage 获取当前用户ID
-      let userId = '';
-      try {
-        const cachedUser = localStorage.getItem('cached_user_profile');
-        if (cachedUser) {
-          const user = JSON.parse(cachedUser) as { userId?: string };
-          userId = user.userId || '';
-        }
-      } catch {
-        // 解析失败时 userId 保持为空字符串
-      }
+      // 仅在存在登录标记时读取缓存用户，避免过期本地缓存影响匿名访问
+      let { userId, name, avatarUrl } = readCachedSessionUser();
 
       const { data, error } = await documentsApi.getCurrentPermission(documentId, {
         userId,
@@ -184,28 +204,31 @@ export default function DocumentPage() {
         return;
       }
 
-      // 从 localStorage 获取当前用户信息
-      let name = '';
-      let avatarUrl = '';
-      try {
-        const cachedUser = localStorage.getItem('cached_user_profile');
-        if (cachedUser) {
-          const user = JSON.parse(cachedUser) as {
-            userId?: string;
-            name?: string;
-            avatarUrl?: string;
-          };
-          userId = user.userId || '';
-          name = user.name || '';
-          avatarUrl = user.avatarUrl || '';
-        }
-      } catch {
-        // 解析失败时保持空字符串
-      }
+      // 再读取一次，兼容权限接口耗时期间登录状态变化
+      ({ userId, name, avatarUrl } = readCachedSessionUser());
 
       const rawPerm = data.data.permission;
       const docTitle = data.data.documentTitle ?? '';
       const documentType = data.data.documentType === 'FOLDER' ? 'FOLDER' : 'FILE';
+
+      // 未登录且没有权限时，直接引导登录，避免错误落到无权限申请流程
+      if (!userId && !rawPerm) {
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname + window.location.search;
+          const loginUrl = new URL(ROUTES.AUTH, window.location.origin);
+
+          loginUrl.searchParams.set('reason', 'document_login_required');
+          if (currentPath && currentPath !== ROUTES.AUTH) {
+            loginUrl.searchParams.set('redirect_to', encodeURIComponent(currentPath));
+          }
+
+          setIsLoadingPermission(false);
+          setIsRedirectingToAuth(true);
+          window.location.replace(loginUrl.toString());
+        }
+
+        return;
+      }
 
       // Map the response to the expected format
       const permData: DocumentPermissionData = {
@@ -471,6 +494,110 @@ export default function DocumentPage() {
   // 判断是否为只读模式（匿名访客恒只读）
   const isReadOnly = Boolean(currentUser?.isAnonymous) || permissionData?.permission === 'view';
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentUser?.isAnonymous) {
+      return;
+    }
+
+    const showBlockedTip = () => {
+      const now = Date.now();
+      if (now - anonymousBlockToastAtRef.current < 2000) {
+        return;
+      }
+      anonymousBlockToastAtRef.current = now;
+      toast('匿名访问仅支持阅读与调整页宽', {
+        id: 'anonymous-login-hint',
+        action: {
+          label: '点此去登录',
+          onClick: () => {
+            if (typeof window === 'undefined') return;
+            const currentPath = window.location.pathname + window.location.search;
+            const loginUrl = new URL(ROUTES.AUTH, window.location.origin);
+
+            loginUrl.searchParams.set('reason', 'auth_required');
+            if (currentPath && currentPath !== ROUTES.AUTH) {
+              loginUrl.searchParams.set('redirect_to', encodeURIComponent(currentPath));
+            }
+
+            window.location.href = loginUrl.toString();
+          },
+        },
+        style: {
+          background: '#f3f4f6',
+          border: '1px solid #d1d5db',
+          color: '#374151',
+          width: 'auto',
+          minWidth: 'unset',
+          maxWidth: 'none',
+          display: 'flex',
+          alignItems: 'center',
+        },
+      });
+    };
+
+    const isAllowedTarget = (target: EventTarget | null) => {
+      const element = target instanceof Element ? target : null;
+      return Boolean(element?.closest(ANON_ALLOWED_SELECTOR));
+    };
+
+    const shouldBlockTarget = (target: EventTarget | null) => {
+      const element = target instanceof Element ? target : null;
+      if (!element) {
+        return false;
+      }
+      if (isAllowedTarget(target)) {
+        return false;
+      }
+      return Boolean(element.closest(ANON_BLOCKED_SELECTOR));
+    };
+
+    const handlePointerDownCapture = (event: PointerEvent) => {
+      if (!shouldBlockTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      showBlockedTip();
+    };
+
+    const handleClickCapture = (event: MouseEvent) => {
+      if (!shouldBlockTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      showBlockedTip();
+    };
+
+    const handleKeyDownCapture = (event: KeyboardEvent) => {
+      if (isAllowedTarget(event.target)) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        showBlockedTip();
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (activeElement && shouldBlockTarget(activeElement)) {
+        event.preventDefault();
+        event.stopPropagation();
+        showBlockedTip();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDownCapture, true);
+    document.addEventListener('click', handleClickCapture, true);
+    document.addEventListener('keydown', handleKeyDownCapture, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDownCapture, true);
+      document.removeEventListener('click', handleClickCapture, true);
+      document.removeEventListener('keydown', handleKeyDownCapture, true);
+    };
+  }, [currentUser?.isAnonymous]);
+
   const CLOUD_SAVE_DEBOUNCE_MS = 400;
   const CLOUD_SAVE_SAFETY_MS = 20_000;
 
@@ -549,35 +676,6 @@ export default function DocumentPage() {
     [documentId, setEditor, clearEditor],
   );
 
-  // 点击编辑器内容时关闭评论面板（除非点击评论标记）
-  useEffect(() => {
-    if (!editor || !isPanelOpen) return;
-
-    const handleEditorClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const isCommentMark = target.closest('span[data-comment="true"]');
-
-      // 如果点击的不是评论标记，则关闭面板
-      if (!isCommentMark) {
-        closePanel();
-      }
-    };
-
-    const editorElement = editor.view.dom;
-
-    // 确保元素仍然存在于DOM中
-    if (editorElement && document.body.contains(editorElement)) {
-      editorElement.addEventListener('click', handleEditorClick);
-
-      return () => {
-        // 再次检查元素是否仍然存在于DOM中
-        if (editorElement && document.body.contains(editorElement)) {
-          editorElement.removeEventListener('click', handleEditorClick);
-        }
-      };
-    }
-  }, [editor, isPanelOpen, closePanel]);
-
   // 编辑器内复制：写入 text/html + text/plain（与 ProseMirror 序列化一致），避免只写纯文本导致粘贴丢失格式
   // 不再写入 text/json 整篇文档，避免粘贴时错误覆盖整篇内容
   useEffect(() => {
@@ -654,6 +752,10 @@ export default function DocumentPage() {
   // 权限加载中
   if (isLoadingPermission) {
     return <LoadingState title="正在加载文档权限..." />;
+  }
+
+  if (isRedirectingToAuth) {
+    return <LoadingState title="正在跳转登录页..." subtitle="登录后将自动返回当前文档" />;
   }
 
   // 权限错误或无权限访问
@@ -747,12 +849,6 @@ export default function DocumentPage() {
           </Panel>
         </Group>
       </div>
-      {/* 评论面板 */}
-      {editor && (
-        <Activity>
-          <CommentPanel editor={editor} documentId={documentId} currentUserId={currentUser?.id} />
-        </Activity>
-      )}
 
       {/* 搜索面板 */}
       {editor && editor.view && (

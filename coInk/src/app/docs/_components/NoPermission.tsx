@@ -17,7 +17,6 @@ interface NoPermissionProps {
 // 权限选项配置
 const permissionOptions: { value: PermissionLevel; label: string; description: string }[] = [
   { value: 'view', label: '查看权限', description: '只能查看文档，无法编辑' },
-  { value: 'comment', label: '评论权限', description: '可查看和添加评论' },
   { value: 'edit', label: '编辑权限', description: '可编辑文档内容' },
   { value: 'manage', label: '完全管理', description: '可管理文档设置、分享与协作者权限' },
 ];

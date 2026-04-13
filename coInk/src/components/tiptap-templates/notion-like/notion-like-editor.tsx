@@ -52,7 +52,6 @@ import {
   CodeBlock,
   Column,
   Columns,
-  Comment,
   Details,
   DetailsContent,
   DetailsSummary,
@@ -314,13 +313,6 @@ export function EditorProvider(props: NotionEditorProps) {
         topOffset: 48,
       }),
       ClearMarksOnEnter,
-      Comment.configure({
-        HTMLAttributes: {
-          class: 'comment',
-        },
-        onCommentActivated: () => {},
-        onCommentClick: () => {},
-      }),
       SearchAndReplace.configure({
         searchResultClass: 'search-result',
         currentSearchResultClass: 'current-search-result',

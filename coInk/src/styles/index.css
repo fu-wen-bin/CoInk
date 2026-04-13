@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "./_keyframe-animations.scss";
-@import "./_variables.scss";
+@import 'tailwindcss';
+@import './_keyframe-animations.scss';
+@import './_variables.scss';
 
 @layer base {
   /**
@@ -416,16 +416,16 @@
     opacity: 0;
     transform: translateY(8px) scale(0.96);
     transition:
-        opacity 120ms ease-out,
-        transform 120ms ease-out;
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
   }
 
   .tippy-box[data-theme~='text-menu'][data-animation='shift-away-subtle'][data-state='visible'] {
     opacity: 1;
     transform: translateY(0) scale(1);
     transition:
-        opacity 180ms ease-out,
-        transform 180ms ease-out;
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
   }
 
   /* 优化菜单稳定性 */
@@ -579,4 +579,3 @@ body {
     max-height: 60px !important;
   }
 }
-

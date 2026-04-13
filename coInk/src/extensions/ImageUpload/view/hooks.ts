@@ -1,8 +1,8 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
-import { toastError } from '@/utils/toast';
 import { useMutation } from '@tanstack/react-query';
 import { Editor } from '@tiptap/core';
 
+import { toastError } from '@/utils/toast';
 import { formatEditorImageMaxLabel, MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
 import { uploadService } from '@/services/upload';
 

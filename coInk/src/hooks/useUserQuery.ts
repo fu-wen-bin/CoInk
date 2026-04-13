@@ -1,7 +1,7 @@
-import { toastError, toastSuccess } from '@/utils/toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
+import { toastError, toastSuccess } from '@/utils/toast';
 import { authApi } from '@/services/auth';
 import UserApi from '@/services/users';
 import type { User } from '@/services/users/types';

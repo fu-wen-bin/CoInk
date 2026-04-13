@@ -818,9 +818,6 @@ export class DocumentsService {
 
     // 删除关联数据
     await this.prisma.$transaction([
-      this.prisma.document_comments.deleteMany({
-        where: { document_id: documentId },
-      }),
       this.prisma.document_contents.deleteMany({
         where: { document_id: documentId },
       }),
@@ -2069,9 +2066,6 @@ export class DocumentsService {
       }
 
       await this.prisma.$transaction([
-        this.prisma.document_comments.deleteMany({
-          where: { document_id: child.document_id },
-        }),
         this.prisma.document_contents.deleteMany({
           where: { document_id: child.document_id },
         }),

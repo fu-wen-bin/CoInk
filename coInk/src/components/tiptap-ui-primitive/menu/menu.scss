@@ -6,11 +6,11 @@
   outline: none;
   min-width: var(--popover-anchor-width);
 
-  &[data-state="closed"] {
+  &[data-state='closed'] {
     display: none;
   }
 
-  &[data-state="open"] {
+  &[data-state='open'] {
     animation: popover 150ms ease-out;
   }
 }
@@ -18,8 +18,8 @@
 .tiptap-menu-group {
   display: none;
 
-  &:has([role="menuitem"]),
-  &:has([role="option"]) {
+  &:has([role='menuitem']),
+  &:has([role='option']) {
     display: block;
   }
 }

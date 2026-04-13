@@ -5,7 +5,7 @@ import { Sparkles, Github, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { toastError, toastSuccess } from '@/utils/toast';
+import { toastError, toastInfo, toastSuccess } from '@/utils/toast';
 import { redirectManager } from '@/utils/redirect-manager';
 import { useSimpleAuthForm } from '@/hooks/use-simple-auth-form';
 import { LoginModeSwitcher, LoginMode } from '@/app/auth/_components/login-mode-switcher';
@@ -17,6 +17,11 @@ import type { User } from '@/services/auth/types';
 
 // 用户信息本地存储 key（与 useUserQuery.ts、useAuth.ts 保持一致）
 const USER_STORAGE_KEY = 'cached_user_profile';
+
+const AUTH_REASON_MESSAGE_MAP: Record<string, string> = {
+  auth_required: '当前页面需要登录后才能访问',
+  document_login_required: '该文档受权限保护，请先登录后访问',
+};
 
 /**
  * 保存用户到本地存储
@@ -65,6 +70,24 @@ function LoginContent() {
     const redirectUrl = redirectManager.get(searchParams);
     redirectManager.save(redirectUrl);
   }, [searchParams, mounted]);
+
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+
+    const reason = searchParams?.get('reason');
+    if (!reason) return;
+
+    const message = AUTH_REASON_MESSAGE_MAP[reason] || '请先登录后继续操作';
+    const redirectTo = searchParams?.get('redirect_to') || '';
+    const noticeKey = `auth_reason_notice:${reason}:${redirectTo}`;
+
+    if (window.sessionStorage.getItem(noticeKey)) {
+      return;
+    }
+
+    toastInfo(message);
+    window.sessionStorage.setItem(noticeKey, '1');
+  }, [mounted, searchParams]);
 
   const handleGitHubLogin = () => {
     if (!mounted) return;

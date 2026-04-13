@@ -47,13 +47,13 @@ import {
   Underline,
   TaskList,
   TaskItem,
+  Columns,
   Column,
   UniqueID,
   DraggableBlock,
   DragHandler,
   FileHandler,
   ClearMarksOnEnter,
-  Comment,
   Mention,
   mentionSuggestion,
   MathLiveExtension,
@@ -79,19 +79,8 @@ export interface ExtensionKitProps {
   provider: HocuspocusProvider | null;
 }
 
-// CommentOptions 接口
-interface CommentCallbacks {
-  onCommentActivated?: (commentId: string | null) => void;
-  onCommentClick?: (commentId: string) => void;
-}
-
-// 扩展 ExtensionKitProps
-interface ExtensionKitPropsWithComment extends ExtensionKitProps {
-  commentCallbacks?: CommentCallbacks;
-}
-
 // 在ExtensionKit数组中添加
-export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWithComment) => [
+export const ExtensionKit = ({ provider }: ExtensionKitProps) => [
   Document,
   HardBreak,
   Paragraph,
@@ -101,6 +90,7 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
   TaskItem.configure({
     nested: true,
   }),
+  Columns,
   Column,
   Selection,
   Heading.configure({
@@ -417,13 +407,6 @@ export const ExtensionKit = ({ provider, commentCallbacks }: ExtensionKitPropsWi
     },
   }),
   ClearMarksOnEnter,
-  Comment.configure({
-    HTMLAttributes: {
-      class: 'comment',
-    },
-    onCommentActivated: commentCallbacks?.onCommentActivated || (() => {}),
-    onCommentClick: commentCallbacks?.onCommentClick || (() => {}),
-  }),
   Mention.configure({
     HTMLAttributes: {
       class: 'mention',
@@ -449,6 +432,7 @@ export const StaticExtensionKit = [
   TaskItem.configure({
     nested: true,
   }),
+  Columns,
   Column,
   Selection,
   Heading.configure({
@@ -554,11 +538,6 @@ export const StaticExtensionKit = [
     },
   }),
   ClearMarksOnEnter,
-  Comment.configure({
-    HTMLAttributes: {
-      class: 'comment',
-    },
-  }),
   Mention.configure({
     HTMLAttributes: {
       class: 'mention',

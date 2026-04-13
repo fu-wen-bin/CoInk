@@ -1,9 +1,10 @@
 import { config } from 'dotenv';
 config();
 
-import { PrismaClient } from '../generated/prisma/client';
 import { nanoid } from 'nanoid';
 import * as argon2 from 'argon2';
+
+import { PrismaClient } from '../generated/prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -177,135 +178,11 @@ async function main() {
       },
     });
     console.log('文档内容已创建');
-
-    // 5. 创建评论
-    console.log('创建示例评论...');
-    const commentId = nanoid();
-    await prisma.document_comments.create({
-      data: {
-        comment_id: commentId,
-        document_id: docId,
-        user_id: userId,
-        content: '这是一个示例评论，您可以在文档中添加评论进行讨论。',
-        parent_id: null,
-        position: { blockId: 'block-1', offset: 0 },
-        is_resolved: false,
-      },
-    });
-    console.log('评论已创建');
   } else {
     console.log(`文档已存在: ${document.title}`);
   }
 
-  // 6. 创建模板
-  console.log('创建示例模板...');
-  const templateTitle = '会议纪要模板';
-  const existingTemplate = await prisma.templates.findFirst({
-    where: { title: templateTitle },
-  });
-
-  if (!existingTemplate) {
-    const templateId = nanoid();
-    await prisma.templates.create({
-      data: {
-        template_id: templateId,
-        title: templateTitle,
-        description: '标准的会议纪要格式模板',
-        content: {
-          type: 'doc',
-          content: [
-            {
-              type: 'heading',
-              attrs: { level: 1 },
-              content: [{ type: 'text', text: '会议纪要' }],
-            },
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: '会议时间: ' }],
-            },
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: '会议地点: ' }],
-            },
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: '参会人员: ' }],
-            },
-            {
-              type: 'heading',
-              attrs: { level: 2 },
-              content: [{ type: 'text', text: '会议议题' }],
-            },
-            {
-              type: 'heading',
-              attrs: { level: 2 },
-              content: [{ type: 'text', text: '讨论内容' }],
-            },
-            {
-              type: 'heading',
-              attrs: { level: 2 },
-              content: [{ type: 'text', text: '行动计划' }],
-            },
-          ],
-        },
-        category: 'meeting',
-        tags: ['会议', '纪要', '模板'],
-        is_public: true,
-        is_official: true,
-        creator_id: userId,
-        use_count: 0,
-      },
-    });
-    console.log('模板已创建');
-  } else {
-    console.log('模板已存在');
-  }
-
-  // 7. 创建博客
-  console.log('创建示例博客...');
-  const blogTitle = 'CoInk 使用指南';
-  const existingBlog = await prisma.blogs.findFirst({
-    where: { title: blogTitle },
-  });
-
-  if (!existingBlog) {
-    const blogId = nanoid();
-    await prisma.blogs.create({
-      data: {
-        blog_id: blogId,
-        title: blogTitle,
-        summary: '了解如何使用 CoInk 进行高效的文档协作',
-        content: {
-          type: 'doc',
-          content: [
-            {
-              type: 'heading',
-              attrs: { level: 1 },
-              content: [{ type: 'text', text: 'CoInk 使用指南' }],
-            },
-            {
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: 'CoInk 是一款现代化的协作文档工具，本文将介绍其核心功能和使用方法。',
-                },
-              ],
-            },
-          ],
-        },
-        category: 'tutorial',
-        tags: ['教程', '指南', '协作'],
-        cover_image: 'https://picsum.photos/800/400',
-        user_id: userId,
-      },
-    });
-    console.log('博客已创建');
-  } else {
-    console.log('博客已存在');
-  }
-
-  // 8. 创建用户组
+  // 7. 创建用户组
   console.log('创建示例用户组...');
   const groupName = '产品团队';
   let group = await prisma.groups.findFirst({

@@ -3,4 +3,5 @@ export class Group {
   name: string;
   ownerId: string;
   createdAt: Date;
+  memberCount?: number;
 }

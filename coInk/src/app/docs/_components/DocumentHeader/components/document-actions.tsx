@@ -2,24 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  ChevronRight,
-  FileText,
-  FileType,
-  History,
-  MessageSquare,
-  MoreHorizontal,
-} from 'lucide-react';
+import { ChevronRight, FileText, FileType, History, MoreHorizontal } from 'lucide-react';
 
 import type { DocumentActionsProps } from '../types';
 import { PageWidthMenuIcon, PageWidthSettingsPanel } from './page-width-settings';
 
-import { useCommentStore } from '@/stores/commentStore';
 import { cn, handleExportPDF, handleExportDOCX } from '@/utils';
-import {
-  CategoryTitle as PopoverCategoryTitle,
-  Divider as PopoverDivider,
-} from '@/components/ui/PopoverMenu';
+import { CategoryTitle as PopoverCategoryTitle } from '@/components/ui/PopoverMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,8 +74,6 @@ export function DocumentActions({ editor, documentId, documentTitle, doc }: Docu
   useEffect(() => {
     return () => clearPageWidthHoverCloseTimer();
   }, []);
-
-  const { isPanelOpen, togglePanel, comments } = useCommentStore();
 
   return (
     <>
@@ -155,21 +142,6 @@ export function DocumentActions({ editor, documentId, documentTitle, doc }: Docu
               <PageWidthSettingsPanel />
             </PopoverContent>
           </Popover>
-
-          <PopoverCategoryTitle>协作</PopoverCategoryTitle>
-          <DropdownMenuItem className={menuItemClassName} onClick={togglePanel}>
-            <MessageSquare className={menuLucideIconClass} />
-            <span className="flex flex-1 items-center justify-between gap-2">
-              <span>{isPanelOpen ? '关闭评论' : '打开评论'}</span>
-              {comments.length > 0 && (
-                <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-semibold text-white">
-                  {comments.length}
-                </span>
-              )}
-            </span>
-          </DropdownMenuItem>
-
-          <PopoverDivider />
 
           <PopoverCategoryTitle>文档操作</PopoverCategoryTitle>
           {documentId && doc && (

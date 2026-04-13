@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Edit2, Plus, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { groupsApi } from '@/services/groups';
 import type { Group, GroupMember } from '@/services/groups/types';
 import { UserApi } from '@/services/users';
@@ -21,6 +31,10 @@ const getCurrentUserId = (): string => {
 };
 
 export default function GroupsPage() {
+  type ConfirmAction =
+    | { type: 'group'; groupId: string; name: string }
+    | { type: 'member'; targetUserId: string; displayName: string };
+
   const [userId, setUserId] = useState('');
   const [ownedGroups, setOwnedGroups] = useState<Group[]>([]);
   const [userSearchResults, setUserSearchResults] = useState<User[]>([]);
@@ -38,6 +52,8 @@ export default function GroupsPage() {
   const [userKeyword, setUserKeyword] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     setUserId(getCurrentUserId());
@@ -191,7 +207,6 @@ export default function GroupsPage() {
   };
 
   const removeGroup = async (groupId: string) => {
-    if (!window.confirm('确定删除该分组吗？')) return;
     const res = await groupsApi.deleteGroup(groupId, userId);
     if (res.error) {
       toastError(res.error);
@@ -219,7 +234,7 @@ export default function GroupsPage() {
   };
 
   const removeMember = async (targetUserId: string) => {
-    if (!selectedGroup || !window.confirm('确定移除该成员吗？')) return;
+    if (!selectedGroup) return;
     const res = await groupsApi.removeMember(selectedGroup.groupId, targetUserId, userId);
     if (res.error) {
       toastError(res.error);
@@ -230,8 +245,41 @@ export default function GroupsPage() {
     void loadBaseData();
   };
 
+  const requestRemoveGroup = (group: Group) => {
+    setConfirmAction({
+      type: 'group',
+      groupId: group.groupId,
+      name: group.name,
+    });
+  };
+
+  const requestRemoveMember = (member: GroupMember) => {
+    setConfirmAction({
+      type: 'member',
+      targetUserId: member.userId,
+      displayName: member.name ?? member.userId,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction || confirming) return;
+    setConfirming(true);
+
+    if (confirmAction.type === 'group') {
+      await removeGroup(confirmAction.groupId);
+    } else {
+      await removeMember(confirmAction.targetUserId);
+    }
+
+    setConfirming(false);
+    setConfirmAction(null);
+  };
+
   const memberIds = useMemo(() => new Set(members.map((m) => m.userId)), [members]);
-  const visibleMembers = members;
+  const visibleMembers = useMemo(
+    () => members.filter((member) => member.userId !== userId),
+    [members, userId],
+  );
   const isOwner = selectedGroup?.ownerId === userId;
   const searchableUsers = useMemo(
     () =>
@@ -242,9 +290,11 @@ export default function GroupsPage() {
   );
   const toDisplayMemberCount = (group: Group) => {
     if (selectedGroup?.groupId === group.groupId && members.length > 0) {
-      return members.length;
+      return visibleMembers.length;
     }
-    return group.memberCount ?? 0;
+
+    // 后端成员数包含当前用户本人，前端展示统一排除自己。
+    return Math.max((group.memberCount ?? 0) - 1, 0);
   };
 
   return (
@@ -325,7 +375,7 @@ export default function GroupsPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void removeGroup(group.groupId)}
+                          onClick={() => requestRemoveGroup(group)}
                           className="rounded p-1 text-rose-600 hover:bg-rose-50"
                           title="删除"
                         >
@@ -448,7 +498,7 @@ export default function GroupsPage() {
                   {isOwner && member.userId !== userId ? (
                     <button
                       type="button"
-                      onClick={() => void removeMember(member.userId)}
+                      onClick={() => requestRemoveMember(member)}
                       className="rounded p-1 text-rose-600 hover:bg-rose-50"
                       title="移除成员"
                     >
@@ -461,6 +511,38 @@ export default function GroupsPage() {
           </>
         )}
       </section>
+
+      <AlertDialog
+        open={Boolean(confirmAction)}
+        onOpenChange={(open) => {
+          if (!open && !confirming) {
+            setConfirmAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === 'group' ? '删除分组' : '移除成员'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === 'group'
+                ? `确定删除分组「${confirmAction.name}」吗？该操作不可撤销。`
+                : `确定将「${confirmAction?.displayName ?? ''}」移出当前分组吗？`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirming}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleConfirmAction()}
+              disabled={confirming}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {confirming ? '处理中...' : '确认'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

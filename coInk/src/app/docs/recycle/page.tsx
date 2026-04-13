@@ -538,7 +538,7 @@ export default function RecycleBinPage() {
             <AlertDialogCancel onClick={() => setTargetDoc(null)}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void confirmRestore()}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               恢复
             </AlertDialogAction>
@@ -560,7 +560,7 @@ export default function RecycleBinPage() {
             <AlertDialogCancel onClick={() => setTargetDoc(null)}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void confirmDelete()}
-              className="bg-rose-600 hover:bg-rose-700"
+              className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               彻底删除
             </AlertDialogAction>
@@ -581,7 +581,7 @@ export default function RecycleBinPage() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void confirmBulkRestore()}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               恢复
             </AlertDialogAction>
@@ -602,7 +602,7 @@ export default function RecycleBinPage() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void confirmBulkDelete()}
-              className="bg-rose-600 hover:bg-rose-700"
+              className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               彻底删除
             </AlertDialogAction>

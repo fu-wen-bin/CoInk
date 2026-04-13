@@ -1,6 +1,6 @@
 import { UseFormRegister, FieldErrors } from 'react-hook-form';
-import { toastError, toastInfo } from '@/utils/toast';
 
+import { toastError, toastInfo } from '@/utils/toast';
 import { InputField } from '@/components/ui/input-field';
 import { LoginFormData } from '@/utils/auth-schemas';
 

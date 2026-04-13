@@ -124,7 +124,12 @@ export default function DocsHomeView() {
   const setNewItemType = useFileStore((s) => s.setNewItemType);
   const setNewItemName = useFileStore((s) => s.setNewItemName);
   const setNewItemGroupId = useFileStore((s) => s.setNewItemGroupId);
-  const { isOpen: isSidebarOpen, toggle: toggleSidebar, setActiveTab: setSidebarNav, bumpStarredList } = useSidebar();
+  const {
+    isOpen: isSidebarOpen,
+    toggle: toggleSidebar,
+    setActiveTab: setSidebarNav,
+    bumpStarredList,
+  } = useSidebar();
   const pathname = usePathname();
   const { data: user } = useUserQuery();
   const logoutMutation = useLogoutMutation();

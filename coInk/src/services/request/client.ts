@@ -26,7 +26,6 @@ import { RequestError } from './types';
 import { clearAuthData } from '@/utils/auth/cookie';
 import { HTTP_METHODS, HTTP_CREDENTIALS, HTTP_STATUS_MESSAGES } from '@/utils/constants/http';
 import { ROUTES } from '@/utils/constants/routes';
-import { toastError } from '@/utils/toast';
 
 // 在开发环境禁止 Sentry 上报和 breadcrumb 记录
 const isProduction = process.env.NODE_ENV === 'production';
@@ -106,15 +105,7 @@ class ClientRequest {
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname + window.location.search;
       const loginUrl = new URL(ROUTES.AUTH, window.location.origin);
-
-      // 避免短时间内重复弹窗
-      const key = 'auth_redirect_notice_at';
-      const lastNoticeAt = Number(window.sessionStorage.getItem(key) || '0');
-      const now = Date.now();
-      if (now - lastNoticeAt > 1500) {
-        toastError('请你先登录再访问');
-        window.sessionStorage.setItem(key, String(now));
-      }
+      loginUrl.searchParams.set('reason', 'auth_required');
 
       if (currentPath && currentPath !== ROUTES.AUTH) {
         loginUrl.searchParams.set('redirect_to', encodeURIComponent(currentPath));

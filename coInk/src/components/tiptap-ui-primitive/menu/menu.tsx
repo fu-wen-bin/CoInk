@@ -6,14 +6,11 @@ import * as Ariakit from '@ariakit/react';
 // -- Hooks --
 import { useOnClickOutside } from '@/hooks/use-on-click-outside';
 import { useComposedRef } from '@/hooks/use-composed-ref';
-
 // -- Utils --
 import { cn } from '@/lib/tiptap-utils';
-
 // -- UI Primitives --
 import { ComboboxItem, ComboboxProvider } from '@/components/tiptap-ui-primitive/combobox';
 import { Label } from '@/components/tiptap-ui-primitive/label';
-
 // -- Local imports --
 import type {
   MenuProps,

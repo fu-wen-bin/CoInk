@@ -54,7 +54,6 @@ export { DragHandler } from './DragHandler';
 export { SelectOnlyCode } from './CodeBlock/SelectOnlyCode';
 export { ClearMarksOnEnter } from './ClearMarksOnEnter';
 export { ClearEmptyHeadingOnBackspace } from './ClearEmptyHeadingOnBackspace';
-export { Comment } from './Comment';
 export { Mention, mentionSuggestion, createMentionSuggestion, clearMentionCache } from './Mention';
 export type { MentionUser } from './Mention';
 export { SearchAndReplace } from './SearchAndReplace';

@@ -35,11 +35,6 @@ export interface DocumentActionsProps {
   doc?: Y.Doc;
 }
 
-export interface CollaborationUsersProps {
-  users: CollaborationUser[];
-  currentUser?: CollaborationUser | null;
-}
-
 export interface UserAvatarProps {
   user: CollaborationUser;
   currentUser?: CollaborationUser | null;

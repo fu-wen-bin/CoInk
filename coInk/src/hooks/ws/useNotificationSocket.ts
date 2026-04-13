@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-import {
-  ConnectedEvent,
-  ConnectionState,
-  OnlineUser,
-  OnlineUsersResponse,
-} from '@/types/ws';
+import { ConnectedEvent, ConnectionState, OnlineUser, OnlineUsersResponse } from '@/types/ws';
 import { getAuthToken } from '@/utils';
 
 // 从cookie中获取token的工具函数
@@ -155,14 +150,17 @@ export const useNotificationSocket = () => {
       });
 
       // 监听文档权限被移除事件
-      socket.on('document:permission_revoked', (data: { documentId: string; timestamp: number; message: string }) => {
-        console.log('权限被移除:', data);
-        setPermissionRevoked(data);
-        // 触发全局事件，让文档页面监听
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('document:permission_revoked', { detail: data }));
-        }
-      });
+      socket.on(
+        'document:permission_revoked',
+        (data: { documentId: string; timestamp: number; message: string }) => {
+          console.log('权限被移除:', data);
+          setPermissionRevoked(data);
+          // 触发全局事件，让文档页面监听
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('document:permission_revoked', { detail: data }));
+          }
+        },
+      );
 
       // 监听错误
       socket.on('error', (error: { message?: string }) => {
@@ -181,19 +179,19 @@ export const useNotificationSocket = () => {
       socket.on(
         'auth_result',
         (data: { success: boolean; message?: string; user?: { id: string; name: string } }) => {
-        if (data.success) {
-          setCurrentUser({
-            id: data.user?.id ?? '',
-            name: data.user?.name ?? '',
-          });
-          // 认证成功后获取在线用户列表
-          socket.emit('get_online_users');
-        } else {
-          setConnectionState((prev) => ({
-            ...prev,
-            error: data.message || '认证失败',
-          }));
-        }
+          if (data.success) {
+            setCurrentUser({
+              id: data.user?.id ?? '',
+              name: data.user?.name ?? '',
+            });
+            // 认证成功后获取在线用户列表
+            socket.emit('get_online_users');
+          } else {
+            setConnectionState((prev) => ({
+              ...prev,
+              error: data.message || '认证失败',
+            }));
+          }
         },
       );
     } catch (error) {

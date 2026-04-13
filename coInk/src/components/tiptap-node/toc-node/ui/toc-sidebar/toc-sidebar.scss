@@ -92,16 +92,14 @@
 
       // Dynamic margin based on depth
       margin-left: calc(
-        var(--toc-progress-indent) * (var(--toc-depth, 1) - 1) *
-          var(--toc-depth-factor)
+        var(--toc-progress-indent) * (var(--toc-depth, 1) - 1) * var(--toc-depth-factor)
       );
 
       // Dynamic width based on depth (narrower at deeper levels)
       width: max(
         var(--toc-progress-width-min),
         calc(
-          var(--toc-progress-width-base) -
-            (var(--toc-progress-indent) * (var(--toc-depth, 1) - 1))
+          var(--toc-progress-width-base) - (var(--toc-progress-indent) * (var(--toc-depth, 1) - 1))
         )
       );
 
@@ -110,22 +108,22 @@
       }
 
       // Fallback mappings in case inline style is missing
-      &[data-depth="1"] {
+      &[data-depth='1'] {
         --toc-depth: 1;
       }
-      &[data-depth="2"] {
+      &[data-depth='2'] {
         --toc-depth: 2;
       }
-      &[data-depth="3"] {
+      &[data-depth='3'] {
         --toc-depth: 3;
       }
-      &[data-depth="4"] {
+      &[data-depth='4'] {
         --toc-depth: 4;
       }
-      &[data-depth="5"] {
+      &[data-depth='5'] {
         --toc-depth: 5;
       }
-      &[data-depth="6"] {
+      &[data-depth='6'] {
         --toc-depth: 6;
       }
     }
@@ -212,22 +210,22 @@
     }
 
     // Fallback mappings
-    &[data-depth="1"] {
+    &[data-depth='1'] {
       --toc-depth: 1;
     }
-    &[data-depth="2"] {
+    &[data-depth='2'] {
       --toc-depth: 2;
     }
-    &[data-depth="3"] {
+    &[data-depth='3'] {
       --toc-depth: 3;
     }
-    &[data-depth="4"] {
+    &[data-depth='4'] {
       --toc-depth: 4;
     }
-    &[data-depth="5"] {
+    &[data-depth='5'] {
       --toc-depth: 5;
     }
-    &[data-depth="6"] {
+    &[data-depth='6'] {
       --toc-depth: 6;
     }
   }

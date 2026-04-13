@@ -20,11 +20,11 @@
   --tt-table-column-resize-handle-bg: var(--tt-brand-color-400);
 }
 
-.tiptap [data-content-type="table"] {
+.tiptap [data-content-type='table'] {
   margin-block: var(--tt-table-margin-block);
 }
 
-.tiptap [data-content-type="table"] .tableWrapper {
+.tiptap [data-content-type='table'] .tableWrapper {
   padding-block-start: var(--tt-table-pad-block-start);
   padding-inline-start: var(--tt-table-pad-inline-start);
   padding-inline-end: var(--tt-table-pad-inline-end);
@@ -72,73 +72,73 @@
  * TABLE CELL ALIGNMENT STYLES
  * ================================================================================================ */
 
-.tiptap td[data-text-align="left"],
-.tiptap th[data-text-align="left"] {
+.tiptap td[data-text-align='left'],
+.tiptap th[data-text-align='left'] {
   text-align: left;
 }
 
-.tiptap td[data-text-align="center"],
-.tiptap th[data-text-align="center"] {
+.tiptap td[data-text-align='center'],
+.tiptap th[data-text-align='center'] {
   text-align: center;
 }
 
-.tiptap td[data-text-align="right"],
-.tiptap th[data-text-align="right"] {
+.tiptap td[data-text-align='right'],
+.tiptap th[data-text-align='right'] {
   text-align: right;
 }
 
-.tiptap td[data-text-align="justify"],
-.tiptap th[data-text-align="justify"] {
+.tiptap td[data-text-align='justify'],
+.tiptap th[data-text-align='justify'] {
   text-align: justify;
 }
 
-.tiptap td[data-vertical-align="top"],
-.tiptap th[data-vertical-align="top"] {
+.tiptap td[data-vertical-align='top'],
+.tiptap th[data-vertical-align='top'] {
   vertical-align: top;
 }
 
-.tiptap td[data-vertical-align="middle"],
-.tiptap th[data-vertical-align="middle"] {
+.tiptap td[data-vertical-align='middle'],
+.tiptap th[data-vertical-align='middle'] {
   vertical-align: middle;
 }
 
-.tiptap td[data-vertical-align="bottom"],
-.tiptap th[data-vertical-align="bottom"] {
+.tiptap td[data-vertical-align='bottom'],
+.tiptap th[data-vertical-align='bottom'] {
   vertical-align: bottom;
 }
 
-.tiptap [data-content-type="table"] td[data-text-align="left"],
-.tiptap [data-content-type="table"] th[data-text-align="left"] {
+.tiptap [data-content-type='table'] td[data-text-align='left'],
+.tiptap [data-content-type='table'] th[data-text-align='left'] {
   text-align: left;
 }
 
-.tiptap [data-content-type="table"] td[data-text-align="center"],
-.tiptap [data-content-type="table"] th[data-text-align="center"] {
+.tiptap [data-content-type='table'] td[data-text-align='center'],
+.tiptap [data-content-type='table'] th[data-text-align='center'] {
   text-align: center;
 }
 
-.tiptap [data-content-type="table"] td[data-text-align="right"],
-.tiptap [data-content-type="table"] th[data-text-align="right"] {
+.tiptap [data-content-type='table'] td[data-text-align='right'],
+.tiptap [data-content-type='table'] th[data-text-align='right'] {
   text-align: right;
 }
 
-.tiptap [data-content-type="table"] td[data-text-align="justify"],
-.tiptap [data-content-type="table"] th[data-text-align="justify"] {
+.tiptap [data-content-type='table'] td[data-text-align='justify'],
+.tiptap [data-content-type='table'] th[data-text-align='justify'] {
   text-align: justify;
 }
 
-.tiptap [data-content-type="table"] td[data-vertical-align="top"],
-.tiptap [data-content-type="table"] th[data-vertical-align="top"] {
+.tiptap [data-content-type='table'] td[data-vertical-align='top'],
+.tiptap [data-content-type='table'] th[data-vertical-align='top'] {
   vertical-align: top;
 }
 
-.tiptap [data-content-type="table"] td[data-vertical-align="middle"],
-.tiptap [data-content-type="table"] th[data-vertical-align="middle"] {
+.tiptap [data-content-type='table'] td[data-vertical-align='middle'],
+.tiptap [data-content-type='table'] th[data-vertical-align='middle'] {
   vertical-align: middle;
 }
 
-.tiptap [data-content-type="table"] td[data-vertical-align="bottom"],
-.tiptap [data-content-type="table"] th[data-vertical-align="bottom"] {
+.tiptap [data-content-type='table'] td[data-vertical-align='bottom'],
+.tiptap [data-content-type='table'] th[data-vertical-align='bottom'] {
   vertical-align: bottom;
 }
 
@@ -163,7 +163,7 @@
 .table-cell-dragging-source {
   z-index: 2;
   position: absolute;
-  content: "";
+  content: '';
   left: 0;
   right: 0;
   top: 0;

@@ -48,8 +48,19 @@ export class GroupsService {
       where: { owner_id: ownerId },
       orderBy: { created_at: 'desc' },
     });
+    if (groups.length === 0) {
+      return [];
+    }
 
-    return groups.map((g) => this.mapToGroup(g));
+    const groupIds = groups.map((g) => g.group_id);
+    const counts = await this.prisma.group_members.groupBy({
+      by: ['group_id'],
+      where: { group_id: { in: groupIds } },
+      _count: { group_id: true },
+    });
+    const countMap = new Map(counts.map((item) => [item.group_id, item._count.group_id]));
+
+    return groups.map((g) => this.mapToGroup(g, countMap.get(g.group_id) ?? 0));
   }
 
   /**
@@ -237,17 +248,21 @@ export class GroupsService {
   /**
    * 映射数据库模型到实体
    */
-  private mapToGroup(group: {
-    group_id: string;
-    name: string;
-    owner_id: string;
-    created_at: Date;
-  }): Group {
+  private mapToGroup(
+    group: {
+      group_id: string;
+      name: string;
+      owner_id: string;
+      created_at: Date;
+    },
+    memberCount?: number,
+  ): Group {
     return {
       groupId: group.group_id,
       name: group.name,
       ownerId: group.owner_id,
       createdAt: group.created_at,
+      memberCount,
     };
   }
 }

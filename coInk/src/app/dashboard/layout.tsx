@@ -8,7 +8,6 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { Tour, TourProvider, tourSteps, useDashboardTour } from '@/components/tour';
 import { NotificationSocketProvider } from '@/providers/NotificationSocketProvider';
 import { getPageTitle, getPageDescription, NAV_ITEMS } from '@/utils';
-import { toastError } from '@/utils/toast';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -39,9 +38,8 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
       return;
     }
 
-    toastError('请你先登录再访问');
     const redirectTo = encodeURIComponent(pathname || '/dashboard');
-    router.replace(`/auth?redirect_to=${redirectTo}`);
+    router.replace(`/auth?redirect_to=${redirectTo}&reason=auth_required`);
   }, [pathname, router]);
 
   return (

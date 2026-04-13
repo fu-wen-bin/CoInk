@@ -4,9 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { BlogsModule } from './blogs/blogs.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
-import { CommentsModule } from './comments/comments.module';
 import { DocumentsModule } from './documents/documents.module';
 import { GroupsModule } from './groups/groups.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -30,9 +28,7 @@ import { FriendsModule } from './friends/friends.module';
     UserModule,
     DocumentsModule,
     AuthModule,
-    CommentsModule,
     GroupsModule,
-    BlogsModule,
     NotificationsModule,
     PermissionRequestsModule,
     FriendsModule,

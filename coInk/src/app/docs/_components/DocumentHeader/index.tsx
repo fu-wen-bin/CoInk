@@ -153,6 +153,10 @@ export default function DocumentHeader({
   const [fetchedUpdatedAt, setFetchedUpdatedAt] = useState<string | null>(null);
   /** 每分钟刷新一次相对时间文案（刚刚 / N 分钟前） */
   const [lastModifiedTick, setLastModifiedTick] = useState(0);
+  const canUseNotifications =
+    !currentUser?.isAnonymous &&
+    typeof document !== 'undefined' &&
+    document.cookie.includes('logged_in=true');
 
   useEffect(() => {
     const id = window.setInterval(() => setLastModifiedTick((n) => n + 1), 60_000);
@@ -295,8 +299,8 @@ export default function DocumentHeader({
           />
         )}
 
-        {/* 通知铃铛 */}
-        <NotificationDropdown />
+        {/* 通知铃铛（匿名访问不请求通知接口） */}
+        {canUseNotifications && <NotificationDropdown />}
 
         {/* 搜索按钮 */}
         <button

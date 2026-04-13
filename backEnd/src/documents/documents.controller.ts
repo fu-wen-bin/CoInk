@@ -378,7 +378,11 @@ export class DocumentsController {
     return this.documentsService.restoreVersion(id, parsed, userId ?? '');
   }
 
-  private async extractUserIdFromRequest(req: Request): Promise<string | null> {
+  private async extractUserIdFromRequest(
+    req: Request,
+    options?: { strict?: boolean },
+  ): Promise<string | null> {
+    const strict = options?.strict ?? false;
     const accessToken =
       typeof req.cookies?.access_token === 'string' ? req.cookies.access_token : undefined;
 
@@ -388,14 +392,18 @@ export class DocumentsController {
 
     const verified = await this.authService.verifyToken(accessToken);
     if (!verified.valid || !verified.payload?.userId) {
-      throw new UnauthorizedException('登录已失效，请重新登录');
+      if (strict) {
+        throw new UnauthorizedException('登录已失效，请重新登录');
+      }
+
+      return null;
     }
 
     return verified.payload.userId;
   }
 
   private async requireUserId(req: Request): Promise<string> {
-    const userId = await this.extractUserIdFromRequest(req);
+    const userId = await this.extractUserIdFromRequest(req, { strict: true });
     if (!userId) {
       throw new UnauthorizedException('请先登录');
     }

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 body {
   --tt-toolbar-height: 44px;
@@ -10,7 +10,7 @@ body {
 }
 
 body {
-  font-family: "Inter", sans-serif;
+  font-family: 'Inter', sans-serif;
   color: var(--tt-theme-text);
   font-optical-sizing: auto;
   font-weight: 400;
@@ -50,7 +50,7 @@ body,
 }
 
 .tiptap.ProseMirror {
-  font-family: "DM Sans", sans-serif;
+  font-family: 'DM Sans', sans-serif;
 }
 
 // Important so the this does not override the editor behaviour
@@ -64,7 +64,7 @@ body,
 
 /* 仅「页宽档位」过渡：--editor-user-pct 随 data-page-width 变化；侧栏开关只改 --editor-content-pct，无过渡 */
 @property --editor-user-pct {
-  syntax: "<number>";
+  syntax: '<number>';
   inherits: false;
   initial-value: 75;
 }
@@ -87,20 +87,20 @@ body,
 }
 
 /* 默认 75% / 较宽 85% / 全宽 95%（相对主内容区） */
-.notion-like-editor-layout[data-page-width="default"] {
+.notion-like-editor-layout[data-page-width='default'] {
   --editor-user-pct: 75;
 }
 
-.notion-like-editor-layout[data-page-width="wide"] {
+.notion-like-editor-layout[data-page-width='wide'] {
   --editor-user-pct: 85;
 }
 
-.notion-like-editor-layout[data-page-width="full"] {
+.notion-like-editor-layout[data-page-width='full'] {
   --editor-user-pct: 95;
 }
 
 /* 文档侧边栏展开时固定 95%，页宽档位仅作记忆，关闭侧边栏后生效（需写在各档位之后以覆盖） */
-.notion-like-editor-layout[data-sidebar-open="true"] {
+.notion-like-editor-layout[data-sidebar-open='true'] {
   --editor-content-pct: 95;
 }
 

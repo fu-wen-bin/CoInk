@@ -1,7 +1,6 @@
 'use client';
 
 import type { Editor } from '@tiptap/react';
-
 import { Ai } from '@tiptap-pro/extension-ai';
 import type { AiStorage, AiTextResolverOptions } from '@tiptap-pro/extension-ai';
 

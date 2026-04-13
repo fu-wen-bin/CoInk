@@ -96,7 +96,7 @@
     margin-top: var(--tt-block-section-gap);
   }
 
-  > * + [data-content-type="table"] {
+  > * + [data-content-type='table'] {
     margin-top: var(--tt-block-section-gap);
   }
 
@@ -109,7 +109,7 @@
   }
 
   > * + hr,
-  > * + [data-type="horizontalRule"] {
+  > * + [data-type='horizontalRule'] {
     margin-top: var(--tt-flow-gap-relaxed);
   }
 
@@ -138,7 +138,7 @@
     margin-top: var(--tt-block-section-gap);
   }
 
-  > [data-content-type="table"] + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+  > [data-content-type='table'] + *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
     margin-top: var(--tt-block-section-gap);
   }
 
@@ -242,7 +242,7 @@
 /* =====================
      EMOJI
      ===================== */
-.tiptap.ProseMirror [data-type="emoji"] img {
+.tiptap.ProseMirror [data-type='emoji'] img {
   display: inline-block;
   width: 1.25em;
   height: 1.25em;
@@ -263,7 +263,7 @@
      MENTION
      ===================== */
 .tiptap.ProseMirror {
-  [data-type="mention"] {
+  [data-type='mention'] {
     display: inline-block;
     color: var(--tt-brand-color-500);
   }
@@ -347,7 +347,8 @@
   position: relative;
 }
 
-.tiptap.ProseMirror :is(h1, h2, h3, h4, h5, h6).is-empty.is-placeholder-heading[data-placeholder]::before {
+.tiptap.ProseMirror
+  :is(h1, h2, h3, h4, h5, h6).is-empty.is-placeholder-heading[data-placeholder]::before {
   content: attr(data-placeholder);
   font-style: normal;
   pointer-events: none;
@@ -363,11 +364,13 @@
 }
 
 /* 2. 正文段落 slash：仅 p + .is-placeholder-slash */
-.tiptap.ProseMirror p.is-empty.is-placeholder-slash[data-placeholder]:has(> .ProseMirror-trailingBreak) {
+.tiptap.ProseMirror
+  p.is-empty.is-placeholder-slash[data-placeholder]:has(> .ProseMirror-trailingBreak) {
   position: relative;
 }
 
-.tiptap.ProseMirror p.is-empty.is-placeholder-slash[data-placeholder]:has(> .ProseMirror-trailingBreak)::before {
+.tiptap.ProseMirror
+  p.is-empty.is-placeholder-slash[data-placeholder]:has(> .ProseMirror-trailingBreak)::before {
   content: "输入 '/' 以使用命令…";
   font-style: italic;
   pointer-events: none;

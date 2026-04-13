@@ -4,7 +4,7 @@
   --tiptap-ai-prompt-input-focused-border-color: var(--tt-brand-color-500);
   --tiptap-ai-prompt-input-border-color: var(--tt-gray-light-a-200);
 
-  [data-active-state="off"] {
+  [data-active-state='off'] {
     --tiptap-ai-prompt-input-text-color: var(--tt-gray-light-a-400);
 
     &.tiptap-ai-prompt-input:hover {
@@ -19,7 +19,7 @@
   --tiptap-ai-prompt-input-focused-border-color: var(--tt-brand-color-500);
   --tiptap-ai-prompt-input-border-color: var(--tt-gray-dark-a-200);
 
-  [data-active-state="off"] {
+  [data-active-state='off'] {
     --tiptap-ai-prompt-input-text-color: var(--tt-gray-dark-a-400);
 
     &.tiptap-ai-prompt-input:hover {
@@ -38,7 +38,7 @@
   padding: 0.375rem;
   width: 100%;
 
-  &[data-focused="true"] {
+  &[data-focused='true'] {
     border-color: var(--tiptap-ai-prompt-input-focused-border-color);
   }
 }
@@ -61,7 +61,7 @@
   outline: none;
 
   .tiptap.ProseMirror {
-    font-family: "Inter", sans-serif;
+    font-family: 'Inter', sans-serif;
   }
 
   &::placeholder {
@@ -69,7 +69,7 @@
   }
 }
 
-[data-active-state="off"] {
+[data-active-state='off'] {
   &.tiptap-ai-prompt-input {
     height: 2.75rem;
     cursor: pointer;

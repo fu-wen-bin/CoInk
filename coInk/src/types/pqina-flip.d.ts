@@ -13,4 +13,3 @@ declare module '@pqina/flip' {
 
   export default Tick;
 }
-

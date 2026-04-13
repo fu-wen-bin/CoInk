@@ -3,8 +3,8 @@
 import { useState, type ChangeEvent } from 'react';
 import { Layers } from 'lucide-react';
 import { encodeStateAsUpdate, type Doc } from 'yjs';
-import { toastSuccess, toastError } from '@/utils/toast';
 
+import { toastSuccess, toastError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,7 +44,7 @@ export function CreateVersionPopover({
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const defaultTitle = `${documentTitle || '未命名文档'} 的版本`;
+  const defaultTitle = `${documentTitle || '未命名文档'}`;
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -121,7 +121,7 @@ export function CreateVersionPopover({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="version-title" className="text-xs">
-            名称
+            文档标题
           </Label>
           <Input
             id="version-title"

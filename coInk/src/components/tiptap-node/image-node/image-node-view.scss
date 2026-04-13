@@ -18,12 +18,12 @@
     width: 100%;
     margin: 0;
 
-    &[data-align="right"] {
+    &[data-align='right'] {
       text-align: right;
       justify-content: flex-end;
     }
 
-    &[data-align="center"] {
+    &[data-align='center'] {
       text-align: center;
       justify-content: center;
     }
@@ -82,9 +82,7 @@
     /* 覆盖 .tiptap-image-container 的 user-select: none，否则说明文字无法选中编辑 */
     user-select: text;
 
-    &:has(
-        > [data-node-view-content-react] > .ProseMirror-trailingBreak:only-child
-      )::before,
+    &:has(> [data-node-view-content-react] > .ProseMirror-trailingBreak:only-child)::before,
     &:has(> [data-node-view-content-react]:empty)::before {
       content: attr(data-placeholder);
       color: #9ca3af;

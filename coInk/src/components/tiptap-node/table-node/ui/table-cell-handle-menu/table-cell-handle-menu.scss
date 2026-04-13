@@ -30,7 +30,7 @@
   pointer-events: auto;
 
   &::before {
-    content: "";
+    content: '';
     position: absolute;
     top: 50%;
     right: var(--dot-offset-small);

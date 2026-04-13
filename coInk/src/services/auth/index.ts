@@ -11,8 +11,11 @@
  */
 
 import type {
+  EmailCodeLoginParams,
   RegisterParams,
   LoginParams,
+  SendEmailCodeParams,
+  SendEmailCodeResponseData,
   GithubLoginParams,
   RefreshTokenParams,
   LogoutParams,
@@ -113,6 +116,44 @@ export const authApi = {
     clientRequest.post<AuthResponseData>('/auth/login', {
       params,
       errorHandler,
+    }),
+
+  /**
+   * 发送邮箱验证码
+   *
+   * 接口路径：POST /auth/email-code/send
+   *
+   * @param params - 发送参数，包含 email
+   * @param errorHandler - 可选的错误处理函数
+   */
+  sendEmailCode: (
+    params: SendEmailCodeParams,
+    errorHandler?: ErrorHandler,
+  ): Promise<RequestResult<SendEmailCodeResponseData>> =>
+    clientRequest.post<SendEmailCodeResponseData>('/auth/email-code/send', {
+      params,
+      errorHandler,
+      timeout: 30000,
+      retries: 0,
+    }),
+
+  /**
+   * 邮箱验证码登录（首次自动注册）
+   *
+   * 接口路径：POST /auth/email-code/login
+   *
+   * @param params - 登录参数，包含 email 与 code
+   * @param errorHandler - 可选的错误处理函数
+   */
+  emailCodeLogin: (
+    params: EmailCodeLoginParams,
+    errorHandler?: ErrorHandler,
+  ): Promise<RequestResult<AuthResponseData>> =>
+    clientRequest.post<AuthResponseData>('/auth/email-code/login', {
+      params,
+      errorHandler,
+      timeout: 30000,
+      retries: 0,
     }),
 
   /**

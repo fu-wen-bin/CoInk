@@ -16,7 +16,12 @@ import { Response, Request } from 'express';
 import { randomBytes } from 'crypto';
 
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/create-auth.dto';
+import {
+  EmailCodeLoginDto,
+  LoginDto,
+  RegisterDto,
+  SendEmailCodeDto,
+} from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 /**
  * 认证控制器
@@ -38,7 +43,7 @@ export class AuthController {
   private setAuthCookies(
     res: Response,
     tokens: { accessToken?: string; refreshToken?: string },
-    scene: 'register' | 'login' | 'refresh' = 'refresh',
+    scene: 'register' | 'login' | 'refresh' | 'email_code_login' = 'refresh',
   ) {
     const commonOptions = {
       httpOnly: true,
@@ -95,6 +100,45 @@ export class AuthController {
           refreshToken: authData.refreshToken,
         },
         'register',
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * 发送邮箱验证码
+   */
+  @Post('email-code/send')
+  sendEmailCode(@Body() sendEmailCodeDto: SendEmailCodeDto, @Req() req: Request) {
+    const userAgentHeader = req.headers['user-agent'];
+    const userAgent = Array.isArray(userAgentHeader) ? userAgentHeader[0] : userAgentHeader;
+
+    return this.authService.sendEmailCode(sendEmailCodeDto, {
+      ip: req.ip,
+      userAgent,
+    });
+  }
+
+  /**
+   * 邮箱验证码登录（首次自动注册）
+   */
+  @Post('email-code/login')
+  async emailCodeLogin(
+    @Body() emailCodeLoginDto: EmailCodeLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.emailCodeLogin(emailCodeLoginDto);
+    const authData = result as unknown as { accessToken?: string; refreshToken?: string };
+
+    if (authData?.accessToken && authData?.refreshToken) {
+      this.setAuthCookies(
+        res,
+        {
+          accessToken: authData.accessToken,
+          refreshToken: authData.refreshToken,
+        },
+        'email_code_login',
       );
     }
 

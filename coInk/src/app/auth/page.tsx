@@ -161,9 +161,40 @@ function LoginContent() {
           setIsLoading(false);
           return;
         }
+        const { data: response, error } = await authApi.emailCodeLogin({
+          email: formData.email,
+          code: formData.code,
+        });
 
-        toastError('验证码登录功能暂未开放，请使用密码登录');
-        setIsLoading(false);
+        if (error) {
+          toastError(error);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!response || response.code !== 200 || !response.data?.accessToken) {
+          toastError(response?.message || '验证码登录失败，请重试');
+          setIsLoading(false);
+          return;
+        }
+
+        setLoggedInFlag();
+
+        if (response.data?.user) {
+          queryClient.setQueryData<User>([...userQueryKeys.profile(), undefined], response.data.user);
+          saveUserToStorage(response.data.user);
+          console.log('💾 验证码登录用户资料已缓存:', response.data.user);
+        }
+
+        if (response.data?.isNewUser) {
+          toastSuccess('注册并登录成功！');
+        } else {
+          toastSuccess('登录成功！');
+        }
+
+        setTimeout(() => {
+          router.push(redirectUrl || '/dashboard');
+        }, 500);
       } else {
         // 注册
         console.log('注册模式，表单数据：', formData);

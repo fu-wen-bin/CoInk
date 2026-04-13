@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import { toastError, toastSuccess } from '@/utils/toast';
+import authApi from '@/services/auth';
 
 export interface AuthFormData {
   email: string;
@@ -99,6 +100,16 @@ export function useSimpleAuthForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  useEffect(() => {
+    if (countdown <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setCountdown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [countdown]);
+
   // 发送验证码
   const handleSendCode = async () => {
     if (!formData.email) {
@@ -112,8 +123,28 @@ export function useSimpleAuthForm() {
     }
 
     setIsSendingCode(true);
-    toastError('验证码功能暂未开放');
-    setIsSendingCode(false);
+    try {
+      const { data, error } = await authApi.sendEmailCode({
+        email: formData.email,
+      });
+
+      if (error) {
+        toastError(error);
+        return;
+      }
+
+      if (!data || data.code !== 200 || !data.data?.success) {
+        toastError(data?.message || '验证码发送失败，请稍后重试');
+        return;
+      }
+
+      setCountdown(data.data.cooldownSeconds ?? 60);
+      toastSuccess('验证码已发送，请前往邮箱查收');
+    } catch (error) {
+      toastError(error instanceof Error ? error.message : '发送验证码失败，请稍后重试');
+    } finally {
+      setIsSendingCode(false);
+    }
   };
 
   // 重置表单

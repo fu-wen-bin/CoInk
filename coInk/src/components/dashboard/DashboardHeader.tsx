@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { User, LogOut, HelpCircle, Menu, ChevronDown, Users } from 'lucide-react';
+import { User, LogOut, HelpCircle, Menu, ChevronDown } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +17,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { useUserQuery, useLogoutMutation, getLocalUserData } from '@/hooks/useUserQuery';
 import NotificationDropdown from '@/components/notifications/notification-dropdown';
-import { useNotificationSocketContext } from '@/providers/NotificationSocketProvider';
 
 interface DashboardHeaderProps {
   onMenuToggle?: () => void;
@@ -52,9 +51,6 @@ export default function DashboardHeader({
   const logoutMutation = useLogoutMutation();
   const [localUserData, setLocalUserData] = useState<any>(undefined);
   const [mounted, setMounted] = useState(false);
-
-  // 获取在线用户数据
-  const { onlineUsers, isConnected } = useNotificationSocketContext();
 
   // 加载本地用户数据作为fallback
   useEffect(() => {
@@ -108,21 +104,8 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        {/* 右侧：在线用户、通知、帮助、用户头像 */}
+        {/* 右侧：通知、帮助、用户头像 */}
         <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-          {/* 在线用户数 - 只在客户端挂载后显示，避免 SSR hydration 错误 */}
-          {mounted && (
-            <div className="hidden sm:flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}
-              ></div>
-              <Users className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-900">
-                {isConnected ? onlineUsers.length : 0}
-              </span>
-              <span className="text-xs text-blue-700">在线</span>
-            </div>
-          )}
           {/* 帮助按钮 */}
           <Button
             variant="ghost"

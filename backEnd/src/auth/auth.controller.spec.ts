@@ -14,6 +14,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { EmailService } from './email.service';
 
 const prismaMock = {
   users: {
@@ -28,6 +29,10 @@ const jwtMock = {
   verifyAsync: jest.fn(),
 };
 
+const emailServiceMock = {
+  sendLoginCode: jest.fn(),
+};
+
 describe('AuthController', () => {
   let controller: AuthController;
 
@@ -38,6 +43,7 @@ describe('AuthController', () => {
         AuthService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
+        { provide: EmailService, useValue: emailServiceMock },
       ],
     }).compile();
 

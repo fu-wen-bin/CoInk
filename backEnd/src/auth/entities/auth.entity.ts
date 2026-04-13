@@ -13,6 +13,7 @@ export class AuthResponse {
   accessToken: string;
   refreshToken?: string;
   githubToken?: string;
+  isNewUser?: boolean;
   user: {
     userId: string;
     email?: string;

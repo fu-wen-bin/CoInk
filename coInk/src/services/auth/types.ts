@@ -70,6 +70,24 @@ export interface LoginParams {
 }
 
 /**
+ * 发送邮箱验证码请求参数
+ */
+export interface SendEmailCodeParams {
+  /** 邮箱地址 */
+  email: string;
+}
+
+/**
+ * 邮箱验证码登录请求参数
+ */
+export interface EmailCodeLoginParams {
+  /** 邮箱地址 */
+  email: string;
+  /** 6位验证码 */
+  code: string;
+}
+
+/**
  * GitHub OAuth 登录请求参数
  */
 export interface GithubLoginParams {
@@ -131,8 +149,20 @@ export interface AuthResponseData {
   accessToken: string;
   /** 刷新令牌 */
   refreshToken: string;
+  /** 是否为首次注册用户 */
+  isNewUser?: boolean;
   /** 用户信息 */
   user: User;
+}
+
+/**
+ * 发送验证码响应数据
+ */
+export interface SendEmailCodeResponseData {
+  /** 是否成功 */
+  success: boolean;
+  /** 冷却秒数 */
+  cooldownSeconds: number;
 }
 
 /**

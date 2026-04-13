@@ -9,17 +9,20 @@ import * as argon2 from 'argon2';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
 
-import { users } from '../../generated/prisma/client';
+import { email_login_codes, users } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  EmailCodeLoginDto,
   GithubLoginDto,
   GithubUserDto,
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
+  SendEmailCodeDto,
 } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { AuthResponse, JwtPayload } from './entities/auth.entity';
+import { EmailService } from './email.service';
 
 // GitHub 授权码换 token 的响应结构
 type GithubTokenResponse = {
@@ -46,10 +49,16 @@ type GithubUserApiResponse = {
 // 认证服务：包含邮箱登录/注册、GitHub OAuth、刷新 Token 等业务
 @Injectable()
 export class AuthService {
+  private readonly emailCodeLength = 6;
+  private readonly emailCodeCooldownSeconds = 60;
+  private readonly emailCodeExpiresMinutes = 10;
+  private readonly emailCodeMaxAttempts = 5;
+
   // 注入 Prisma 与 JWT 服务
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   // ==================== 邮箱密码认证 ====================
@@ -118,6 +127,149 @@ export class AuthService {
     return this.buildAuthResponse(updatedUser);
   }
 
+  /**
+   * 发送邮箱验证码（60秒冷却）
+   */
+  async sendEmailCode(
+    sendEmailCodeDto: SendEmailCodeDto,
+    meta?: { ip?: string; userAgent?: string },
+  ): Promise<{ success: boolean; cooldownSeconds: number }> {
+    const email = this.normalizeEmail(sendEmailCodeDto.email);
+    const latestCode = await this.prisma.email_login_codes.findFirst({
+      where: { email },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (latestCode && this.isWithinCooldown(latestCode.created_at)) {
+      return { success: true, cooldownSeconds: this.emailCodeCooldownSeconds };
+    }
+
+    const code = this.generateEmailCode();
+    const codeHash = await argon2.hash(code);
+    const expiresAt = new Date(Date.now() + this.emailCodeExpiresMinutes * 60 * 1000);
+
+    const createdCode = await this.prisma.email_login_codes.create({
+      data: {
+        email,
+        code_hash: codeHash,
+        attempt_count: 0,
+        max_attempts: this.emailCodeMaxAttempts,
+        expires_at: expiresAt,
+        sent_ip: this.safeTruncate(meta?.ip, 45),
+        sent_ua: this.safeTruncate(meta?.userAgent, 255),
+      },
+    });
+
+    try {
+      await this.emailService.sendLoginCode({
+        email,
+        code,
+        expiresInMinutes: this.emailCodeExpiresMinutes,
+      });
+    } catch (error) {
+      await this.prisma.email_login_codes
+        .delete({
+          where: { code_id: createdCode.code_id },
+        })
+        .catch(() => undefined);
+      throw error;
+    }
+
+    return { success: true, cooldownSeconds: this.emailCodeCooldownSeconds };
+  }
+
+  /**
+   * 邮箱验证码登录：首次自动注册，非首次直接登录
+   */
+  async emailCodeLogin(emailCodeLoginDto: EmailCodeLoginDto): Promise<AuthResponse> {
+    const email = this.normalizeEmail(emailCodeLoginDto.email);
+    const verifyCode = emailCodeLoginDto.code.trim();
+    const codeRecord = await this.getLatestValidCode(email);
+
+    if (!codeRecord) {
+      throw new UnauthorizedException('验证码无效或已过期');
+    }
+
+    if (codeRecord.attempt_count >= codeRecord.max_attempts) {
+      throw new UnauthorizedException('验证码错误次数过多，请重新获取');
+    }
+
+    const isCodeMatched = await argon2.verify(codeRecord.code_hash, verifyCode);
+    if (!isCodeMatched) {
+      await this.prisma.email_login_codes.update({
+        where: { code_id: codeRecord.code_id },
+        data: { attempt_count: { increment: 1 } },
+      });
+      throw new UnauthorizedException('验证码错误');
+    }
+
+    const consumed = await this.prisma.email_login_codes.updateMany({
+      where: {
+        code_id: codeRecord.code_id,
+        used_at: null,
+      },
+      data: {
+        used_at: new Date(),
+      },
+    });
+
+    if (consumed.count !== 1) {
+      throw new UnauthorizedException('验证码已失效，请重新获取');
+    }
+
+    const existingUser = await this.prisma.users.findUnique({
+      where: { email },
+    });
+
+    let isNewUser = false;
+    let user: users;
+
+    if (!existingUser) {
+      isNewUser = true;
+      const defaultName = this.generateDefaultNameByEmail(email);
+      try {
+        user = await this.prisma.users.create({
+          data: {
+            user_id: nanoid(),
+            email,
+            name: defaultName,
+            avatar_url: this.generateDefaultAvatar(defaultName),
+            last_login_at: new Date(),
+          },
+        });
+      } catch (error) {
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error
+            ? (error as { code?: string }).code
+            : undefined;
+        if (code !== 'P2002') {
+          throw error;
+        }
+
+        // 并发下若邮箱已被创建，回退到“已存在用户登录”流程。
+        const concurrentUser = await this.prisma.users.findUnique({
+          where: { email },
+        });
+        if (!concurrentUser) {
+          throw error;
+        }
+
+        isNewUser = false;
+        user = await this.prisma.users.update({
+          where: { user_id: concurrentUser.user_id },
+          data: { last_login_at: new Date() },
+        });
+      }
+    } else {
+      user = await this.prisma.users.update({
+        where: { user_id: existingUser.user_id },
+        data: { last_login_at: new Date() },
+      });
+    }
+
+    return this.buildAuthResponse(user, { isNewUser });
+  }
+
   // ==================== GitHub OAuth 认证 ====================
 
   // GitHub OAuth 登录：code 换 access_token -> 获取 GitHub 用户信息 -> 绑定/创建本地用户
@@ -136,7 +288,7 @@ export class AuthService {
       data: { last_login_at: new Date() },
     });
 
-    return this.buildAuthResponse(updatedUser, accessToken);
+    return this.buildAuthResponse(updatedUser, { githubToken: accessToken });
   }
 
   // 账号绑定策略：优先按 githubId；若无则按 email 绑定（避免重复账号）
@@ -459,14 +611,54 @@ export class AuthService {
   }
 
   // 生成登录响应：签发 token 并返回用户信息
-  private async buildAuthResponse(user: users, githubToken?: string): Promise<AuthResponse> {
+  private async buildAuthResponse(
+    user: users,
+    options?: { githubToken?: string; isNewUser?: boolean },
+  ): Promise<AuthResponse> {
     const { accessToken, refreshToken } = await this.signTokens(user);
     return {
       accessToken,
       refreshToken,
-      githubToken,
+      githubToken: options?.githubToken,
+      isNewUser: options?.isNewUser,
       user: this.sanitizeUser(user),
     };
+  }
+
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
+  private generateEmailCode() {
+    const max = 10 ** this.emailCodeLength;
+    const min = 10 ** (this.emailCodeLength - 1);
+    return String(Math.floor(Math.random() * (max - min)) + min);
+  }
+
+  private isWithinCooldown(createdAt: Date) {
+    return Date.now() - createdAt.getTime() < this.emailCodeCooldownSeconds * 1000;
+  }
+
+  private safeTruncate(value: string | undefined, maxLen: number) {
+    if (!value) return undefined;
+    return value.slice(0, maxLen);
+  }
+
+  private async getLatestValidCode(email: string): Promise<email_login_codes | null> {
+    return this.prisma.email_login_codes.findFirst({
+      where: {
+        email,
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  private generateDefaultNameByEmail(email: string) {
+    const emailPrefix = email.split('@')[0]?.trim() ?? '';
+    const baseName = emailPrefix || `用户${nanoid(6)}`;
+    return baseName.slice(0, 20);
   }
 
   // 签发 access/refresh token

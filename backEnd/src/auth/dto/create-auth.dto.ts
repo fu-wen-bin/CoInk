@@ -1,4 +1,12 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 // 邮箱密码登录 DTO
 export class LoginDto {
@@ -35,6 +43,25 @@ export class RegisterDto {
 export class GithubLoginDto {
   @IsString()
   @IsNotEmpty()
+  code: string;
+}
+
+// 发送邮箱验证码 DTO
+export class SendEmailCodeDto {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
+
+// 邮箱验证码登录 DTO
+export class EmailCodeLoginDto {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, { message: '验证码必须为6位数字' })
   code: string;
 }
 

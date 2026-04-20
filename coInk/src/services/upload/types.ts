@@ -3,23 +3,27 @@
  */
 export interface FileExistsResponse {
   exists: boolean;
+  fileId?: string;
+  filePath?: string;
+  fileName?: string;
+  url?: string;
   fileUrl?: string;
 }
 
 /**
- * 分块上传响应
+ * 分片上传响应
  */
 export interface ChunkUploadResponse {
   success: boolean;
-  message: string;
-  isComplete?: boolean;
-  fileUrl?: string;
+  uploadedChunks: number[];
+  isComplete: boolean;
 }
 
 /**
- * 分块信息响应
+ * 分片信息响应
  */
 export interface ChunkInfoResponse {
+  fileId: string;
   uploadedChunks: number[];
   totalChunks: number;
   isComplete: boolean;
@@ -30,9 +34,10 @@ export interface ChunkInfoResponse {
  */
 export interface CompleteUploadResponse {
   success: boolean;
-  fileUrl: string;
-  fileHash?: string;
-  message: string;
+  fileId: string;
+  filePath: string;
+  url?: string;
+  fileUrl?: string;
 }
 
 /**
@@ -43,8 +48,29 @@ export interface UploadProgressInfo {
   totalChunks: number;
   bytesUploaded: number;
   totalBytes: number;
-  speed?: number;
-  remainingTime?: number;
+  percentage: number;
+}
+
+/**
+ * 断点续传参数
+ */
+export interface UploadFileWithResumeOptions {
+  chunkSize?: number;
+  fileId?: string;
+  onProgress?: (progress: UploadProgressInfo) => void;
+  onChunkUploaded?: (chunkIndex: number, uploadedChunks: number[]) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * 断点续传结果
+ */
+export interface UploadFileWithResumeResult {
+  success: boolean;
+  fileId: string;
+  fileHash: string;
+  url: string;
+  fromFastUpload: boolean;
 }
 
 /**

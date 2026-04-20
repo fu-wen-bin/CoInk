@@ -16,8 +16,18 @@ export class CompleteFileDto {
 
   @IsInt()
   @Min(1)
+  @IsOptional()
   @Type(() => Number)
-  fileSize: number;
+  fileSize?: number;
+
+  /**
+   * 兼容旧字段名（与 fileSize 含义一致）
+   */
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  @Type(() => Number)
+  totalSize?: number;
 
   @IsString()
   @IsNotEmpty()

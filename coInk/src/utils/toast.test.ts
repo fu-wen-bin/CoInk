@@ -2,14 +2,19 @@ import { describe, it, expect, vi } from 'vitest';
 import { toastSuccess, toastError, toastWarning, toastInfo, toastLoading } from './toast';
 
 // Mock sonner
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn((msg, opts) => ({ message: msg, ...opts })),
-    error: vi.fn((msg, opts) => ({ message: msg, ...opts })),
-    warning: vi.fn((msg, opts) => ({ message: msg, ...opts })),
-    loading: vi.fn((msg, opts) => ({ message: msg, ...opts })),
-  },
-}));
+vi.mock('sonner', () => {
+  const toast = Object.assign(
+    vi.fn((msg, opts) => ({ message: msg, ...opts })),
+    {
+      success: vi.fn((msg, opts) => ({ message: msg, ...opts })),
+      error: vi.fn((msg, opts) => ({ message: msg, ...opts })),
+      warning: vi.fn((msg, opts) => ({ message: msg, ...opts })),
+      loading: vi.fn((msg, opts) => ({ message: msg, ...opts })),
+    },
+  );
+
+  return { toast };
+});
 
 describe('Toast Utils', () => {
   it('should create success toast with correct styles', () => {

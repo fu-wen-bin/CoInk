@@ -114,6 +114,27 @@ describe('AuthService', () => {
     expect(result.user.userId).toBe('u1');
   });
 
+  it('login should throw account not found when user does not exist', async () => {
+    prismaMock.users.findUnique.mockResolvedValue(null);
+
+    await expect(service.login({ email: 'missing@example.com', password: '123456' })).rejects.toThrow(
+      '账号不存在',
+    );
+  });
+
+  it('login should throw credential error when password is incorrect', async () => {
+    prismaMock.users.findUnique.mockResolvedValue({
+      user_id: 'u1',
+      email: 'a@b.com',
+      password_hash: 'hash',
+    });
+    (argon2.verify as jest.Mock).mockResolvedValueOnce(false);
+
+    await expect(service.login({ email: 'a@b.com', password: 'wrong-password' })).rejects.toThrow(
+      '账号或密码错误',
+    );
+  });
+
   it('sendEmailCode should create code and send email', async () => {
     prismaMock.email_login_codes.findFirst.mockResolvedValue(null);
     prismaMock.email_login_codes.create.mockResolvedValue({
@@ -255,4 +276,3 @@ describe('AuthService', () => {
     });
   });
 });
-

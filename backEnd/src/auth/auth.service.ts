@@ -109,13 +109,17 @@ export class AuthService {
       where: { email },
     });
 
-    if (!user || !user.password_hash) {
-      throw new UnauthorizedException('邮箱或密码错误');
+    if (!user) {
+      throw new UnauthorizedException('账号不存在');
+    }
+
+    if (!user.password_hash) {
+      throw new UnauthorizedException('账号或密码错误');
     }
 
     const isValid = await argon2.verify(user.password_hash, loginDto.password);
     if (!isValid) {
-      throw new UnauthorizedException('邮箱或密码错误');
+      throw new UnauthorizedException('账号或密码错误');
     }
 
     // 更新最近登录时间

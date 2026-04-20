@@ -5,7 +5,10 @@ jest.mock('nanoid', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { AuthService } from '../auth/auth.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 
@@ -43,6 +46,18 @@ const prismaMock = {
   $transaction: jest.fn((ops) => Promise.all(ops)),
 };
 
+const notificationsServiceMock = {
+  createAndPush: jest.fn(),
+};
+
+const realtimeServiceMock = {
+  emitToUser: jest.fn(),
+};
+
+const authServiceMock = {
+  verifyToken: jest.fn(),
+};
+
 describe('DocumentsController', () => {
   let controller: DocumentsController;
   let service: DocumentsService;
@@ -50,7 +65,13 @@ describe('DocumentsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DocumentsController],
-      providers: [DocumentsService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        DocumentsService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: NotificationsService, useValue: notificationsServiceMock },
+        { provide: RealtimeService, useValue: realtimeServiceMock },
+        { provide: AuthService, useValue: authServiceMock },
+      ],
     }).compile();
 
     controller = module.get<DocumentsController>(DocumentsController);

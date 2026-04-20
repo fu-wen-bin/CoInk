@@ -6,6 +6,7 @@ import { OssService } from './oss.service';
 jest.mock('ali-oss', () => {
   return jest.fn().mockImplementation(() => ({
     put: jest.fn().mockResolvedValue({ url: 'https://example.com/test-file.jpg' }),
+    head: jest.fn().mockResolvedValue({}),
     delete: jest.fn().mockResolvedValue({}),
   }));
 });
@@ -122,6 +123,41 @@ describe('OssService', () => {
       const objectKey = 'test/file.jpg';
 
       await expect(service.deleteFile(objectKey)).resolves.not.toThrow();
+    });
+  });
+
+  describe('objectExists', () => {
+    it('should return true when object exists', async () => {
+      const mockConfigService = createMockConfigService();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          OssService,
+          { provide: ConfigService, useValue: mockConfigService },
+        ],
+      }).compile();
+      service = module.get<OssService>(OssService);
+
+      await expect(service.objectExists('test/file.jpg')).resolves.toBe(true);
+    });
+
+    it('should return false when object is not found', async () => {
+      const OssConstructor = jest.requireMock('ali-oss') as jest.Mock;
+      OssConstructor.mockImplementationOnce(() => ({
+        put: jest.fn().mockResolvedValue({ url: 'https://example.com/test-file.jpg' }),
+        head: jest.fn().mockRejectedValue({ status: 404, code: 'NoSuchKey' }),
+        delete: jest.fn().mockResolvedValue({}),
+      }));
+
+      const mockConfigService = createMockConfigService();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          OssService,
+          { provide: ConfigService, useValue: mockConfigService },
+        ],
+      }).compile();
+      service = module.get<OssService>(OssService);
+
+      await expect(service.objectExists('test/missing.jpg')).resolves.toBe(false);
     });
   });
 });

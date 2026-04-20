@@ -115,6 +115,7 @@ export const authApi = {
   ): Promise<RequestResult<AuthResponseData>> =>
     clientRequest.post<AuthResponseData>('/auth/login', {
       params,
+      skipAuthRefresh: true,
       errorHandler,
     }),
 
@@ -151,6 +152,7 @@ export const authApi = {
   ): Promise<RequestResult<AuthResponseData>> =>
     clientRequest.post<AuthResponseData>('/auth/email-code/login', {
       params,
+      skipAuthRefresh: true,
       errorHandler,
       timeout: 30000,
       retries: 0,

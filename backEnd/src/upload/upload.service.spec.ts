@@ -41,6 +41,27 @@ describe('UploadService - OSS Integration', () => {
 
   const mockOssService = {
     isEnabled: jest.fn().mockReturnValue(true),
+    isDirectUploadEnabled: jest.fn().mockReturnValue(true),
+    objectExists: jest.fn().mockResolvedValue(false),
+    buildPublicObjectUrl: jest
+      .fn()
+      .mockImplementation((objectKey: string) => `https://cdn.example.com/${objectKey}`),
+    createEditorImageDirectUploadCredential: jest
+      .fn()
+      .mockImplementation(async (_userId: string, objectKey: string) => ({
+        accessKeyId: 'sts-access-key-id',
+        accessKeySecret: 'sts-access-key-secret',
+        securityToken: 'sts-security-token',
+        expiration: '2099-01-01T00:00:00Z',
+        region: 'oss-cn-hangzhou',
+        bucket: 'test-bucket',
+        endpoint: 'oss-cn-hangzhou.aliyuncs.com',
+        authorizationV4: true,
+        partSize: 524288,
+        parallel: 3,
+        objectKey,
+        url: `https://cdn.example.com/${objectKey}`,
+      })),
     uploadBuffer: jest.fn().mockResolvedValue('https://cdn.example.com/avatars/user123/2024-01-01/abc123.jpg'),
     deleteFile: jest.fn().mockResolvedValue(undefined),
   };
@@ -139,13 +160,31 @@ describe('UploadService - OSS Integration', () => {
     const mockFileName = 'editor-image.png';
 
     it('should upload editor image to OSS', async () => {
-      mockOssService.uploadBuffer.mockResolvedValueOnce('https://cdn.example.com/editor-images/user123/2024-01-01/def456.png');
+      mockOssService.uploadBuffer.mockResolvedValueOnce(
+        'https://cdn.example.com/editor-images/user123/sha256/mock-hash',
+      );
 
       const result = await service.uploadEditorImage(mockBuffer, mockFileName, 'image/png', userId);
 
       expect(ossService.isEnabled).toHaveBeenCalled();
-      expect(ossService.uploadBuffer).toHaveBeenCalled();
+      expect(ossService.objectExists).toHaveBeenCalledWith('editor-images/user123/sha256/mock-hash');
+      expect(ossService.uploadBuffer).toHaveBeenCalledWith(
+        'editor-images/user123/sha256/mock-hash',
+        mockBuffer,
+        'image/png',
+        { forbidOverwrite: true },
+      );
       expect(result.url).toContain('editor-images');
+    });
+
+    it('should return existing url without uploading when same content already exists', async () => {
+      mockOssService.objectExists.mockResolvedValueOnce(true);
+
+      const result = await service.uploadEditorImage(mockBuffer, mockFileName, 'image/png', userId);
+
+      expect(ossService.objectExists).toHaveBeenCalledWith('editor-images/user123/sha256/mock-hash');
+      expect(ossService.uploadBuffer).not.toHaveBeenCalled();
+      expect(result.url).toBe('https://cdn.example.com/editor-images/user123/sha256/mock-hash');
     });
 
     it('should throw BadRequestException for invalid image format', async () => {
@@ -160,6 +199,75 @@ describe('UploadService - OSS Integration', () => {
       await expect(
         service.uploadEditorImage(largeBuffer, mockFileName, 'image/png', userId),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('createEditorImageDirectUploadSession', () => {
+    const userId = 'user123';
+    const mockFileName = 'editor-image.png';
+    const fileSize = 1024;
+    const contentHash = 'a'.repeat(64);
+
+    it('should create direct upload session when STS direct upload is enabled', async () => {
+      const result = await service.createEditorImageDirectUploadSession(
+        fileSize,
+        mockFileName,
+        'image/png',
+        contentHash,
+        userId,
+      );
+
+      expect(ossService.isDirectUploadEnabled).toHaveBeenCalled();
+      expect(ossService.objectExists).toHaveBeenCalledWith(`editor-images/${userId}/sha256/${contentHash}`);
+      expect(ossService.createEditorImageDirectUploadCredential).toHaveBeenCalledWith(
+        userId,
+        `editor-images/${userId}/sha256/${contentHash}`,
+      );
+      expect(result.alreadyExists).toBe(false);
+      if (result.alreadyExists) {
+        throw new Error('unexpected alreadyExists=true');
+      }
+      expect(result.securityToken).toBe('sts-security-token');
+      expect(result.objectKey).toBe(`editor-images/${userId}/sha256/${contentHash}`);
+    });
+
+    it('should short-circuit when hashed object already exists', async () => {
+      mockOssService.objectExists.mockResolvedValueOnce(true);
+
+      const result = await service.createEditorImageDirectUploadSession(
+        fileSize,
+        mockFileName,
+        'image/png',
+        contentHash,
+        userId,
+      );
+
+      expect(result).toEqual({
+        alreadyExists: true,
+        objectKey: `editor-images/${userId}/sha256/${contentHash}`,
+        url: `https://cdn.example.com/editor-images/${userId}/sha256/${contentHash}`,
+      });
+      expect(ossService.createEditorImageDirectUploadCredential).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for invalid contentHash', async () => {
+      await expect(
+        service.createEditorImageDirectUploadSession(fileSize, mockFileName, 'image/png', 'not-sha256', userId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ServiceUnavailableException when STS direct upload is disabled', async () => {
+      mockOssService.isDirectUploadEnabled.mockReturnValueOnce(false);
+
+      await expect(
+        service.createEditorImageDirectUploadSession(
+          fileSize,
+          mockFileName,
+          'image/png',
+          contentHash,
+          userId,
+        ),
+      ).rejects.toThrow(ServiceUnavailableException);
     });
   });
 });

@@ -22,7 +22,9 @@ export function sanitizeFileName(fileName: string): string {
  * @returns Unique file ID
  */
 export function generateFileId(fileHash: string): string {
-  return `${fileHash.substring(0, 10)}-${Date.now()}`;
+  // 后端 file_id 字段为 varchar(21)，此处生成稳定且可断点续传的 fileId
+  const normalizedHash = fileHash.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return `f_${normalizedHash.substring(0, 19)}`;
 }
 
 /**

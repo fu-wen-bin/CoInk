@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CompleteFileDto } from './dto';
-import { OssService } from './oss.service';
+import { EditorImageDirectUploadCredential, OssService } from './oss.service';
 
 export interface UploadStatus {
   fileId: string;
@@ -14,6 +14,24 @@ export interface UploadStatus {
   uploadedChunks: number[];
   isComplete: boolean;
 }
+
+export type EditorImageDirectUploadSession =
+  | {
+      alreadyExists: true;
+      objectKey: string;
+      url: string;
+    }
+  | ({ alreadyExists: false } & EditorImageDirectUploadCredential);
+
+const EDITOR_IMAGE_ALLOWED_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+];
+const EDITOR_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/;
 
 @Injectable()
 export class UploadService {
@@ -55,17 +73,26 @@ export class UploadService {
     fileId?: string;
     filePath?: string;
     fileName?: string;
+    url?: string;
+    fileUrl?: string;
   }> {
     const existingFile = await this.prisma.files.findUnique({
       where: { file_hash: fileHash },
     });
 
+    if (existingFile && !existingFile.is_complete) {
+      return { exists: false };
+    }
+
     if (existingFile && existingFile.is_complete) {
+      const url = this.toPublicUploadUrl(existingFile.file_path);
       return {
         exists: true,
         fileId: existingFile.file_id,
         filePath: existingFile.file_path,
         fileName: existingFile.file_name,
+        url,
+        fileUrl: url,
       };
     }
 
@@ -80,6 +107,7 @@ export class UploadService {
   async getChunkInfo(fileId: string): Promise<{
     fileId: string;
     uploadedChunks: number[];
+    totalChunks: number;
     isComplete: boolean;
   }> {
     const status = this.uploadStatusMap.get(fileId);
@@ -88,6 +116,7 @@ export class UploadService {
       return {
         fileId,
         uploadedChunks: status.uploadedChunks,
+        totalChunks: status.totalChunks,
         isComplete: status.isComplete,
       };
     }
@@ -101,6 +130,7 @@ export class UploadService {
       return {
         fileId,
         uploadedChunks: [],
+        totalChunks: fileRecord.chunk_count || 0,
         isComplete: true,
       };
     }
@@ -117,6 +147,7 @@ export class UploadService {
       return {
         fileId,
         uploadedChunks: chunks,
+        totalChunks: 0,
         isComplete: false,
       };
     }
@@ -124,6 +155,7 @@ export class UploadService {
     return {
       fileId,
       uploadedChunks: [],
+      totalChunks: 0,
       isComplete: false,
     };
   }
@@ -137,11 +169,31 @@ export class UploadService {
     totalChunks: number,
     _fileHash: string,
     chunkBuffer: Buffer,
+    chunkHash?: string,
   ): Promise<{
     success: boolean;
     uploadedChunks: number[];
     isComplete: boolean;
   }> {
+    if (!fileId || fileId.length > 21) {
+      throw new BadRequestException('fileId 无效，长度需在 1-21 之间');
+    }
+    if (!Number.isInteger(chunkIndex) || chunkIndex < 0) {
+      throw new BadRequestException('chunkIndex 必须是大于等于 0 的整数');
+    }
+    if (!Number.isInteger(totalChunks) || totalChunks < 1) {
+      throw new BadRequestException('totalChunks 必须是大于等于 1 的整数');
+    }
+    if (chunkIndex >= totalChunks) {
+      throw new BadRequestException('chunkIndex 不能大于等于 totalChunks');
+    }
+    if (chunkHash) {
+      const calculatedHash = this.calculateBufferHash(chunkBuffer);
+      if (calculatedHash !== chunkHash) {
+        throw new BadRequestException('分片校验失败，请重试');
+      }
+    }
+
     const tempFileDir = path.join(this.tempDir, fileId);
 
     // Ensure temp directory exists
@@ -164,6 +216,7 @@ export class UploadService {
       };
       this.uploadStatusMap.set(fileId, status);
     }
+    status.totalChunks = totalChunks;
 
     if (!status.uploadedChunks.includes(chunkIndex)) {
       status.uploadedChunks.push(chunkIndex);
@@ -171,11 +224,12 @@ export class UploadService {
 
     // Sort uploaded chunks
     status.uploadedChunks.sort((a, b) => a - b);
+    status.isComplete = status.uploadedChunks.length === totalChunks;
 
     return Promise.resolve({
       success: true,
       uploadedChunks: status.uploadedChunks,
-      isComplete: status.uploadedChunks.length === totalChunks,
+      isComplete: status.isComplete,
     });
   }
 
@@ -192,17 +246,28 @@ export class UploadService {
     fileId: string;
     filePath: string;
     url: string;
+    fileUrl: string;
   }> {
-    const { fileId, fileName, fileHash, fileSize, mimeType, totalChunks = 0 } = dto;
+    const { fileId, fileName, fileHash, fileSize, mimeType } = dto;
+    const totalChunks = dto.totalChunks && dto.totalChunks > 0 ? dto.totalChunks : 1;
+
+    if (!fileId || fileId.length > 21) {
+      throw new BadRequestException('fileId 无效，长度需在 1-21 之间');
+    }
+    if (typeof fileSize !== 'number' || !Number.isInteger(fileSize) || fileSize < 1) {
+      throw new BadRequestException('fileSize 必须是大于等于 1 的整数');
+    }
 
     // Check if file already exists (fast upload)
     const existingCheck = await this.checkFile(fileHash);
     if (existingCheck.exists) {
+      const url = existingCheck.url || this.toPublicUploadUrl(existingCheck.filePath!);
       return {
         success: true,
         fileId: existingCheck.fileId!,
         filePath: existingCheck.filePath!,
-        url: `/uploads/files/${path.basename(existingCheck.filePath!)}`,
+        url,
+        fileUrl: url,
       };
     }
 
@@ -262,13 +327,14 @@ export class UploadService {
     this.uploadStatusMap.delete(fileId);
 
     // Generate relative URL
-    const relativePath = path.relative(this.uploadDir, finalFilePath);
+    const url = this.toPublicUploadUrl(finalFilePath);
 
     return {
       success: true,
       fileId,
       filePath: finalFilePath,
-      url: `/uploads/${relativePath.replace(/\\/g, '/')}`,
+      url,
+      fileUrl: url,
     };
   }
 
@@ -407,7 +473,7 @@ export class UploadService {
    */
   async uploadEditorImage(
     fileBuffer: Buffer,
-    originalName: string,
+    _originalName: string,
     mimeType: string,
     userId: string,
   ): Promise<{ url: string }> {
@@ -417,22 +483,79 @@ export class UploadService {
       );
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    if (!allowedTypes.includes(mimeType)) {
+    if (!EDITOR_IMAGE_ALLOWED_TYPES.includes(mimeType)) {
       throw new BadRequestException('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片');
     }
 
-    const maxSize = 10 * 1024 * 1024;
-    if (fileBuffer.length > maxSize) {
+    if (fileBuffer.length > EDITOR_IMAGE_MAX_BYTES) {
       throw new BadRequestException('图片大小不能超过 10MB');
     }
 
-    const ext = this.resolveImageExtension(originalName, mimeType);
-    const dateDir = new Date().toISOString().split('T')[0];
-    const objectKey = `editor-images/${userId}/${dateDir}/${nanoid()}${ext}`;
+    const contentHash = this.calculateBufferSha256(fileBuffer);
+    const objectKey = this.buildEditorImageObjectKey(userId, contentHash);
+    const url = this.ossService.buildPublicObjectUrl(objectKey);
+    const exists = await this.ossService.objectExists(objectKey);
+    if (exists) {
+      return { url };
+    }
 
-    const url = await this.ossService.uploadBuffer(objectKey, fileBuffer, mimeType);
-    return { url };
+    try {
+      const uploadedUrl = await this.ossService.uploadBuffer(objectKey, fileBuffer, mimeType, {
+        forbidOverwrite: true,
+      });
+      return { url: uploadedUrl };
+    } catch (error) {
+      if (this.isObjectAlreadyExistsError(error)) {
+        return { url };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 生成编辑器图片直传 OSS 的 STS 凭证与上传参数
+   */
+  async createEditorImageDirectUploadSession(
+    fileSize: number,
+    _originalName: string,
+    mimeType: string,
+    contentHash: string,
+    userId: string,
+  ): Promise<EditorImageDirectUploadSession> {
+    if (!this.ossService.isDirectUploadEnabled()) {
+      throw new ServiceUnavailableException(
+        '未配置 OSS_STS_ROLE_ARN，当前环境不支持前端直传 OSS，请联系管理员配置 STS 角色',
+      );
+    }
+
+    if (!EDITOR_IMAGE_ALLOWED_TYPES.includes(mimeType)) {
+      throw new BadRequestException('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片');
+    }
+
+    if (fileSize > EDITOR_IMAGE_MAX_BYTES) {
+      throw new BadRequestException('图片大小不能超过 10MB');
+    }
+
+    if (!SHA256_HEX_REGEX.test(contentHash)) {
+      throw new BadRequestException('contentHash 格式无效，必须是 64 位小写十六进制 sha256');
+    }
+
+    const objectKey = this.buildEditorImageObjectKey(userId, contentHash);
+    const url = this.ossService.buildPublicObjectUrl(objectKey);
+    const exists = await this.ossService.objectExists(objectKey);
+    if (exists) {
+      return {
+        alreadyExists: true,
+        objectKey,
+        url,
+      };
+    }
+
+    const credential = await this.ossService.createEditorImageDirectUploadCredential(userId, objectKey);
+    return {
+      alreadyExists: false,
+      ...credential,
+    };
   }
 
   private resolveImageExtension(originalName: string, mimeType: string): string {
@@ -518,5 +641,44 @@ export class UploadService {
       stream.on('end', () => resolve(hash.digest('hex')));
       stream.on('error', reject);
     });
+  }
+
+  private calculateBufferHash(buffer: Buffer): string {
+    return crypto.createHash('md5').update(buffer).digest('hex');
+  }
+
+  private calculateBufferSha256(buffer: Buffer): string {
+    return crypto.createHash('sha256').update(buffer).digest('hex');
+  }
+
+  private buildEditorImageObjectKey(userId: string, contentHash: string): string {
+    const safeUserId = userId.trim();
+    return `editor-images/${safeUserId}/sha256/${contentHash}`;
+  }
+
+  private isObjectAlreadyExistsError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const maybe = error as {
+      status?: unknown;
+      code?: unknown;
+      name?: unknown;
+      message?: unknown;
+    };
+    const message = typeof maybe.message === 'string' ? maybe.message : '';
+    return (
+      maybe.status === 409 ||
+      maybe.code === 'FileAlreadyExists' ||
+      maybe.name === 'FileAlreadyExistsError' ||
+      message.includes('FileAlreadyExists') ||
+      message.includes('forbid-overwrite')
+    );
+  }
+
+  private toPublicUploadUrl(filePath: string): string {
+    const relativePath = path.relative(this.uploadDir, filePath);
+    if (!relativePath || relativePath.startsWith('..')) {
+      return `/uploads/files/${path.basename(filePath)}`;
+    }
+    return `/uploads/${relativePath.replace(/\\/g, '/')}`;
   }
 }

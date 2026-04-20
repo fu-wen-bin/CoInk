@@ -59,6 +59,7 @@ interface ClientRequestProps {
   retryDelay?: number;
   headers?: Record<string, string>;
   withCredentials?: boolean;
+  skipAuthRefresh?: boolean;
   signal?: AbortSignal;
   errorHandler?: ErrorHandler;
 }
@@ -103,6 +104,11 @@ class ClientRequest {
     clearAuthData();
 
     if (typeof window !== 'undefined') {
+      const currentPathname = window.location.pathname;
+      if (currentPathname === ROUTES.AUTH) {
+        return;
+      }
+
       const currentPath = window.location.pathname + window.location.search;
       const loginUrl = new URL(ROUTES.AUTH, window.location.origin);
       loginUrl.searchParams.set('reason', 'auth_required');
@@ -371,12 +377,18 @@ class ClientRequest {
     retries: number,
     retryDelay: number,
     isRetryAfterRefresh: boolean = false,
+    skipAuthRefresh: boolean = false,
   ): Promise<T> {
     try {
       return await requestFn();
     } catch (error) {
       // 处理 401 错误 - token 过期
-      if (error instanceof RequestError && error.status === 401 && !isRetryAfterRefresh) {
+      if (
+        error instanceof RequestError &&
+        error.status === 401 &&
+        !isRetryAfterRefresh &&
+        !skipAuthRefresh
+      ) {
         try {
           if (this.isRefreshing) {
             return this.addRequestToQueue(requestFn);
@@ -384,7 +396,7 @@ class ClientRequest {
 
           await this.handleTokenRefresh();
 
-          return this.executeWithRetry(requestFn, 0, 0, true);
+          return this.executeWithRetry(requestFn, 0, 0, true, skipAuthRefresh);
         } catch {
           this.handleAuthFailure();
           throw error;
@@ -395,7 +407,13 @@ class ClientRequest {
       if (retries > 0 && !(error instanceof RequestError && error.status === 401)) {
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
 
-        return this.executeWithRetry(requestFn, retries - 1, retryDelay, isRetryAfterRefresh);
+        return this.executeWithRetry(
+          requestFn,
+          retries - 1,
+          retryDelay,
+          isRetryAfterRefresh,
+          skipAuthRefresh,
+        );
       }
 
       throw error;
@@ -542,6 +560,7 @@ class ClientRequest {
       cacheTime,
       headers,
       withCredentials,
+      skipAuthRefresh = false,
     } = props;
 
     const fullUrl = this.baseURL + url;
@@ -606,7 +625,7 @@ class ClientRequest {
       }
     };
 
-    return this.executeWithRetry(requestFn, retries, retryDelay);
+    return this.executeWithRetry(requestFn, retries, retryDelay, false, skipAuthRefresh);
   }
 
   /**
@@ -632,6 +651,7 @@ class ClientRequest {
       signal: params?.signal,
       headers: params?.headers,
       withCredentials: params?.withCredentials,
+      skipAuthRefresh: params?.skipAuthRefresh,
     });
   }
 

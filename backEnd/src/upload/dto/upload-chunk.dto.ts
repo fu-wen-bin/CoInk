@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class UploadChunkDto {
   @IsString()
@@ -11,6 +11,15 @@ export class UploadChunkDto {
   @Type(() => Number)
   chunkIndex: number;
 
+  /**
+   * 兼容旧字段名（与 chunkIndex 含义一致）
+   */
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  chunkNumber?: number;
+
   @IsInt()
   @Min(1)
   @Type(() => Number)
@@ -21,6 +30,6 @@ export class UploadChunkDto {
   fileHash: string;
 
   @IsString()
-  @IsNotEmpty()
-  chunkHash: string;
+  @IsOptional()
+  chunkHash?: string;
 }

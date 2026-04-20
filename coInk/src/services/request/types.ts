@@ -73,6 +73,7 @@ export interface ClientParams extends BaseParams {
   retries?: number; // 重试次数
   retryDelay?: number; // 重试延迟，单位为毫秒
   withCredentials?: boolean; // 跨域请求是否携带 cookie
+  skipAuthRefresh?: boolean; // 遇到 401 时跳过自动刷新与登录重定向
   errorHandler?: ErrorHandler; // 错误处理函数
 }
 

@@ -2,7 +2,7 @@ import * as LucideIcons from 'lucide-react';
 
 import { DividerOutlinedIcon } from '@/components/tiptap-icons/divider-outlined-icon';
 import { ListIndentedIcon } from '@/components/tiptap-icons/list-indented-icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 // 创建图标映射，包含所有图标组件（排除 Lucide 前缀的别名和 icons 对象本身）
 const icons: Record<string, React.ComponentType<any>> = {};

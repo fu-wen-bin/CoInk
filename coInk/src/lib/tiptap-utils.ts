@@ -6,9 +6,9 @@ import { findParentNodeClosestToPos, type Editor, type NodeWithPos } from '@tipt
 
 import {
   formatEditorImageMaxLabel,
-  isEditorImageOssModeEnabled,
   MAX_IMAGE_BYTES,
-  uploadEditorImageToOss,
+  uploadImageResumable,
+  type UploadStatusEvent,
 } from '@/lib/editor-image-upload';
 
 /** 编辑器图片单文件上限（与 OSS 上传、本地读取校验一致） */
@@ -341,6 +341,7 @@ export const handleImageUpload = async (
   file: File,
   onProgress?: (event: { progress: number }) => void,
   abortSignal?: AbortSignal,
+  onStatus?: (event: UploadStatusEvent) => void,
 ): Promise<string> => {
   if (!file) {
     throw new Error('未提供文件！');
@@ -358,31 +359,10 @@ export const handleImageUpload = async (
     throw new Error('上传取消');
   }
 
-  if (isEditorImageOssModeEnabled()) {
-    return uploadEditorImageToOss(file, onProgress, abortSignal);
-  }
-
-  // 本地读取为 data URL（Base64）。设置 NEXT_PUBLIC_EDITOR_IMAGE_UPLOAD_MODE=oss 可走服务端 OSS。
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const progress = Math.round((event.loaded / event.total) * 100);
-        onProgress?.({ progress });
-      }
-    };
-
-    reader.onload = () => {
-      if (abortSignal?.aborted) {
-        reject(new Error('上传取消'));
-      } else {
-        resolve(reader.result as string);
-      }
-    };
-
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
+  return uploadImageResumable(file, {
+    onProgress,
+    onStatus,
+    signal: abortSignal,
   });
 };
 

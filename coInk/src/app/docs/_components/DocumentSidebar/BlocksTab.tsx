@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 
 import { Icon, IconName } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 interface BlockItemProps {
   icon: IconName;

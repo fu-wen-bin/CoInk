@@ -173,7 +173,7 @@ export class UploadService {
     });
 
     if (result.error) {
-      return { success: false, uploadedChunks: [], isComplete: false };
+      return { success: false, uploadedChunks: [], isComplete: false, error: result.error };
     }
 
     const response = result.data?.data || {
@@ -307,7 +307,7 @@ export class UploadService {
       );
 
       if (!response.success) {
-        throw new Error(`分片 ${chunkIndex} 上传失败`);
+        throw new Error(response.error || `分片 ${chunkIndex} 上传失败`);
       }
 
       uploadedChunks.add(chunkIndex);

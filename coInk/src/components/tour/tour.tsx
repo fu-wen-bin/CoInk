@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useTour } from './use-tour';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 // 计算元素位置和尺寸
 function getElementPosition(selector: string): {

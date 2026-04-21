@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 

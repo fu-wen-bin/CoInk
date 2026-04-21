@@ -4,6 +4,8 @@ import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as path from 'path';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -15,7 +17,7 @@ const BODY_PARSER_LIMIT = process.env.BODY_PARSER_LIMIT ?? '32mb';
 
 // 应用入口：注册中间件、拦截器与过滤器
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
 
@@ -42,6 +44,11 @@ async function bootstrap() {
       cookie: { maxAge: 60000 },
     }),
   );
+
+  // 本地上传文件静态访问（非 OSS 模式）
+  app.useStaticAssets(path.join(process.cwd(), '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // 全局统一响应与异常处理
   app.useGlobalInterceptors(new ResponseInterceptor());

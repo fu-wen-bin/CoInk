@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 const SettingsTab = () => {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');

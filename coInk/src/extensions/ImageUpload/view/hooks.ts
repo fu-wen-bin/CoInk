@@ -1,10 +1,13 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Editor } from '@tiptap/core';
 
 import { toastError } from '@/utils/toast';
-import { formatEditorImageMaxLabel, MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
-import { uploadService } from '@/services/upload';
+import {
+  formatEditorImageMaxLabel,
+  MAX_IMAGE_BYTES,
+  uploadImageResumable,
+  type UploadStatusPhase,
+} from '@/lib/editor-image-upload';
 
 export const useUploader = () => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +16,7 @@ export const useUploader = () => {
     setLoading(true);
 
     try {
-      const url = await uploadService.uploadImage(file);
+      const url = await uploadImageResumable(file);
 
       return url;
     } catch (errPayload: unknown) {
@@ -122,40 +125,40 @@ export const useDropZone = ({ uploader }: { uploader: (file: File) => void }) =>
 };
 
 export const useImgUpload = () => {
-  const uploadMutation = useMutation({
-    // 定义上传函数
-    mutationFn: async (params: { file: File; editor: Editor; pos: number | undefined }) => {
-      // 文件类型验证
-      if (!params.file.type.startsWith('image/')) {
-        throw new Error('请上传图片文件');
-      }
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState<UploadStatusPhase>('success');
+  const [error, setError] = useState<Error | null>(null);
 
-      if (params.file.size > MAX_IMAGE_BYTES) {
-        throw new Error(`图片大小不能超过 ${formatEditorImageMaxLabel(MAX_IMAGE_BYTES)}`);
-      }
+  // 封装上传函数
+  const uploadImage = async (file: File, editor: Editor, pos: number | undefined) => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('请上传图片文件');
+    }
 
-      // 调用上传服务
-      const imageUrl = await uploadService.uploadImage(params.file);
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new Error(`图片大小不能超过 ${formatEditorImageMaxLabel(MAX_IMAGE_BYTES)}`);
+    }
 
-      return imageUrl; // 返回上传后的 URL
-    },
+    setIsUploading(true);
+    setProgress(0);
+    setPhase('uploading');
+    setError(null);
 
-    // 上传成功回调
-    onSuccess: (imageUrl, variables) => {
-      const { editor, pos } = variables;
+    try {
+      const imageUrl = await uploadImageResumable(file, {
+        onProgress: ({ progress: nextProgress }) => setProgress(nextProgress),
+        onStatus: ({ phase: nextPhase }) => setPhase(nextPhase),
+      });
 
-      // 遍历查询pos 是否还存在
       let foundImageNode: boolean = false;
-
       editor.state.doc.descendants((node, currentPos) => {
         if (node.type.name === 'imageBlock' && currentPos === pos) {
           foundImageNode = true;
-
-          return false; // 停止遍历
+          return false;
         }
       });
 
-      // 防止未成功，但是 imgnode 被删除。 导致图片重新渲染
       if (foundImageNode) {
         editor
           .chain()
@@ -164,47 +167,18 @@ export const useImgUpload = () => {
           .focus()
           .run();
       }
-    },
 
-    // 上传失败回调
-    onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : '图片上传失败';
-      toastError(errorMessage);
-      console.error('上传失败:', error);
-    },
-
-    // 上传开始回调
-    onMutate: (variables) => {
-      const { file, editor, pos } = variables;
-      const reader = new FileReader();
-
-      reader.onload = async (e) => {
-        const base64Url = e.target?.result as string;
-        editor
-          .chain()
-          .deleteRange({ from: pos ?? 0, to: pos ?? 0 })
-          .setImageBlock({ src: base64Url })
-          .focus()
-          .run();
-      };
-
-      reader.onerror = () => {
-        toastError('文件读取失败');
-      };
-
-      // 开始读取文件为 base64
-      reader.readAsDataURL(file);
-    },
-  });
-
-  // 封装上传函数
-  const uploadImage = async (file: File, editor: Editor, pos: number | undefined) => {
-    try {
-      const imageUrl = await uploadMutation.mutateAsync({ file, editor, pos });
-
+      setProgress(100);
+      setPhase('success');
       return imageUrl;
     } catch (error) {
-      throw error;
+      const normalized = error instanceof Error ? error : new Error('图片上传失败');
+      setError(normalized);
+      setPhase('failed');
+      toastError(normalized.message);
+      throw normalized;
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -213,12 +187,14 @@ export const useImgUpload = () => {
     uploadImage,
 
     // 状态
-    isUploading: uploadMutation.isPending,
-    isSuccess: uploadMutation.isSuccess,
-    isError: uploadMutation.isError,
+    isUploading,
+    isSuccess: phase === 'success',
+    isError: phase === 'failed',
+    progress,
+    phase,
 
     // 数据和错误
-    data: uploadMutation.data,
-    error: uploadMutation.error,
+    data: undefined as string | undefined,
+    error,
   };
 };

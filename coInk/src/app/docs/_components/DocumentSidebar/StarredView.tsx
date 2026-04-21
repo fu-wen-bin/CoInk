@@ -19,10 +19,20 @@ import { zhCN } from 'date-fns/locale';
 import StarredAddDocumentsDialog from './StarredAddDocumentsDialog';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 import type { FileItem } from '@/types/file-system';
-import { toastSuccess } from '@/utils/toast';
+import { toastError, toastSuccess } from '@/utils/toast';
 import { cn, getCurrentUserId } from '@/utils';
 import { SIDEBAR_LIST_ROW_HOVER, SIDEBAR_LIST_ROW_SELECTED } from '@/utils/sidebar-list-styles';
 import { useFileStore } from '@/stores/fileStore';
@@ -61,6 +71,9 @@ export default function StarredView({
   const [starredDocs, setStarredDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [showUnstarAllDialog, setShowUnstarAllDialog] = useState(false);
+  const [isUnstarringAll, setIsUnstarringAll] = useState(false);
+  const [pendingUnstarIds, setPendingUnstarIds] = useState<string[]>([]);
 
   const libraryFiles = useMemo<FileItem[]>(() => {
     const personal = documentGroups.find((g) => g.type === 'personal');
@@ -122,21 +135,32 @@ export default function StarredView({
     if (allIds.length === 0) return;
     const n = allIds.filter((id) => starredSelectedIds.includes(id)).length;
     if (n === allIds.length) {
-      if (!confirm(`确定取消收藏全部 ${allIds.length} 个文档？`)) return;
-      void (async () => {
-        const uid = getCurrentUserId();
-        if (!uid) return;
-        for (const id of allIds) {
-          await documentsApi.star(id, { isStarred: false, userId: uid });
-          patchDocumentStarred(id, false);
-        }
-        toastSuccess('已取消收藏');
-        clearStarredSelection();
-        await loadStarredDocs();
-        bumpStarredList();
-      })();
+      setPendingUnstarIds([...allIds]);
+      setShowUnstarAllDialog(true);
     } else {
       setStarredSelectedIds([...allIds]);
+    }
+  };
+
+  const confirmUnstarAll = async () => {
+    const uid = getCurrentUserId();
+    if (!uid || pendingUnstarIds.length === 0 || isUnstarringAll) return;
+    setIsUnstarringAll(true);
+    try {
+      for (const id of pendingUnstarIds) {
+        await documentsApi.star(id, { isStarred: false, userId: uid });
+        patchDocumentStarred(id, false);
+      }
+      toastSuccess('已取消收藏');
+      clearStarredSelection();
+      await loadStarredDocs();
+      bumpStarredList();
+      setShowUnstarAllDialog(false);
+      setPendingUnstarIds([]);
+    } catch {
+      toastError('取消收藏失败');
+    } finally {
+      setIsUnstarringAll(false);
     }
   };
 
@@ -392,6 +416,38 @@ export default function StarredView({
         libraryFiles={libraryFiles}
         onSuccess={() => bumpStarredList()}
       />
+
+      <AlertDialog
+        open={showUnstarAllDialog}
+        onOpenChange={(open) => {
+          if (!isUnstarringAll) {
+            setShowUnstarAllDialog(open);
+            if (!open) setPendingUnstarIds([]);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>取消全部收藏</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要取消收藏全部 {pendingUnstarIds.length} 个文档吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUnstarringAll}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmUnstarAll();
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isUnstarringAll}
+            >
+              {isUnstarringAll ? '处理中...' : '确认'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

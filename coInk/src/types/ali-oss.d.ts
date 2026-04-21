@@ -8,6 +8,8 @@ declare module 'ali-oss' {
   export type MultipartUploadOptions = {
     partSize?: number;
     parallel?: number;
+    checkpoint?: unknown;
+    headers?: Record<string, string>;
     progress?: MultipartUploadProgress;
   };
 

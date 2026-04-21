@@ -7,7 +7,7 @@ import Spinner from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/Icon';
 import { formatEditorImageMaxLabel, MAX_IMAGE_BYTES } from '@/lib/editor-image-upload';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 export const ImageUploader = ({
   getPos,
@@ -17,7 +17,7 @@ export const ImageUploader = ({
   editor: Editor;
 }) => {
   const { handleUploadClick, ref } = useFileUpload();
-  const { isUploading, uploadImage } = useImgUpload();
+  const { isUploading, uploadImage, progress, phase } = useImgUpload();
 
   // 处理图片文件的方法
   const handleImageFile = useCallback(
@@ -43,8 +43,21 @@ export const ImageUploader = ({
 
   if (isUploading) {
     return (
-      <div className="flex items-center justify-center p-8 rounded-lg min-h-[10rem] bg-opacity-80">
+      <div className="flex flex-col items-center justify-center p-8 rounded-lg min-h-[10rem] bg-opacity-80 gap-3">
         <Spinner className="text-neutral-500" size="lg" />
+        <div className="w-full max-w-xs h-2 rounded bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+          <div
+            className="h-full bg-blue-500 transition-all duration-200"
+            style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+          />
+        </div>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          {phase === 'paused_offline'
+            ? '网络中断，等待恢复后继续上传'
+            : phase === 'resuming'
+              ? `继续上传中 ${progress}%`
+              : `上传中 ${progress}%`}
+        </p>
       </div>
     );
   }

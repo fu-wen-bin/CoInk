@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import type { FileItem } from '@/types/file-system';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import { Icon } from '@/components/ui/Icon';
 
 interface ContextMenuProps {

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { User, FileText, LayoutDashboard, Users, Building2, Bell } from 'lucide-react';
 
 // Import route constants from routes.ts (Edge runtime compatible)
-import { ROUTES } from '@/utils';
+import { ROUTES } from './routes';
 
 // 导航项接口
 export interface NavItem {

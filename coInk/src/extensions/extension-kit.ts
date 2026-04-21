@@ -68,7 +68,7 @@ import { Image as EditorImage } from '@/components/tiptap-node/image-node/image-
 import { NodeAlignment } from '@/components/tiptap-extension/node-alignment-extension';
 import { NodeBackground } from '@/components/tiptap-extension/node-background-extension';
 import { TocNode } from '@/components/tiptap-node/toc-node/extensions/toc-node-extension';
-import uploadService from '@/services/upload';
+import { uploadImageResumable } from '@/lib/editor-image-upload';
 
 function uploadErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
@@ -150,7 +150,7 @@ export const ExtensionKit = ({ provider }: ExtensionKitProps) => [
       files.forEach((file) => {
         void (async () => {
           try {
-            const url = await uploadService.uploadImage(file);
+            const url = await uploadImageResumable(file);
 
             // 检查是否在表格中
             const resolvedPos = currentEditor.state.doc.resolve(pos);
@@ -224,7 +224,7 @@ export const ExtensionKit = ({ provider }: ExtensionKitProps) => [
           }
 
           // 后台上传文件
-          const serverUrl = await uploadService.uploadImage(file);
+          const serverUrl = await uploadImageResumable(file);
 
           // 查找并更新图片节点
           let targetPos: number | null = null;

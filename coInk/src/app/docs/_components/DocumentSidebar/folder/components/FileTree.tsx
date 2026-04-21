@@ -7,7 +7,7 @@ import PortalOverlay from './PortalOverlay';
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
 import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 
 export interface FileTreeProps {

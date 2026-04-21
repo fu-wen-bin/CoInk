@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 export const DropdownCategoryTitle = ({ children }: { children: React.ReactNode }) => {
   return (

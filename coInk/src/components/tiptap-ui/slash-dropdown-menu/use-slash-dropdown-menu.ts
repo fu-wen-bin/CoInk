@@ -18,11 +18,13 @@ import { AtSignIcon } from '@/components/tiptap-icons/at-sign-icon';
 import { SmilePlusIcon } from '@/components/tiptap-icons/smile-plus-icon';
 import { TableIcon } from '@/components/tiptap-icons/table-icon';
 import { ListIndentedIcon } from '@/components/tiptap-icons/list-indented-icon';
+import { ArrowDownToLineIcon } from '@/components/tiptap-icons/arrow-down-to-line-icon';
 import { isExtensionAvailable, isNodeInSchema } from '@/lib/tiptap-utils';
 import { findSelectionPosition, hasContentAbove } from '@/lib/tiptap-advanced-utils';
 import type { SuggestionItem } from '@/components/tiptap-ui-utils/suggestion-menu';
 import { addEmojiTrigger } from '@/components/tiptap-ui/emoji-trigger-button';
 import { addMentionTrigger } from '@/components/tiptap-ui/mention-trigger-button';
+import { openDocumentImportPicker } from '@/lib/editor-document-import';
 
 /** 与拖拽柄上代码块/引用图标一致（Lucide） */
 function SlashMenuCodeBadge(props: { className?: string }) {
@@ -166,6 +168,13 @@ const texts = {
     subtext: '可调整大小并带说明的图片',
     keywords: ['image', 'imageUpload', 'upload', 'img', 'picture', 'media', 'url'],
     badge: ImageIcon,
+    group: '上传',
+  },
+  document_import: {
+    title: '导入文档',
+    subtext: '导入 Markdown / DOC / DOCX / TXT',
+    keywords: ['import', 'doc', 'docx', 'markdown', 'md', 'txt', 'file', 'upload'],
+    badge: ArrowDownToLineIcon,
     group: '上传',
   },
 };
@@ -335,6 +344,12 @@ const getItemImplementations = () => {
             type: 'imageUpload',
           })
           .run();
+      },
+    },
+    document_import: {
+      check: (editor: Editor) => editor.isEditable,
+      action: ({ editor }: { editor: Editor }) => {
+        openDocumentImportPicker(editor);
       },
     },
   };

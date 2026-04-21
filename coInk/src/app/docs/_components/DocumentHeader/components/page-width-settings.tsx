@@ -2,7 +2,7 @@
 
 import { HelpCircle } from 'lucide-react';
 
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import type { PageWidthMode } from '@/stores/editorStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useSidebar } from '@/stores/sidebarStore';

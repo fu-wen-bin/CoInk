@@ -8,6 +8,7 @@ import { Button } from '@/components/tiptap-ui-primitive/button';
 import { CloseIcon } from '@/components/tiptap-icons/close-icon';
 import '@/components/tiptap-node/image-upload-node/image-upload-node.scss';
 import { formatEditorImageMaxLabel } from '@/lib/editor-image-upload';
+import type { UploadStatusEvent } from '@/lib/editor-image-upload';
 import { focusNextNode, isValidPosition } from '@/lib/tiptap-utils';
 
 export interface FileItem {
@@ -27,7 +28,7 @@ export interface FileItem {
    * Current status of the file upload process
    * @default "uploading"
    */
-  status: 'uploading' | 'success' | 'error';
+  status: 'uploading' | 'paused_offline' | 'resuming' | 'success' | 'error' | 'cancelled';
 
   /**
    * URL to the uploaded file, available after successful upload
@@ -39,6 +40,11 @@ export interface FileItem {
    * @optional
    */
   errorMessage?: string;
+  /**
+   * Upload status hint text
+   * @optional
+   */
+  statusMessage?: string;
   /**
    * Controller that can be used to abort the upload process
    * @optional
@@ -71,6 +77,7 @@ export interface UploadOptions {
     file: File,
     onProgress: (event: { progress: number }) => void,
     signal: AbortSignal,
+    onStatus: (event: UploadStatusEvent) => void,
   ) => Promise<string>;
   /**
    * Callback triggered when a file is uploaded successfully
@@ -127,6 +134,24 @@ function useFileUpload(options: UploadOptions) {
           );
         },
         abortController.signal,
+        (event: UploadStatusEvent) => {
+          setFileItems((prev) =>
+            prev.map((item) => {
+              if (item.id !== fileId) return item;
+              const nextStatus: FileItem['status'] =
+                event.phase === 'failed'
+                  ? 'error'
+                  : event.phase === 'cancelled'
+                    ? 'cancelled'
+                    : event.phase;
+              return {
+                ...item,
+                status: nextStatus,
+                statusMessage: event.message,
+              };
+            }),
+          );
+        },
       );
 
       if (!url) throw new Error('上传失败：未返回文件地址');
@@ -134,7 +159,9 @@ function useFileUpload(options: UploadOptions) {
       if (!abortController.signal.aborted) {
         setFileItems((prev) =>
           prev.map((item) =>
-            item.id === fileId ? { ...item, status: 'success', url, progress: 100 } : item,
+            item.id === fileId
+              ? { ...item, status: 'success', statusMessage: undefined, url, progress: 100 }
+              : item,
           ),
         );
         options.onSuccess?.(url);
@@ -153,6 +180,12 @@ function useFileUpload(options: UploadOptions) {
           ),
         );
         options.onError?.(err);
+      } else {
+        setFileItems((prev) =>
+          prev.map((item) =>
+            item.id === fileId ? { ...item, status: 'cancelled', statusMessage: '上传已取消' } : item,
+          ),
+        );
       }
       return null;
     }
@@ -357,7 +390,7 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({ fileItem, onRem
 
   return (
     <div className="tiptap-image-upload-preview">
-      {fileItem.status === 'uploading' && (
+      {['uploading', 'resuming', 'paused_offline'].includes(fileItem.status) && (
         <div className="tiptap-image-upload-progress" style={{ width: `${fileItem.progress}%` }} />
       )}
 
@@ -374,8 +407,14 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({ fileItem, onRem
           </div>
         </div>
         <div className="tiptap-image-upload-actions">
-          {fileItem.status === 'uploading' && (
-            <span className="tiptap-image-upload-progress-text">{fileItem.progress}%</span>
+          {['uploading', 'resuming', 'paused_offline'].includes(fileItem.status) && (
+            <span className="tiptap-image-upload-progress-text">
+              {fileItem.status === 'paused_offline'
+                ? '网络中断，等待恢复...'
+                : fileItem.status === 'resuming'
+                  ? `继续上传中 ${fileItem.progress}%`
+                  : `${fileItem.progress}%`}
+            </span>
           )}
           {fileItem.status === 'error' && fileItem.errorMessage && (
             <span
@@ -385,6 +424,9 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({ fileItem, onRem
             >
               {fileItem.errorMessage}
             </span>
+          )}
+          {fileItem.status === 'cancelled' && (
+            <span className="tiptap-image-upload-progress-text">上传已取消</span>
           )}
           <Button
             type="button"

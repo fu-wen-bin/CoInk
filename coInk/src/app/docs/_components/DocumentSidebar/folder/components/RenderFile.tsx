@@ -11,7 +11,7 @@ import { useFileActions } from '../hooks/useFileActions';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { FileItem } from '@/types/file-system';
 import { useFileStore } from '@/stores/fileStore';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 import { SIDEBAR_LIST_ROW_HOVER, SIDEBAR_LIST_ROW_SELECTED } from '@/utils/sidebar-list-styles';
 import { countAllNodesInTree } from '@/utils/sidebar-tree-count';

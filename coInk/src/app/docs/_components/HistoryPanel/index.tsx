@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import { useEditorStore } from '@/stores/editorStore';
 
 interface CollaborationUser {

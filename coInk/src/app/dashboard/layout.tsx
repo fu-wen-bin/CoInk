@@ -7,7 +7,8 @@ import { type ReactNode, useEffect, useState } from 'react';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { Tour, TourProvider, tourSteps, useDashboardTour } from '@/components/tour';
 import { NotificationSocketProvider } from '@/providers/NotificationSocketProvider';
-import { getPageTitle, getPageDescription, NAV_ITEMS } from '@/utils';
+import { NAV_ITEMS } from '@/utils/constants/navigation';
+import { getPageDescription, getPageTitle } from '@/utils/constants/routes';
 
 interface DashboardLayoutProps {
   children: ReactNode;

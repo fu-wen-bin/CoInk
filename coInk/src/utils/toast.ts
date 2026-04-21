@@ -12,6 +12,17 @@ interface ToastOptions {
   onAutoClose?: (toast: ToastT) => void;
 }
 
+const baseToastStyle = {
+  width: 'auto',
+  minWidth: 'unset',
+  maxWidth: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginLeft: 'auto',
+  marginRight: 'auto',
+};
+
 /**
  * 成功提示 - 绿色主题
  */
@@ -19,14 +30,10 @@ export function toastSuccess(message: string, options?: ToastOptions) {
   return sonnerToast.success(message, {
     ...options,
     style: {
+      ...baseToastStyle,
       background: '#dcfce7',
       border: '1px solid #86efac',
       color: '#166534',
-      width: 'auto',
-      minWidth: 'unset',
-      maxWidth: 'none',
-      display: 'flex',
-      alignItems: 'center',
     },
     icon: undefined,
   });
@@ -39,14 +46,10 @@ export function toastError(message: string, options?: ToastOptions) {
   return sonnerToast.error(message, {
     ...options,
     style: {
+      ...baseToastStyle,
       background: '#fee2e2',
       border: '1px solid #fca5a5',
       color: '#991b1b',
-      width: 'auto',
-      minWidth: 'unset',
-      maxWidth: 'none',
-      display: 'flex',
-      alignItems: 'center',
     },
     icon: undefined,
   });
@@ -59,14 +62,10 @@ export function toastWarning(message: string, options?: ToastOptions) {
   return sonnerToast.warning(message, {
     ...options,
     style: {
+      ...baseToastStyle,
       background: '#fef3c7',
       border: '1px solid #fcd34d',
       color: '#92400e',
-      width: 'auto',
-      minWidth: 'unset',
-      maxWidth: 'none',
-      display: 'flex',
-      alignItems: 'center',
     },
     icon: undefined,
   });
@@ -79,14 +78,10 @@ export function toastInfo(message: string, options?: ToastOptions) {
   return sonnerToast(message, {
     ...options,
     style: {
+      ...baseToastStyle,
       background: '#f3f4f6',
       border: '1px solid #d1d5db',
       color: '#374151',
-      width: 'auto',
-      minWidth: 'unset',
-      maxWidth: 'none',
-      display: 'flex',
-      alignItems: 'center',
     },
   });
 }
@@ -98,14 +93,10 @@ export function toastLoading(message: string, options?: ToastOptions) {
   return sonnerToast.loading(message, {
     ...options,
     style: {
+      ...baseToastStyle,
       background: '#f3f4f6',
       border: '1px solid #d1d5db',
       color: '#374151',
-      width: 'auto',
-      minWidth: 'unset',
-      maxWidth: 'none',
-      display: 'flex',
-      alignItems: 'center',
     },
   });
 }

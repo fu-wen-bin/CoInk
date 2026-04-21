@@ -23,13 +23,15 @@ import { getCurrentUserId } from '@/utils';
 import { getSidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { DocumentGroup, useFileStore } from '@/stores/fileStore';
 import { flattenTreeFile, getProjection, removeChildrenOf } from '@/utils';
 
@@ -555,10 +557,15 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
       )}
 
       {/* 删除确认对话框 */}
-      <Dialog open={fileOperations.showDeleteDialog} onOpenChange={fileOperations.cancelDelete}>
-        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden bg-white/95 backdrop-blur-sm border border-slate-200/50 shadow-lg transition-all">
-          <DialogHeader className="p-6 pb-4">
-            <DialogTitle className="text-xl font-semibold flex items-center space-x-2 text-red-600">
+      <AlertDialog
+        open={fileOperations.showDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open) fileOperations.cancelDelete();
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[440px] p-0 overflow-hidden bg-white/95 backdrop-blur-sm border border-slate-200/50 shadow-lg transition-all">
+          <AlertDialogHeader className="p-6 pb-4">
+            <AlertDialogTitle className="text-xl font-semibold flex items-center space-x-2 text-red-600">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -576,33 +583,31 @@ const Folder = ({ onFileSelect, compact }: FileExplorerProps) => {
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
               <span>确认删除</span>
-            </DialogTitle>
-            <DialogDescription className="mt-3 text-slate-600">
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-3 text-slate-600">
               您确定要删除{' '}
               <span className="font-medium text-slate-900">
                 "{fileOperations.fileToDelete?.name}"
               </span>{' '}
               吗？
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="p-6 pt-4 bg-slate-50/50 border-t border-slate-200/50 flex space-x-3">
-            <Button
-              variant="outline"
-              onClick={fileOperations.cancelDelete}
-              className="flex-1 bg-transparent hover:bg-slate-100 transition-colors"
-            >
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="p-6 pt-4 bg-slate-50/50 border-t border-slate-200/50 flex space-x-3">
+            <AlertDialogCancel className="flex-1 bg-transparent hover:bg-slate-100 transition-colors">
               取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirm}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirm();
+              }}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white transition-colors"
             >
               删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

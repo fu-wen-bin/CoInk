@@ -46,6 +46,7 @@ import { getNodeDisplayName } from '@/lib/tiptap-collab-utils';
 // --- Icons ---
 import { PaintBucketIcon } from '@/components/tiptap-icons/paint-bucket-icon';
 import { Repeat2Icon } from '@/components/tiptap-icons/repeat-2-icon';
+import { ArrowDownToLineIcon } from '@/components/tiptap-icons/arrow-down-to-line-icon';
 
 // --- UI Primitives ---
 import {
@@ -76,6 +77,7 @@ import { Toolbar, ToolbarGroup, ToolbarSeparator } from '@/components/tiptap-ui-
 import { MoveNodeButton } from '@/components/tiptap-ui/move-node-button';
 import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
 import { ImageNodeFloating } from '@/components/tiptap-node/image-node/image-node-floating';
+import { openDocumentImportPicker } from '@/lib/editor-document-import';
 
 // =============================================================================
 // Types & Constants
@@ -374,6 +376,13 @@ function DropdownMenuActions({ editor }: DropdownMenuActionsProps) {
           <ButtonGroup>
             <ColorActionGroup />
             <TransformActionGroup />
+
+            <DropdownMenuItem asChild>
+              <Button data-style="ghost" onClick={() => editor && openDocumentImportPicker(editor)}>
+                <ArrowDownToLineIcon className="tiptap-button-icon" />
+                <span className="tiptap-button-text">导入文档</span>
+              </Button>
+            </DropdownMenuItem>
 
             <DropdownMenuItem asChild>
               <ResetAllFormattingButton text="清除格式" />

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Share2, Download, Copy, Pencil, Trash2, MoreVertical, Star } from 'lucide-react';
 
 import type { FileItem } from '@/types/file-system';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 interface FileItemMenuProps {
   file: FileItem;

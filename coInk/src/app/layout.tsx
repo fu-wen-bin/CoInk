@@ -44,6 +44,7 @@ export default function RootLayout({
               maxWidth: 'none',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
             },
           }}
         />

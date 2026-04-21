@@ -4,7 +4,7 @@ import type { Editor } from '@tiptap/core';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import type { ReactNodeViewProps } from '@tiptap/react';
 
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 interface CodeBlockComponentProps extends Omit<ReactNodeViewProps, 'getPos'> {
   editor: Editor;

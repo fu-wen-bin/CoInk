@@ -7,7 +7,7 @@ import PortalOverlay from './PortalOverlay';
 import type { FileItem } from '@/types/file-system';
 import { DocumentGroup } from '@/stores/fileStore';
 import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 import type { SidebarHighlightZone } from '@/utils/sidebar-highlight-zone';
 
 export interface GroupedFileTreeProps {

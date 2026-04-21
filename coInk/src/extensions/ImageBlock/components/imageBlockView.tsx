@@ -4,7 +4,7 @@ import { useCallback, useRef } from 'react';
 
 // import { ImageBlockMenu } from './ImageBlockMenu';
 
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 interface ImageBlockViewProps extends ReactNodeViewProps {
   editor: Editor;

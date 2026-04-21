@@ -17,7 +17,7 @@ import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
 import '@/components/tiptap-templates/notion-like/notion-like-editor.scss';
 
 import { StaticExtensionKit } from '@/extensions/extension-kit';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 const emptyDoc = { type: 'doc', content: [{ type: 'paragraph' }] };
 

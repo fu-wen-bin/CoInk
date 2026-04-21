@@ -835,6 +835,7 @@ export default function DocumentPage() {
               >
                 {doc && currentUser && provider && (
                   <NotionEditor
+                    documentId={documentId}
                     provider={provider}
                     ydoc={doc}
                     user={currentUser}

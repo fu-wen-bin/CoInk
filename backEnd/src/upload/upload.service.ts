@@ -250,12 +250,22 @@ export class UploadService {
   }> {
     const { fileId, fileName, fileHash, fileSize, mimeType } = dto;
     const totalChunks = dto.totalChunks && dto.totalChunks > 0 ? dto.totalChunks : 1;
+    const normalizedMimeType = mimeType.trim().toLowerCase();
+    const safeFileName = this.sanitizeFileName(fileName);
 
     if (!fileId || fileId.length > 21) {
       throw new BadRequestException('fileId 无效，长度需在 1-21 之间');
     }
     if (typeof fileSize !== 'number' || !Number.isInteger(fileSize) || fileSize < 1) {
       throw new BadRequestException('fileSize 必须是大于等于 1 的整数');
+    }
+    if (normalizedMimeType.startsWith('image/')) {
+      if (!EDITOR_IMAGE_ALLOWED_TYPES.includes(normalizedMimeType)) {
+        throw new BadRequestException('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片');
+      }
+      if (fileSize > EDITOR_IMAGE_MAX_BYTES) {
+        throw new BadRequestException('图片大小不能超过 10MB');
+      }
     }
 
     // Check if file already exists (fast upload)
@@ -293,7 +303,7 @@ export class UploadService {
         fs.mkdirSync(finalDir, { recursive: true });
       }
 
-      finalFilePath = path.join(finalDir, `${fileId}_${fileName}`);
+      finalFilePath = path.join(finalDir, `${fileId}_${safeFileName}`);
       fs.renameSync(chunkPath, finalFilePath);
 
       // Clean up temp directory
@@ -313,9 +323,9 @@ export class UploadService {
       data: {
         file_id: fileId,
         file_hash: fileHash,
-        file_name: fileName,
+        file_name: safeFileName,
         file_size: fileSize,
-        mime_type: mimeType,
+        mime_type: normalizedMimeType,
         file_path: finalFilePath,
         user_id: userId,
         chunk_count: totalChunks,
@@ -368,7 +378,8 @@ export class UploadService {
       fs.mkdirSync(finalDir, { recursive: true });
     }
 
-    const finalFilePath = path.join(finalDir, `${fileId}_${fileName}`);
+    const safeFileName = this.sanitizeFileName(fileName);
+    const finalFilePath = path.join(finalDir, `${fileId}_${safeFileName}`);
     const writeStream = fs.createWriteStream(finalFilePath);
 
     try {
@@ -680,5 +691,12 @@ export class UploadService {
       return `/uploads/files/${path.basename(filePath)}`;
     }
     return `/uploads/${relativePath.replace(/\\/g, '/')}`;
+  }
+
+  private sanitizeFileName(fileName: string): string {
+    const baseName = path.basename(fileName || '').trim();
+    const replaced = baseName.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_');
+    const safe = replaced.slice(0, 128).trim();
+    return safe || `upload_${Date.now()}`;
   }
 }

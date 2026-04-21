@@ -5,7 +5,7 @@ import { Surface } from './Surface';
 import { Toolbar } from './Toolbar';
 
 import { IconName, getIconComponent } from '@/components/ui/Icon';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 export const Trigger = Popover.Trigger;
 export const Portal = Popover.Portal;

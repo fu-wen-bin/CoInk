@@ -5,7 +5,7 @@ import { Folder, FileText, X, ChevronRight, ChevronDown } from 'lucide-react';
 
 import { useFileStore } from '@/stores/fileStore';
 import type { FileItem } from '@/types/file-system';
-import { cn } from '@/utils';
+import { cn } from '@/utils/cn';
 
 interface MoveDialogProps {
   isOpen: boolean;

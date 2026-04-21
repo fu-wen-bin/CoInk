@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -25,11 +25,21 @@ import { useSidebar } from '@/stores/sidebarStore';
 import { documentsApi } from '@/services/documents';
 import type { Document } from '@/services/documents/types';
 import { cn, getCurrentUserId } from '@/utils';
-import { toastSuccess, toastError, toastLoading, toastInfo } from '@/utils/toast';
+import { toastSuccess, toastError, toastLoading } from '@/utils/toast';
 import { useFileStore } from '@/stores/fileStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +51,11 @@ import {
 import { useLogoutMutation, useUserQuery } from '@/hooks/useUserQuery';
 import ShareDialog from '@/app/docs/_components/DocumentSidebar/folder/ShareDialog';
 import type { FileItem } from '@/types/file-system';
+import {
+  DOCUMENT_IMPORT_ACCEPT,
+  isSupportedDocumentImportFile,
+} from '@/lib/editor-document-import';
+import { setPendingDocumentImport } from '@/lib/pending-document-import';
 
 type HomeTab = 'recent' | 'owned' | 'shared' | 'starred';
 
@@ -116,14 +131,20 @@ export default function DocsHomeView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareTarget, setShareTarget] = useState<Document | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const documentGroups = useFileStore((s) => s.documentGroups);
   const setNewItemFolder = useFileStore((s) => s.setNewItemFolder);
   const setNewItemType = useFileStore((s) => s.setNewItemType);
   const setNewItemName = useFileStore((s) => s.setNewItemName);
   const setNewItemGroupId = useFileStore((s) => s.setNewItemGroupId);
+  const loadSidebarFiles = useFileStore((s) => s.loadFiles);
   const {
     isOpen: isSidebarOpen,
     toggle: toggleSidebar,
@@ -227,6 +248,66 @@ export default function DocsHomeView() {
     }
   }, [tab]);
 
+  const handleUploadFile = useCallback(
+    async (file: File) => {
+      if (!isSupportedDocumentImportFile(file)) {
+        toastError('仅支持上传 .md、.markdown、.txt、.docx 文件');
+        return;
+      }
+
+      const ownerId = getCurrentUserId();
+      if (!ownerId) {
+        toastError('请先登录后再上传');
+        return;
+      }
+
+      setIsUploading(true);
+      const toastId = toastLoading('正在导入文档...');
+
+      try {
+        const fileName = file.name.replace(/\.[^.]+$/, '') || '未命名文档';
+
+        const created = await documentsApi.create({
+          title: fileName,
+          type: 'FILE',
+          ownerId,
+        });
+
+        if (created.error || !created.data?.data?.documentId) {
+          throw new Error(created.error || '创建文档失败');
+        }
+
+        const documentId = created.data.data.documentId;
+        setPendingDocumentImport(documentId, file);
+        toastSuccess('文档创建成功，正在导入内容...', { id: toastId });
+        await loadSidebarFiles(false);
+        void loadRows();
+        router.push(`/docs/${documentId}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '上传失败';
+        toastError(message, { id: toastId });
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [loadRows, loadSidebarFiles, router],
+  );
+
+  const handleUploadClick = useCallback(() => {
+    if (isUploading) return;
+    uploadInputRef.current?.click();
+  }, [isUploading]);
+
+  const handleUploadInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      void handleUploadFile(file);
+    },
+    [handleUploadFile],
+  );
+
   useEffect(() => {
     void loadRows();
   }, [loadRows]);
@@ -247,21 +328,45 @@ export default function DocsHomeView() {
 
   const handleSoftDelete = async (doc: Document, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(`将「${doc.title}」移入回收站？`)) return;
-    const toastId = toastLoading('正在删除...');
-    const userId = getCurrentUserId();
-    // 如果被收藏，先取消收藏
-    if (doc.isStarred && userId) {
-      await documentsApi.star(doc.documentId, { isStarred: false, userId });
-    }
-    const { error } = await documentsApi.softDelete(doc.documentId);
-    if (error) {
-      toastError(error, { id: toastId });
-      return;
-    }
-    toastSuccess('已移入回收站', { id: toastId });
-    void loadRows();
+    setDeleteTarget(doc);
   };
+
+  const confirmSoftDelete = useCallback(async () => {
+    if (!deleteTarget || isDeleting) return;
+    setIsDeleting(true);
+
+    const toastId = toastLoading('正在删除...');
+
+    try {
+      const userId = getCurrentUserId();
+      // 如果被收藏，先取消收藏
+      if (deleteTarget.isStarred && userId) {
+        await documentsApi.star(deleteTarget.documentId, { isStarred: false, userId });
+      }
+      const { error } = await documentsApi.softDelete(deleteTarget.documentId);
+      if (error) {
+        toastError(error, { id: toastId });
+        return;
+      }
+      toastSuccess('已移入回收站', { id: toastId });
+      setDeleteTarget(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteTarget.documentId);
+        return next;
+      });
+      if (deleteTarget.isStarred) {
+        bumpStarredList();
+      }
+      await loadSidebarFiles(false);
+      void loadRows();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '删除失败';
+      toastError(message, { id: toastId });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [bumpStarredList, deleteTarget, isDeleting, loadRows, loadSidebarFiles]);
 
   const toggleRowSelected = (documentId: string, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -339,24 +444,66 @@ export default function DocsHomeView() {
     void loadRows();
   };
 
-  const handleToolbarDelete = async () => {
+  const handleToolbarDelete = () => {
     if (!singleSelectedDoc) return;
-    if (!window.confirm(`将「${singleSelectedDoc.title}」移入回收站？`)) return;
-    const toastId = toastLoading('正在删除...');
-    const userId = getCurrentUserId();
-    // 如果被收藏，先取消收藏
-    if (singleSelectedDoc.isStarred && userId) {
-      await documentsApi.star(singleSelectedDoc.documentId, { isStarred: false, userId });
-    }
-    const { error } = await documentsApi.softDelete(singleSelectedDoc.documentId);
-    if (error) {
-      toastError(error, { id: toastId });
-      return;
-    }
-    toastSuccess('已移入回收站', { id: toastId });
-    clearSelection();
-    void loadRows();
+    setDeleteTarget(singleSelectedDoc);
   };
+
+  const handleBulkSoftDelete = () => {
+    if (selectedIds.size === 0 || !canBulkTrash) return;
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const confirmBulkSoftDelete = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+
+    const userId = getCurrentUserId();
+    let successCount = 0;
+    let failCount = 0;
+    let hasStarredDeleted = false;
+    setIsDeleting(true);
+
+    try {
+      for (const id of ids) {
+        const doc = rows.find((row) => row.documentId === id);
+        if (!doc) {
+          failCount++;
+          continue;
+        }
+
+        if (doc.isStarred && userId) {
+          await documentsApi.star(doc.documentId, { isStarred: false, userId });
+          hasStarredDeleted = true;
+        }
+
+        const { error } = await documentsApi.softDelete(doc.documentId);
+        if (error) {
+          failCount++;
+        } else {
+          successCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toastSuccess(`已移入回收站 ${successCount} 个文档`);
+      }
+      if (failCount > 0) {
+        toastError(`${failCount} 个文档删除失败`);
+      }
+
+      if (hasStarredDeleted) {
+        bumpStarredList();
+      }
+
+      setBulkDeleteDialogOpen(false);
+      clearSelection();
+      await loadSidebarFiles(false);
+      void loadRows();
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [bumpStarredList, loadRows, loadSidebarFiles, rows, selectedIds]);
 
   const handleToggleStar = async (doc: Document, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -466,7 +613,7 @@ export default function DocsHomeView() {
       </header>
 
       <section className="relative z-30 shrink-0 px-6 py-4">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {/* 1. 新建（Radix 在 SSR 与客户端会生成不同 id，需挂载后再渲染 DropdownMenu 避免水合报错） */}
           {mounted ? (
             <DropdownMenu>
@@ -531,20 +678,28 @@ export default function DocsHomeView() {
           {/* 2. 上传 */}
           <button
             type="button"
-            title="即将支持"
-            className="flex min-w-[160px] flex-1 items-center gap-3 rounded-md border border-dashed border-slate-200 px-4 py-3 text-left opacity-90 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50"
-            onClick={() => toastInfo('上传本地文件功能即将上线')}
+            title={isUploading ? '正在上传' : '上传本地文档'}
+            className="flex min-w-[160px] flex-1 items-center gap-3 rounded-md border border-solid border-slate-200 px-4 py-3 text-left opacity-90 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50"
+            onClick={handleUploadClick}
+            disabled={isUploading}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white">
-              <Upload className="h-4 w-4" />
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             </div>
             <div className="min-w-0">
               <div className="text-sm font-medium text-slate-900 dark:text-slate-100">上传</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                上传本地文件（即将支持）
+                {isUploading ? '正在导入文档...' : '上传 md/docx/txt 到文档库'}
               </div>
             </div>
           </button>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept={DOCUMENT_IMPORT_ACCEPT}
+            className="hidden"
+            onChange={handleUploadInputChange}
+          />
         </div>
       </section>
 
@@ -824,15 +979,31 @@ export default function DocsHomeView() {
                   ) : null}
                 </>
               ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 border-rose-200 bg-white text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                  onClick={() => void handleRemoveFromRecent()}
-                >
-                  从「最近列表」中移除
-                </Button>
+                <>
+                  {canBulkTrash ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 border-rose-200 bg-white text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                      onClick={handleBulkSoftDelete}
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" />
+                      批量删除
+                    </Button>
+                  ) : null}
+                  {tab === 'recent' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                      onClick={() => void handleRemoveFromRecent()}
+                    >
+                      从「最近列表」中移除
+                    </Button>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
@@ -847,6 +1018,58 @@ export default function DocsHomeView() {
           onClose={() => setShareTarget(null)}
         />
       ) : null}
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>移入回收站</AlertDialogTitle>
+            <AlertDialogDescription>
+              将「{deleteTarget?.title ?? ''}」移入回收站后，可在回收站中恢复或彻底删除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void confirmSoftDelete()}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? '删除中...' : '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">批量移入回收站</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要将选中的 {selectedIds.size} 个文档移入回收站吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void confirmBulkSoftDelete()}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? '删除中...' : '批量删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -17,6 +17,7 @@ export interface ChunkUploadResponse {
   success: boolean;
   uploadedChunks: number[];
   isComplete: boolean;
+  error?: string;
 }
 
 /**

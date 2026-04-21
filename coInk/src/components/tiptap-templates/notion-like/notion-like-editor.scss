@@ -179,6 +179,24 @@ body,
   }
 }
 
+/*
+  全文全选视觉：
+  保留 AllSelection 语义（复制/删除等能力不变），但改为块级高亮，
+  避免出现逐字蓝底选区。
+*/
+.tiptap.ProseMirror.notion-like-editor.select-all-block-visual {
+  &:not(.readonly):not(.ProseMirror-hideselection) {
+    ::selection {
+      background-color: transparent !important;
+    }
+  }
+
+  > * {
+    border-radius: var(--tt-radius-md);
+    background-color: var(--tt-selection-color);
+  }
+}
+
 // Spinner
 .spinner-container {
   min-height: 100vh;

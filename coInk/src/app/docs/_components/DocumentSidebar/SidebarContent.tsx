@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   Search,
@@ -30,6 +30,16 @@ import { documentsApi } from '@/services/documents';
 import { useSidebar } from '@/stores/sidebarStore';
 import { cn, getCurrentUserId } from '@/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toastSuccess, toastError } from '@/utils/toast';
 import {
   collectAllFileItemIds,
@@ -37,11 +47,78 @@ import {
   countAllNodesInGroups,
 } from '@/utils/sidebar-tree-count';
 import { useFileStore } from '@/stores/fileStore';
+import type { FileItem } from '@/types/file-system';
 
 type NavItem = 'home' | 'trash';
 
+function markSubtreeAsDeleted(item: FileItem, deletedIds: Set<string>) {
+  deletedIds.add(String(item.id));
+  if (!item.children?.length) return;
+  for (const child of item.children) {
+    markSubtreeAsDeleted(child, deletedIds);
+  }
+}
+
+function collectDeletedIdsBySelection(items: FileItem[], selectedSet: Set<string>, deletedIds: Set<string>) {
+  for (const item of items) {
+    if (selectedSet.has(String(item.id))) {
+      markSubtreeAsDeleted(item, deletedIds);
+      continue;
+    }
+    if (item.children?.length) {
+      collectDeletedIdsBySelection(item.children, selectedSet, deletedIds);
+    }
+  }
+}
+
+function computeDeletedIds(
+  groups: Array<{
+    files: FileItem[];
+  }>,
+  selectedIds: string[],
+): Set<string> {
+  const deletedIds = new Set<string>();
+  const selectedSet = new Set(selectedIds.map(String));
+  for (const group of groups) {
+    collectDeletedIdsBySelection(group.files, selectedSet, deletedIds);
+  }
+  return deletedIds;
+}
+
+function findFirstFileId(items: FileItem[]): string | null {
+  for (const item of items) {
+    if (item.type === 'file') return String(item.id);
+    if (item.children?.length) {
+      const childFirst = findFirstFileId(item.children);
+      if (childFirst) return childFirst;
+    }
+  }
+  return null;
+}
+
+function findFirstFileIdInGroups(
+  groups: Array<{
+    files: FileItem[];
+  }>,
+): string | null {
+  for (const group of groups) {
+    const first = findFirstFileId(group.files);
+    if (first) return first;
+  }
+  return null;
+}
+
+function resolveOpenedDocId(pathname: string): string | null {
+  const match = pathname.match(/^\/docs\/([^/]+)/);
+  if (!match) return null;
+  const segment = match[1];
+  if (segment === 'recycle' || segment === 'search') return null;
+  return segment;
+}
+
 export default function SidebarContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const { activeTab, setActiveTab, toggle } = useSidebar();
   const starredBatchMode = useSidebar((s) => s.starredBatchMode);
   const starredSelectedIds = useSidebar((s) => s.starredSelectedIds);
@@ -63,6 +140,11 @@ export default function SidebarContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+  const [showSharedUnstarDialog, setShowSharedUnstarDialog] = useState(false);
+  const [showStarredUnstarDialog, setShowStarredUnstarDialog] = useState(false);
+  const [isBatchUnstarring, setIsBatchUnstarring] = useState(false);
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   // 批量选择状态
@@ -149,10 +231,33 @@ export default function SidebarContent() {
   };
 
   // 处理批量删除
-  const handleBatchDelete = async () => {
+  const handleBatchDelete = () => {
     if (selectedItems.length === 0) return;
-    if (confirm(`确定要删除选中的 ${selectedItems.length} 个文件吗？`)) {
+    setShowBatchDeleteDialog(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedItems.length === 0 || isBatchDeleting) return;
+    const openedDocId = resolveOpenedDocId(pathname);
+    const deletedIdSet = computeDeletedIds(documentGroups, selectedItems);
+    setIsBatchDeleting(true);
+    try {
       await batchDelete();
+      setShowBatchDeleteDialog(false);
+
+      if (openedDocId && deletedIdSet.has(openedDocId)) {
+        const latestGroups = useFileStore.getState().documentGroups;
+        const nextDocId = findFirstFileIdInGroups(latestGroups);
+        if (nextDocId) {
+          router.push(`/docs/${nextDocId}`);
+        } else {
+          router.push('/docs');
+        }
+      }
+    } catch (error) {
+      toastError(error instanceof Error ? error.message : '批量删除失败');
+    } finally {
+      setIsBatchDeleting(false);
     }
   };
 
@@ -189,17 +294,31 @@ export default function SidebarContent() {
     bumpStarredList();
   };
 
-  const handleSharedBatchUnstar = async () => {
+  const handleSharedBatchUnstar = () => {
     const uid = getCurrentUserId();
     if (!uid || sharedSelectedIds.length === 0) return;
-    if (!confirm(`确定取消收藏选中的 ${sharedSelectedIds.length} 个文档？`)) return;
-    for (const id of sharedSelectedIds) {
-      await documentsApi.star(id, { isStarred: false, userId: uid });
-      patchDocumentStarred(id, false);
+    setShowSharedUnstarDialog(true);
+  };
+
+  const confirmSharedBatchUnstar = async () => {
+    const uid = getCurrentUserId();
+    const ids = [...sharedSelectedIds];
+    if (!uid || ids.length === 0 || isBatchUnstarring) return;
+    setIsBatchUnstarring(true);
+    try {
+      for (const id of ids) {
+        await documentsApi.star(id, { isStarred: false, userId: uid });
+        patchDocumentStarred(id, false);
+      }
+      toastSuccess('已取消收藏');
+      clearSharedSelection();
+      bumpStarredList();
+      setShowSharedUnstarDialog(false);
+    } catch {
+      toastError('取消收藏失败');
+    } finally {
+      setIsBatchUnstarring(false);
     }
-    toastSuccess('已取消收藏');
-    clearSharedSelection();
-    bumpStarredList();
   };
 
   const handleBatchStarLibrary = async () => {
@@ -219,17 +338,31 @@ export default function SidebarContent() {
     bumpStarredList();
   };
 
-  const handleStarredBatchUnstar = async () => {
+  const handleStarredBatchUnstar = () => {
     const uid = getCurrentUserId();
     if (!uid || starredSelectedIds.length === 0) return;
-    if (!confirm(`确定取消收藏选中的 ${starredSelectedIds.length} 个文档？`)) return;
-    for (const id of starredSelectedIds) {
-      await documentsApi.star(id, { isStarred: false, userId: uid });
-      patchDocumentStarred(id, false);
+    setShowStarredUnstarDialog(true);
+  };
+
+  const confirmStarredBatchUnstar = async () => {
+    const uid = getCurrentUserId();
+    const ids = [...starredSelectedIds];
+    if (!uid || ids.length === 0 || isBatchUnstarring) return;
+    setIsBatchUnstarring(true);
+    try {
+      for (const id of ids) {
+        await documentsApi.star(id, { isStarred: false, userId: uid });
+        patchDocumentStarred(id, false);
+      }
+      toastSuccess('已取消收藏');
+      clearStarredSelection();
+      bumpStarredList();
+      setShowStarredUnstarDialog(false);
+    } catch {
+      toastError('取消收藏失败');
+    } finally {
+      setIsBatchUnstarring(false);
     }
-    toastSuccess('已取消收藏');
-    clearStarredSelection();
-    bumpStarredList();
   };
 
   return (
@@ -628,6 +761,93 @@ export default function SidebarContent() {
         onClose={() => setShowMoveDialog(false)}
         onConfirm={handleBatchMove}
       />
+
+      <AlertDialog
+        open={showBatchDeleteDialog}
+        onOpenChange={(open) => {
+          if (!isBatchDeleting) setShowBatchDeleteDialog(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">批量移入回收站</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要将选中的 {selectedItems.length} 个文件移入回收站吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBatchDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmBatchDelete();
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isBatchDeleting}
+            >
+              {isBatchDeleting ? '删除中...' : '批量删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showSharedUnstarDialog}
+        onOpenChange={(open) => {
+          if (!isBatchUnstarring) setShowSharedUnstarDialog(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>取消收藏</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要取消收藏选中的 {sharedSelectedIds.length} 个文档吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBatchUnstarring}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmSharedBatchUnstar();
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isBatchUnstarring}
+            >
+              {isBatchUnstarring ? '处理中...' : '确认'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showStarredUnstarDialog}
+        onOpenChange={(open) => {
+          if (!isBatchUnstarring) setShowStarredUnstarDialog(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>取消收藏</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要取消收藏选中的 {starredSelectedIds.length} 个文档吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBatchUnstarring}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmStarredBatchUnstar();
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isBatchUnstarring}
+            >
+              {isBatchUnstarring ? '处理中...' : '确认'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
